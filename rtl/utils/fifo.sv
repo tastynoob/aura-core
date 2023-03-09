@@ -1,4 +1,4 @@
-`include "src/common/package.sv"
+`include "rtl/common/package.sv"
 import pkg_baseType::*;
 
 module fifo #(
