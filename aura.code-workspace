@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"verilog.linting.verilator.arguments": "-f test/verilator/tb.sv -I ../../src",
+		"systemverilogFormatter.commandLineArguments": "--column_limit=300 --indentation_spaces=4 --assignment_statement_alignment=align --named_port_alignment=align  --port_declarations_alignment=align --module_net_variable_alignment=align"
+	}
+}
