@@ -1,9 +1,10 @@
-gen:
+default:
 	echo "verilator generating"
 	verilator \
-		-y ../../src/utils -y ../../src/common -y ../.. \
-		--cc tb.sv --exe tb.cpp --top-module tb \
-		-Mdir build --x-assign unique --x-initial unique --trace
+	-sv +1800-2012ext+<ext> \
+	-y ../../rtl/utils -y ../../rtl/common -y ../.. \
+	--cc tb.sv --exe tb.cpp --top-module tb \
+	-Mdir build --x-assign unique --x-initial unique --trace
 
 	if [ $$? -ne 0 ]; then \
 		echo "verilator generate failed"; \

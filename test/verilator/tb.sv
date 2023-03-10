@@ -1,5 +1,4 @@
-`include "src/common/package.sv"
-import pkg_baseType::*;
+
 
 module tb ();
 
