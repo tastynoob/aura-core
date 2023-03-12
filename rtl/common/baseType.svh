@@ -6,6 +6,11 @@ typedef enum logic {
     false = 1'b0
 } bool_e;
 
+`define ASSERT(x) always_comb assert(``x``)
+//bit width fast define
+`define WDEF(x) (``x``)-1:0
+//bit size fast define
+`define SDEF(x) $clog2(``x``):0
 
 
 `endif

@@ -6,9 +6,9 @@
 	],
 	"settings": {
 		"verilog.linting.linter": "verilator",
-		"verilog.linting.verilator.arguments": "-f test/verilator/tb.sv -I ../../rtl -sv +1800-2012ext+<ext>",
+		"verilog.linting.verilator.arguments": "-f test/verilator/tb.sv -y rtl/common",
 		"verilog.formatting.systemVerilog.formatter":"verible-verilog-format",
 		"verilog.formatting.veribleVerilogFormatter.arguments": "--indentation_spaces=4",
-		"verilog.languageServer.veribleVerilogLs.enabled": true
+		"verible.path": "/media/lurker/files/O3CPU/aura-core/vvls.sh"
 	}
 }

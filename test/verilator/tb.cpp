@@ -23,10 +23,29 @@ int main(int argc, char **argv)
         tfp->open("wave.vcd");
     }
 
+    {
+        top->clk = 0;
+        top->rst = 1;
+        top->eval();
+        if (dump_wave)
+        {
+            tfp->dump(main_time++);
+        }
+        top->clk = 1;
+        top->rst = 1;
+        top->eval();
+        if (dump_wave)
+        {
+            tfp->dump(main_time++);
+        }
+        top->rst = 0;
+    }
+
     // Simulate until $finish
     while ((main_time < max_simTime) && !Verilated::gotFinish())
     {
         // Evaluate model
+        top->clk = !top->clk;
         top->eval();
         if (dump_wave)
         {
@@ -35,9 +54,9 @@ int main(int argc, char **argv)
         ++main_time;
     }
 
-
     top->final();
-    if(dump_wave){
+    if (dump_wave)
+    {
         tfp->close();
     }
 

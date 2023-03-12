@@ -1,43 +1,49 @@
-`include "rtl/common/baseType.svh"
-`include "rtl/common/funcs.svh"
+`include "baseType.svh"
+`include "funcs.svh"
 import funcs::*;
 
+//unsafed fifo
 module fifo #(
     parameter type dtype = logic,
-    parameter int INPORT_NUM = 1,
-    parameter int OUTPORT_NUM = 1,
+    parameter int INPORT_NUM = 4,
+    parameter int OUTPORT_NUM = 4,
     parameter int DEPTH = 32
 ) (
-    input  wire  clk,
-    input  wire  rst,
-    input  wire  i_flush,
+    input wire clk,
+    input wire rst,
+    input wire i_flush,
     //
-    output wire  o_can_write[ INPORT_NUM],
-    input  wire  i_data_wen [ INPORT_NUM],
-    input  dtype i_data_wr  [ INPORT_NUM],
+    output wire [`WDEF(INPORT_NUM)] o_can_write,
+    input wire [`WDEF(INPORT_NUM)] i_data_wen,
+    input dtype i_data_wr[INPORT_NUM],
     //
-    output wire  o_can_read [OUTPORT_NUM],
-    input  wire  i_data_ren [OUTPORT_NUM],
-    output dtype o_data_rd  [OUTPORT_NUM]
+    output wire [`WDEF(OUTPORT_NUM)] o_can_read,
+    input wire [`WDEF(OUTPORT_NUM)] i_data_ren,
+    output dtype o_data_rd[OUTPORT_NUM]
 );
-    wire [$clog2(DEPTH):0] write_num, read_num;
-    assign write_num = $get_last_one_index({>>{i_data_wen}});
-    assign read_num  = $get_last_one_index({>>{i_data_ren}});
-    bool write_judge = &i_data_wen[0:write_num];
-    bool read_judge = &i_data_ren[0:read_num];
-    always_comb assert (write_num != 0 ? write_judge : true);
-    always_comb assert (read_num != 0 ? read_judge : true);
-
-
+    wire [`SDEF(DEPTH)] write_num, read_num;
+    continuous_one #(
+        .WIDTH(INPORT_NUM)
+    ) u_continuous_one_0 (
+        .i_a  (i_data_wen),
+        .o_sum(write_num)
+    );
+    continuous_one #(
+        .WIDTH(OUTPORT_NUM)
+    ) u_continuous_one_1 (
+        .i_a  (i_data_wen),
+        .o_sum(read_num)
+    );
     dtype buffer[DEPTH];
-    reg [$clog2(DEPTH):0] wptr[INPORT_NUM], rptr[OUTPORT_NUM];
+    reg [`SDEF(DEPTH)] wptr[INPORT_NUM], rptr[OUTPORT_NUM], count;
     always_ff @(posedge clk) begin
         if (rst == true) begin
+            count <= 0;
             for (int i = 0; i < INPORT_NUM; i = i + 1) begin
-                wptr <= i;
+                wptr[i] <= i;
             end
             for (int i = 0; i < OUTPORT_NUM; i = i + 1) begin
-                rptr <= i;
+                rptr[i] <= i;
             end
         end else begin
             //push
@@ -45,25 +51,39 @@ module fifo #(
                 if (i_data_wen[i] == true) begin
                     buffer[wptr[i]] <= i_data_wr[i];
                 end
+                if (i_data_wen[0] == true) begin
+                    wptr[i] <= wptr[i] + write_num - (wptr[i] < (DEPTH-INPORT_NUM+i) ? 0 : DEPTH);
+                end
             end
             //pop
             for (int i = 0; i < OUTPORT_NUM; i = i + 1) begin
                 if (i_data_ren[i] == true) begin
-
+                end
+                if (i_data_ren[0] == true) begin
+                    rptr[i] <= rptr[i] + read_num - (rptr[i] < (DEPTH-OUTPORT_NUM+i) ? 0 : DEPTH);
                 end
             end
+            count <= count + write_num - read_num;
         end
     end
 
+    wire [`SDEF(DEPTH)] can_read_num, can_write_num;
+    assign can_read_num  = count;
+    assign can_write_num = DEPTH - count;
 
-    wire [$clog2(DEPTH):0] can_read_num;
-    assign can_read_num = (wptr[0] > rptr[0] ? (wptr[0] - rptr[0]) : (DEPTH - (rptr[0] - wptr[0])));
+
     generate
         genvar i;
-        for (i = 0; i < OUTPORT_NUM; i = i + 1) begin : gen_OUTPUT
+        for (i = 0; i < INPORT_NUM; i = i + 1) begin : gen_input
+            assign o_can_write[i] = i < can_write_num;
+        end
+        for (i = 0; i < OUTPORT_NUM; i = i + 1) begin : gen_output
             assign o_can_read[i] = i < can_read_num;
             assign o_data_rd[i]  = buffer[rptr[i]];
         end
     endgenerate
 
+    `ASSERT(count < DEPTH);
+    `ASSERT(count_one(i_data_ren) == continuous_one(i_data_ren));
+    `ASSERT(count_one(i_data_wen) == continuous_one(i_data_wen));
 endmodule

@@ -1,16 +1,18 @@
 
+module tb (
+    input clk,
+    input rst
+);
 
-module tb ();
+    wire [5:0] out;
 
-    reg [4:0] test0, test1;
-
-    bool c;
-    sys_ctrl sys;
-    assign sys.clk = 0;
-    assign sys.rst = 0;
-    fifo u_fifo (
-        .if_sys(sys)
+    continuous_one #(
+        .WIDTH(6)
+    ) u_continuous_one (
+        .i_a  (6'b111111),
+        .o_sum(out)
     );
+
 
 endmodule
 
