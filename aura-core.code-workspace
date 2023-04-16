@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"verilog.linting.linter": "verilator",
+		"verilog.linting.verilator.arguments": "-sv -f test/verilator/tb.sv $(python3 tools/getlist_of_rtl.py -p rtl) ",
+		"verilog.formatting.systemVerilog.formatter":"verible-verilog-format",
+		"verilog.formatting.veribleVerilogFormatter.path": "verible-verilog-format",
+		"verilog.formatting.veribleVerilogFormatter.arguments": "--indentation_spaces=4",
+		//verilog language server use verible
+		"verible.path": "/media/lurker/files/O3CPU/aura-core/vvls.sh"
+	}
+}

@@ -1,0 +1,5 @@
+build
+slpp_all
+*.dot*
+*.vcd
+temp.v

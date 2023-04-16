@@ -1,0 +1,5 @@
+-package-filename
+-enum-name-style
+-struct-union-name-style
+-line-length=150
+-no-tabs=false
