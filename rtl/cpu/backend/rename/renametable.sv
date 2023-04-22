@@ -5,6 +5,7 @@
 
 //how to process multi (mv x2,x1)?
 //TODO: check for logic correctness
+//TODO: how about MEMartix implement?
 module renametable(
     input wire clk,
     input wire rst,

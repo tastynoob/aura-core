@@ -7,14 +7,13 @@
 //uncompressed scheme must use with read-regfile befor issue
 //it must has the same number of in and out ports
 //in genral, the fus that RS issued should has same specification
-//TODO:finish wakeup logic
+//TODO:finish speculative wakeup logic
 
 //unordered in,unordered out
 module RS #(
     parameter int DEPTH = 8,
     parameter int INOUTPORT_NUM = 2,
-    parameter int WBPORT_NUM = 6,
-    parameter int RS_TYPE = 0
+    parameter int WBPORT_NUM = 6
 ) (
     input wire clk,
     input wire rst,
@@ -32,7 +31,7 @@ module RS #(
     //writeback port
     input wire[`WDEF(WBPORT_NUM)] i_wb_vld,
     input iprIdx_t i_wb_rdIdx[WBPORT_NUM],
-    input logic[`XDEF] i_wb_data
+    input logic[`XDEF] i_wb_data[WBPORT_NUM]
 );
     genvar i;
     integer j,k;
@@ -108,12 +107,27 @@ module RS #(
     wire[`WDEF(DEPTH)] free_entry_selected[INOUTPORT_NUM];
     wire[`WDEF(DEPTH)] ready_entry_selected[INOUTPORT_NUM];
     wire[`WDEF(DEPTH)] entry_ready;
+    wire[`WDEF(DEPTH)] deq_selected;//T1:which entry was selected
+    always_comb begin
+        for(j=0;j<DEPTH;j=j+1) begin
+            deq_selected[j] = false;
+        end
+        for(j=0;j<INOUTPORT_NUM;j=j+1) begin
+            //NOTE
+            //if one entry is ready to issue
+            //we need to filte it
+            if (real_deq_req[j]) begin
+                deq_selected[saved_deq_idx[j]] = true;
+            end
+        end
+    end
     generate
         for(i=0;i<DEPTH;i=i+1) begin:gen_for
-            assign entry_ready[i] = buffer[i].vld && buffer[i].src0_ready && buffer[i].src1_ready;
+            assign entry_ready[i] = buffer[i].vld && (&buffer[i].src_ready) && (deq_selected[i]==false);
         end
     endgenerate
-    //FIXME: when an entry is selected to issue, we must filte this entry at ready_entry_select
+
+
     always_comb begin
         for (j=0;j<INOUTPORT_NUM;j=j+1) begin
             for (k=DEPTH-1;k>=0;k=k-1) begin
@@ -165,31 +179,47 @@ module RS #(
         end
     end
 
-
-
-
-
-
-
-
     //wake up
+    //NOTE:
+    //if we want to impletement inst excute back to back
+    //we need wakeup earlier (speculative wakeup)
+    //
+    //when one inst was selected
+    //we can wakeup other insts in one cycle
+    //if one inst was speculative wakeup and actually it was not ready
+    //we need to recover it's wakeup status
 
     generate
-        for(i=0;i<DEPTH;i=i+1) begin:gen_for
-            bypass_sel
-            #(
-                .DEPTH    (DEPTH    ),
-                .IDXWIDTH (IDXWIDTH ),
-                .dtype    (dtype    )
-            )
-            u_bypass_sel(
-            	.i_src_vld     (i_src_vld     ),
-                .i_src_idx     (i_src_idx     ),
-                .i_src_data    (i_src_data    ),
-                .i_target_idx  (i_target_idx  ),
-                .o_target_data (o_target_data )
-            );
+        genvar p;
 
+        for(i=0;i<DEPTH;i=i+1) begin:gen_for
+            //2 source
+            //TODO: we may need to define 'numSrc' to parameterize
+            for(p=0;p<`NUMSRCS_INT;p=p+1) begin:gen_for
+                wire target_vld;
+                wire[`XDEF] target_data;
+                bypass_sel
+                #(
+                    .WIDTH    ( WBPORT_NUM    )
+                )
+                u_bypass_sel(
+                    .i_src_vld     ( i_wb_vld     ),
+                    .i_src_idx     ( i_wb_idx     ),
+                    .i_src_data    ( i_wb_data    ),
+
+                    .i_target_idx  ( buffer[i].src[p][$clog2(`IPHYREG_NUM)-1:0]  ),
+                    .o_target_vld  ( target_vld ),
+                    .o_target_data ( target_data )
+                );
+
+                always_ff @( posedge clk ) begin : blockName
+                    if ((buffer[i].src_ready[p]==false) && target_vld) begin
+                        buffer[i].src[p] <= target_data;
+                        buffer[i].src_ready[p] <= true;
+                    end
+                end
+
+            end
         end
     endgenerate
 

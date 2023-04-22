@@ -14,17 +14,16 @@ typedef enum logic {
 module tb #(
     parameter int WIDTH = 4
 ) (
-    input wire[`WDEF(32)] vld,
-    output wire [`WDEF(WIDTH)] o_sum
+    input clk,
+    input a,
+    output b
 );
-    always_comb begin : blockName
-        o_sum =0;
-        for(integer i=0;i<32;i=i+1) begin
-            if (vld[i]) begin
-                o_sum = i;
-            end
-        end
+    reg t0,t1;
+    always_ff @(posedge clk) begin
+        t0<=a;
+        t1<=t0;
     end
+    assign b=t1;
 endmodule
 
 

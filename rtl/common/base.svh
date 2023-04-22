@@ -1,5 +1,5 @@
-`ifndef __PACKAGE_HH__
-`define __PACKAGE_HH__
+`ifndef __BASE_SVH__
+`define __BASE_SVH__
 
 typedef enum logic {
     true  = 1'b1,

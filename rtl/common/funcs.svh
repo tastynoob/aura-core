@@ -1,5 +1,5 @@
-`ifndef __FUNCS_HH__
-`define __FUNCS_HH__
+`ifndef __FUNCS_SVH__
+`define __FUNCS_SVH__
 
 `include "base.svh"
 

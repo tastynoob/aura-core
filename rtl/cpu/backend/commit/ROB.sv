@@ -1,6 +1,6 @@
 
 
 
-module rob();
+module ROB();
 
 endmodule

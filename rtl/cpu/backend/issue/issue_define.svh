@@ -5,8 +5,6 @@
 `include "decode_define.svh"
 
 
-
-
 /*********************/
 
 //the compressed RS
@@ -16,21 +14,17 @@
 //  i0  | p0 | p1 | p2 | p3 | ..
 //  i1  | .. | p0 | p1 | p2 | p3
 
+
 typedef struct packed {
-    logic src1_ready;
-    logic src0_ready;
-    logic[`XDEF] src0;//if src is not ready, it will be replaced to src regIdx
-    logic[`XDEF] src1;
+    logic[`WDEF(NUMSRCS_INT)] src_ready;
+    logic[`XDEF] src[NUMSRCS_INT];//if src is not ready, it will be replaced to src regIdx
     iprIdx_t rdIdx;
     Fu_t::_ fu_type;
     MicOp_t::_u micOp_type;
 } RSenqInfo_t;
 
 typedef struct packed {
-    logic src0_bypass;//need get data from byoass network
-    logic src1_bypass;
-    logic[`XDEF] src0;//if src is not ready, it will be replaced to src regIdx
-    logic[`XDEF] src1;
+    logic[`XDEF] src[NUMSRCS_INT];//if src is not ready, it's slice[5:0] used as srcIdx
     iprIdx_t rdIdx;
     Fu_t::_ fu_type;
     MicOp_t::_u micOp_type;
@@ -38,15 +32,14 @@ typedef struct packed {
 
 typedef struct packed {
     logic vld;//may be unused in compressed RS
-    logic src0_ready;
-    logic src1_ready;
-    logic[`XDEF] src0;//if src is not ready, it will be replaced to src regIdx
-    logic[`XDEF] src1;
+    logic[`WDEF(NUMSRCS_INT)] src_ready;
+    logic[`XDEF] src[NUMSRCS_INT];//if src is not ready, it will be replaced to src regIdx
     iprIdx_t rdIdx;
     logic[3:0] wakeup_delay;//TODO: finish delay wakeup
     Fu_t::_ fu_type;
     MicOp_t::_u micOp_type;
 } RSInfo_t;
+
 
 /*********************/
 

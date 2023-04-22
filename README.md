@@ -8,3 +8,13 @@
 - [Verible](https://github.com/chipsalliance/verible)
 - verilator
 - [yosys](https://github.com/YosysHQ/yosys) (with plugin [antmicro/yosys-systemverilog](https://github.com/antmicro/yosys-systemverilog))
+
+
+
+# todo list
+
+## frontend
+- nothing
+
+## backend
+- 

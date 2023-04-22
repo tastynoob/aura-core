@@ -4,6 +4,7 @@
 `include "core_define.svh"
 
 
+// TODO: we may need to implement pcbuffer and immbuffer
 
 //dispatch queue type
 `define DQ_INT 0

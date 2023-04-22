@@ -104,12 +104,13 @@ package MicOp_t;
     const int none = 0;
     typedef enum logic[`WDEF(`MICOP_WIDTH)] {
         //arithmetic
+        lui = 5'b01_000,
         add = 5'b01_000,
         sub,
         addw,
         subw,
         slt, // dst = (src1 - src2)[-1]
-        sltu,// dst =(src1 - src2)[-1] == src1[-1]
+        sltu,// dst = (src1 - src2)[-1] == src1[-1]
         //shift
         sll = 5'b10_000,
         srl,
@@ -120,12 +121,7 @@ package MicOp_t;
         //logical
         _or = 5'b11_000,
         _and,
-        _xor,
-        //branch
-        beq,
-        bne,
-        blt,
-        bge
+        _xor
     } _alu;
     typedef enum logic[`WDEF(`MICOP_WIDTH)]{
         mul = 5'b01_000,
@@ -157,10 +153,15 @@ package MicOp_t;
         sd
     }_stu;
     typedef enum logic[`WDEF(`MICOP_WIDTH)]{
-        lui = 5'b01_000,
         auipc,
+        //branch
         jal,
         jalr,
+        beq,
+        bne,
+        blt,
+        bge,
+        //csr
         csrrc,
         csrrs,
         csrrw
@@ -176,22 +177,25 @@ package MicOp_t;
 endpackage
 
 
-typedef union packed{
-    logic[`WDEF(20)] bits;
-}imm_u;
-
-
 typedef struct packed {
     logic[`PCDEF] pc;
+    // different inst use different format
+    // NOTE: csr use imm20 = {3'b0,12'csrIdx,5'zimm}
     logic[`IMMDEF] imm20;
-    logic csr_en;
-    logic[`CSRIDX_DEF] csr_idx;
+    logic need_serialize; // if is csr write, need to serialize pipeline
     logic rd_wen;
     ilrIdx_t rd;
-    ilrIdx_t rs1;
+    ilrIdx_t rs1; // if has no rs, it should be zero
     ilrIdx_t rs2;
-    Fu_t::_ fu_type;
+    logic use_imm; //replace the rs2 source to imm
+    //which dispQue should go
+    logic[`WDEF(2)] dispQue_id;
+    //which RS should go
+    logic[`WDEF(2)] dispRS_id;
+    logic ismv; //used for mov elim
+
     MicOp_t::_u micOp_type;
+    Fu_t::_ fu_type;//maybe unused
 }decinfo_t;
 
 

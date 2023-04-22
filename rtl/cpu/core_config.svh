@@ -25,15 +25,25 @@
 `define IMMDEF `WDEF(20)
 
 //int physical register num
-`define IPHYREG_NUM 128
-`define ROB_SIZE 64
+`define IPHYREG_NUM 80
+`define ROB_SIZE 128
 
 
 
 
+//the int Inst needs at least 2 srcs
+`define NUMSRCS_INT 2
 
 
-
+//used for dispatch into dispQue
+`define INTBLOCK_ID 0
+`define MEMBLOCK_ID 1
+`define FLTBLOCK_ID 2
+//used for dispQue into RS
+`define ALURS_ID 0
+`define MULRS_ID 1
+`define DIVRS_ID 2
+`define MISCRS_ID 3
 
 
 
