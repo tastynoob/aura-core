@@ -105,12 +105,10 @@ package MicOp_t;
     typedef enum logic[`WDEF(`MICOP_WIDTH)] {
         //arithmetic
         lui = 5'b01_000,
-        add = 5'b01_000,
+        add,
         sub,
         addw,
         subw,
-        slt, // dst = (src1 - src2)[-1]
-        sltu,// dst = (src1 - src2)[-1] == src1[-1]
         //shift
         sll = 5'b10_000,
         srl,
@@ -119,9 +117,11 @@ package MicOp_t;
         srlw,
         sraw,
         //logical
-        _or = 5'b11_000,
+        _xor = 5'b11_000,
+        _or,
         _and,
-        _xor
+        slt, // dst = (src1 - src2)[-1]
+        sltu // dst = (src1 - src2)[-1] == src1[-1]
     } _alu;
     typedef enum logic[`WDEF(`MICOP_WIDTH)]{
         mul = 5'b01_000,
@@ -154,17 +154,23 @@ package MicOp_t;
     }_stu;
     typedef enum logic[`WDEF(`MICOP_WIDTH)]{
         auipc,
-        //branch
+        //direct branch
         jal,
         jalr,
-        beq,
+        //conditional branch
+        beq = 5'b01_000,
         bne,
         blt,
         bge,
+        bltu,
+        bgeu,
         //csr
         csrrc,
         csrrs,
-        csrrw
+        csrrw,
+        //compressed branch(used for calc takenpc)
+        cbeqz,
+        cbnez
     }_misc;
     typedef union packed{
         logic[`WDEF(`MICOP_WIDTH)] bits;

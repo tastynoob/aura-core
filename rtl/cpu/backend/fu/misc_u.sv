@@ -1,9 +1,9 @@
 
 `include "fu_define.svh"
-`include "decode_define.svh"
 
 
-module alu #(
+//TODO
+module misc_u #(
     parameter int BYPASS_WID = 4
 )(
     input wire clk,
@@ -17,6 +17,13 @@ module alu #(
     //data input
     input wire[`XDEF] i_data[BYPASS_WID],
     input wire[`WDEF($clog2(BYPASS_WID)-1)] i_data_idx[`NUMSRCS_INT],//only need to save data_idx
+
+    //imm
+    input wire[`IMMDEF] i_imm,
+    //pc
+    input wire[`XDEF] i_pc,
+    //predTakenpc
+    input wire[`XDEF] i_predTakenpc,
 
     //wb, rd_idx will be used to fast bypass
     output wire o_complete,
@@ -56,53 +63,46 @@ module alu #(
     assign o_wb_vld = saved_rd_wen;
     assign o_iprd_idx = saved_rdIdx;
 
-
-
     wire[`XDEF] src0 = i_data[saved_data_idx[0]];
     wire[`XDEF] src1 = i_data[saved_data_idx[1]];
 
-    wire[5:0] shifter = src1[5:0];
+    //auipc
+    wire[`XDEF] auipc = i_pc + i_imm;
 
-    wire[`XDEF] lui = {{32{1'b1}},src1[19:0],{12{0}}};
-    wire[`XDEF] add = src0 + src1;
-    wire[`XDEF] sub = src0 - src1;
-    wire[`XDEF] addw = {{32{add[31]}},add[31:0]};
-    wire[`XDEF] subw = {{32{sub[31]}},sub[31:0]};
-    wire[`XDEF] sll = (src0 << shifter);
-    wire[`XDEF] srl = (src0 >> shifter);
-    wire[`XDEF] sra = (({64{src0[63]}} << (7'd64 - {1'b0, shifter})) | (src0 >> shifter));
-    wire[`XDEF] sllw = {{32{sll[31]}},sll[31:0]};
-    wire[`XDEF] srlw = {{32{srl[31]}},srl[31:0]};
-    wire[`XDEF] sraw = {{32{sra[31]}},sra[31:0]};
+    //direct branch
+    wire[`XDEF] jal = i_pc + i_imm;
+    wire [`XDEF] jalr = src0 + i_imm;
+    wire jal_taken =
+    (saved_micOp == MicOp_t::jal) ? true :
+    (saved_micOp == MicOp_t::jalr) ? true :
+    false;
+    wire[`XDEF] jal_takenpc =
+    (saved_micOp == MicOp_t::jal) ? jal :
+    (saved_micOp == MicOp_t::jalr) ? jalr :
+    jalr;
+    wire jalr_misPred= jal_takenpc != i_predTakenpc;
 
-    wire[`XDEF] _xor = src0 ^ src1;
-    wire[`XDEF] _or = src0 | src1;
-    wire[`XDEF] _and = src0 & src1;
-    // signed
-    // src0 < src1 (src0 - src1 < 0)
-    wire[`XDEF] slt = {{63{0}},sub[63]};
-    // unsigned
-    // src0 > src1 : fasle : src0 - src1 > 0
-    wire[`XDEF] sltu = src0 < src1;
+    //conditional branch
+    wire[`XDEF] branch_takenpc = i_pc + i_imm;
+    wire[`XDEF] branch_notakenpc = i_pc + 4;
 
+    wire beq = src0 == src1;
+    wire bne = src0 != src1;
+    wire blt = $signed(src0) < $signed(src1);
+    wire bge = $signed(src0) >= $signed(src1);
+    wire bltu = src0 < src1;
+    wire bgeu = src0 >= src1;
 
-    assign o_wb_data =
-    (saved_micOp == MicOp_t::lui) ? lui :
-    (saved_micOp == MicOp_t::add) ? add :
-    (saved_micOp == MicOp_t::sub) ? sub :
-    (saved_micOp == MicOp_t::addw) ? addw :
-    (saved_micOp == MicOp_t::subw) ? subw :
-    (saved_micOp == MicOp_t::sll) ? sll :
-    (saved_micOp == MicOp_t::srl) ? srl :
-    (saved_micOp == MicOp_t::sra) ? sra :
-    (saved_micOp == MicOp_t::sllw) ? sllw :
-    (saved_micOp == MicOp_t::srlw) ? srlw :
-    (saved_micOp == MicOp_t::sraw) ? sraw :
-    (saved_micOp == MicOp_t::_xor) ? _xor :
-    (saved_micOp == MicOp_t::_or) ? _or :
-    (saved_micOp == MicOp_t::_and) ? _and :
-    (saved_micOp == MicOp_t::slt) ? slt :
-    (saved_micOp == MicOp_t::sltu) ? slru :
-    0;
+    wire branch_taken =
+    (saved_micOp == MicOp_t::beq) ? beq :
+    (saved_micOp == MicOp_t::bne) ? bne :
+    (saved_micOp == MicOp_t::blt) ? blt :
+    (saved_micOp == MicOp_t::bge) ? bge :
+    (saved_micOp == MicOp_t::bltu) ? bltu :
+    (saved_micOp == MicOp_t::bgeu) ? bgeu :
+    false;
+
+    wire misPred = branch_taken ? (i_predTakenpc != branch_takenpc) : (i_predTakenpc != branch_notakenpc);
+    assign o_misPred_taken = real_taken & misPred;
 
 endmodule

@@ -40,6 +40,7 @@ module reorder #(
                     .o_sum ( sel_offset[i] )
                 );
                 always_comb begin
+                    o_reorder_datas[i] = i_datas[i];
                     if(i_data_vld[i])begin
                         o_reorder_datas[sel_offset[i]-1] = i_datas[i];
                     end

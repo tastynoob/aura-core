@@ -3,7 +3,7 @@
 
 
 
-SV_FILES := $(shell find ../../rtl -type f)
+SV_FILES := $(shell find rtl -name "*.sv*")
 SV_PATHS := $(shell find ../../rtl -type d)
 SV_PATHS := $(addprefix -I ,$(SV_PATHS))
 aura:

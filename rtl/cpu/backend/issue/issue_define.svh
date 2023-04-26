@@ -4,6 +4,8 @@
 `include "core_define.svh"
 `include "decode_define.svh"
 
+//the int Inst needs at least 2 srcs
+`define NUMSRCS_INT 2
 
 /*********************/
 
@@ -16,29 +18,43 @@
 
 
 typedef struct packed {
-    logic[`WDEF(NUMSRCS_INT)] src_ready;
-    logic[`XDEF] src[NUMSRCS_INT];//if src is not ready, it will be replaced to src regIdx
     iprIdx_t rdIdx;
-    Fu_t::_ fu_type;
+    iprIdx_t rsIdx[`NUMSRCS_INT]; // reg src idx
+    immBIdx_t immB_idx; // the immbuffer idx (immOp-only)
+    pcBIdx_t pcB_idx; // the pcbuffer idx (bru-only)
+    logic use_imm;
+    robIdx_t rob_idx;
     MicOp_t::_u micOp_type;
 } RSenqInfo_t;
 
 typedef struct packed {
-    logic[`XDEF] src[NUMSRCS_INT];//if src is not ready, it's slice[5:0] used as srcIdx
     iprIdx_t rdIdx;
-    Fu_t::_ fu_type;
+    iprIdx_t rsIdx[`NUMSRCS_INT]; // reg src idx
+    immBIdx_t immB_idx; // the immbuffer idx (immOp-only)
+    pcBIdx_t pcB_idx; // the pcbuffer idx (bru-only)
+    logic use_imm;
+
+    robIdx_t rob_idx;
     MicOp_t::_u micOp_type;
 } RSdeqInfo_t;
 
 typedef struct packed {
-    logic vld;//may be unused in compressed RS
-    logic[`WDEF(NUMSRCS_INT)] src_ready;
-    logic[`XDEF] src[NUMSRCS_INT];//if src is not ready, it will be replaced to src regIdx
+    logic vld; //unused in compressed RS
+    logic issued; // flag issued
+    logic spec_wakeup; // flag spec wakeup
+    logic[`WDEF(`NUMSRCS_INT)] src_rdy; // which src is ready
+    logic[`WDEF(`NUMSRCS_INT)] src_spec_rdy; // which src is speculative ready
+
+    logic rd_wen;
     iprIdx_t rdIdx;
-    logic[3:0] wakeup_delay;//TODO: finish delay wakeup
-    Fu_t::_ fu_type;
+    iprIdx_t rsIdx[`NUMSRCS_INT]; // reg src idx
+    immBIdx_t immB_idx; // the immbuffer idx (immOp-only)
+    pcBIdx_t pcB_idx; // the pcbuffer idx (bru-only)
+    logic use_imm; // if use imm, the rsIdx[1] will be replaced to immBuffer idx
+
+    robIdx_t rob_idx;
     MicOp_t::_u micOp_type;
-} RSInfo_t;
+} RSEntry_t;
 
 
 /*********************/

@@ -2,6 +2,7 @@
 `define __FU_DEFINE_SVH__
 
 `include "core_define.svh"
+`include "issue_define.svh"
 
 // DESIGN
 // we can calcuate the bypass idx in readfile stage

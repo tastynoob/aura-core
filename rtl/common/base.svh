@@ -12,7 +12,7 @@ typedef enum logic {
 //bit size fast define, actually it will allocate 1 more bit
 `define SDEF(x) $clog2(``x``):0
 
-`define ASSERT(x) always_comb assert(``x``)
+`define ASSERT(x) always assert(``x``)
 `define ORDER_CHECK(x) `ASSERT(continuous_one(``x``) == count_one(``x``))
 
 `endif

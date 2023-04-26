@@ -7,9 +7,8 @@ typedef logic [`WDEF($clog2(32))] ilrIdx_t;//the int logic regfile idx
 typedef logic [`WDEF($clog2(`IPHYREG_NUM))] iprIdx_t;//the int physic regfile idx
 typedef logic [`WDEF(12)] csrIdx_t;//the csr regfile idx
 typedef logic [`WDEF($clog2(`ROB_SIZE))] robIdx_t;
-
-typedef logic [`WDEF($clog2(32))] lrIdx_t;//the int/float logic regfile idx
-typedef logic [`WDEF($clog2(`IPHYREG_NUM))] prIdx_t;//the int/float physic regfile idx
+typedef logic [`WDEF($clog2(30)-1)] immBIdx_t; // the immBuffer idx
+typedef logic [`WDEF($clog2(30)-1)] pcBIdx_t; // the pcBuffer idx
 
 package rv_trap_t;
 //mtvec mode:

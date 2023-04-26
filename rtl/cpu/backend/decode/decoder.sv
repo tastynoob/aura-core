@@ -5,6 +5,7 @@
 //需要计算:rs1比较人数,优先以rs1与rs2的比较计算
 //pc + imm
 
+//not used rdIdx must set to zero
 
 //lui: rd = x0 + imm
 //auipc : rd = pc + imm

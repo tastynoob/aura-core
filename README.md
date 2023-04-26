@@ -9,7 +9,8 @@
 - verilator
 - [yosys](https://github.com/YosysHQ/yosys) (with plugin [antmicro/yosys-systemverilog](https://github.com/antmicro/yosys-systemverilog))
 
-
+## doc
+plz see *.drawio.png in rtl
 
 # todo list
 
@@ -17,4 +18,10 @@
 - nothing
 
 ## backend
-- 
+- deocde
+- rename
+- dispatch
+- issue
+- fus
+- wb
+- rob

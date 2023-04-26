@@ -31,8 +31,7 @@
 
 
 
-//the int Inst needs at least 2 srcs
-`define NUMSRCS_INT 2
+
 
 
 //used for dispatch into dispQue
