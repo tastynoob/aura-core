@@ -24,7 +24,7 @@ module decoder (
     //we can get the jal inst taken pc at decode
     output wire o_inst_jal,
     output wire[`XDEF] o_jal_takenpc,
-    output decinfo_t o_decinfo
+    output decInfo_t o_decinfo
 );
     wire[`IDEF] inst = i_inst;
     wire inst_ADD = (inst == 32'b0000000??????????000?????0110011);

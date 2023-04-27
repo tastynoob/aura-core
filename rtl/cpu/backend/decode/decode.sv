@@ -8,10 +8,10 @@ module decode (
     input wire rst,
 
     input wire[`WDEF(`DECODE_WIDTH)] i_inst_vld,
-    input decinfo_t i_inst[`DECODE_WIDTH],
+    input decInfo_t i_inst[`DECODE_WIDTH],
 
     output wire[`WDEF(`DECODE_WIDTH)] o_decinfo_vld,
-    output decinfo_t o_decinfo[`DECODE_WIDTH]
+    output decInfo_t o_decinfo[`DECODE_WIDTH]
 );
     genvar i;
 

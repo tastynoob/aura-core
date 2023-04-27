@@ -7,6 +7,11 @@
 
 `define DECODE_WIDTH 4
 `define RENAME_WIDTH `DECODE_WIDTH
+
+`define DISP_TO_INT_BLOCK_PORTNUM 4
+`define DISP_TO_MEM_BLOCK_PORTNUM 4
+
+
 `define COMMIT_WIDTH 4
 
 //int logic register index def
@@ -28,6 +33,8 @@
 `define IPHYREG_NUM 80
 `define ROB_SIZE 128
 
+//the int Inst needs at least 2 srcs
+`define NUMSRCS_INT 2
 
 
 

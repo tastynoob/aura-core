@@ -4,9 +4,6 @@
 `include "core_define.svh"
 `include "decode_define.svh"
 
-//the int Inst needs at least 2 srcs
-`define NUMSRCS_INT 2
-
 /*********************/
 
 //the compressed RS
@@ -21,7 +18,7 @@ typedef struct packed {
     iprIdx_t rdIdx;
     iprIdx_t rsIdx[`NUMSRCS_INT]; // reg src idx
     immBIdx_t immB_idx; // the immbuffer idx (immOp-only)
-    pcBIdx_t pcB_idx; // the pcbuffer idx (bru-only)
+    branchBIdx_t pcB_idx; // the pcbuffer idx (bru-only)
     logic use_imm;
     robIdx_t rob_idx;
     MicOp_t::_u micOp_type;
@@ -31,7 +28,7 @@ typedef struct packed {
     iprIdx_t rdIdx;
     iprIdx_t rsIdx[`NUMSRCS_INT]; // reg src idx
     immBIdx_t immB_idx; // the immbuffer idx (immOp-only)
-    pcBIdx_t pcB_idx; // the pcbuffer idx (bru-only)
+    branchBIdx_t pcB_idx; // the pcbuffer idx (bru-only)
     logic use_imm;
 
     robIdx_t rob_idx;
@@ -49,7 +46,7 @@ typedef struct packed {
     iprIdx_t rdIdx;
     iprIdx_t rsIdx[`NUMSRCS_INT]; // reg src idx
     immBIdx_t immB_idx; // the immbuffer idx (immOp-only)
-    pcBIdx_t pcB_idx; // the pcbuffer idx (bru-only)
+    branchBIdx_t pcB_idx; // the pcbuffer idx (bru-only)
     logic use_imm; // if use imm, the rsIdx[1] will be replaced to immBuffer idx
 
     robIdx_t rob_idx;

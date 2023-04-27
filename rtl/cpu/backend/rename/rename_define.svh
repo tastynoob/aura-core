@@ -25,9 +25,13 @@ typedef struct packed {
     iprIdx_t rd;
     iprIdx_t rs1;
     iprIdx_t rs2;
-    Fu_t::_ fu_type;
+    //which dispQue should go
+    logic[`WDEF(2)] dispQue_id;
+    //which RS should go
+    logic[`WDEF(2)] dispRS_id;
+    logic ismv; //used for mov elim
     MicOp_t::_u micOp_type;
-} renamedinfo_t;
+} renameInfo_t;
 
 
 

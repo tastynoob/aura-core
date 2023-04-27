@@ -6,7 +6,7 @@ module rename(
     input wire rst,
     input wire clk,
     input wire[`WDEF(`DECODE_WIDTH)] i_decinfo_vld,
-    input decinfo_t i_decinfo[`DECODE_WIDTH],
+    input decInfo_t i_decinfo[`DECODE_WIDTH],
     //to int block
     output wire[`WDEF(`RENAME_WIDTH)] o_disp_intblock,
     //to mem block

@@ -2,7 +2,7 @@
 `include "fu_define.svh"
 `include "decode_define.svh"
 
-
+//TODO:
 module alu #(
     parameter int BYPASS_WID = 4
 )(
@@ -10,27 +10,23 @@ module alu #(
     input wire rst,
     //ctrl info
     input wire i_has_vld,
-    input robIdx_t i_robIdx,
-    input MicOp_t::_u i_micOp,
-    input wire i_rd_wen,
-    input iprIdx_t i_iprd_idx,
+    input fuInfo_t i_fuInfo,
+    output wire o_fu_stall,
     //data input
     input wire[`XDEF] i_data[BYPASS_WID],
     input wire[`WDEF($clog2(BYPASS_WID)-1)] i_data_idx[`NUMSRCS_INT],//only need to save data_idx
 
     //wb, rd_idx will be used to fast bypass
-    output wire o_complete,
-    output robIdx_t o_robIdx,
-    output wire o_wb_vld,
-    output iprIdx_t o_iprd_idx,
-    output wire[`XDEF] o_wb_data
+    input wire i_wb_stall,
+    output reg o_complete,
+    output wbInfo_t o_wbInfo
 );
     reg saved_has_vld;
-    robIdx_t saved_robIdx;
-    MicOp_t::_u saved_micOp;
+    fuInfo_t saved_fuInfo;
     reg[`WDEF($clog2(BYPASS_WID)-1)] saved_data_idx[`NUMSRCS_INT];
-    reg saved_rd_wen;
-    iprIdx_t saved_rdIdx;
+    //single cycle execute
+    wire complete = saved_has_vld;
+
 
     always_ff @( posedge clk ) begin : blockName
         if (rst==true) begin
@@ -38,23 +34,20 @@ module alu #(
             saved_robIdx <= 0;
             save_rd_wen <= false;
         end
-        else if (i_has_vld) begin
+        else if (i_has_vld && (!i_wb_stall)) begin
             saved_has_vld <= true;
-            saved_robIdx <= i_robIdx;
-            saved_micOp <= i_micOp;
             saved_data_idx <= i_data_idx;
-            saved_rd_wen <= false;
-            saved_rdIdx <= i_iprd_idx;
+            saved_fuInfo <= i_fuInfo;
         end
-        else if (o_complete) begin
+        else if (complete) begin
             saved_has_vld <= i_has_vld;
         end
     end
-    //single cycle execute
-    assign o_complete = saved_has_vld;
-    assign o_robIdx = saved_robIdx;
-    assign o_wb_vld = saved_rd_wen;
-    assign o_iprd_idx = saved_rdIdx;
+
+    // assign o_complete = saved_has_vld;
+    // assign o_robIdx = saved_fuInfo.robIdx;
+    // assign o_wb_vld = saved_fuInfo.iprd_wen;
+    // assign o_iprd_idx = saved_fuInfo.iprd_idx;
 
 
 
@@ -86,23 +79,45 @@ module alu #(
     wire[`XDEF] sltu = src0 < src1;
 
 
-    assign o_wb_data =
-    (saved_micOp == MicOp_t::lui) ? lui :
-    (saved_micOp == MicOp_t::add) ? add :
-    (saved_micOp == MicOp_t::sub) ? sub :
-    (saved_micOp == MicOp_t::addw) ? addw :
-    (saved_micOp == MicOp_t::subw) ? subw :
-    (saved_micOp == MicOp_t::sll) ? sll :
-    (saved_micOp == MicOp_t::srl) ? srl :
-    (saved_micOp == MicOp_t::sra) ? sra :
-    (saved_micOp == MicOp_t::sllw) ? sllw :
-    (saved_micOp == MicOp_t::srlw) ? srlw :
-    (saved_micOp == MicOp_t::sraw) ? sraw :
-    (saved_micOp == MicOp_t::_xor) ? _xor :
-    (saved_micOp == MicOp_t::_or) ? _or :
-    (saved_micOp == MicOp_t::_and) ? _and :
-    (saved_micOp == MicOp_t::slt) ? slt :
-    (saved_micOp == MicOp_t::sltu) ? slru :
+    wire[`XDEF] calc_data =
+    (saved_fuInfo.micOp == MicOp_t::lui) ? lui :
+    (saved_fuInfo.micOp == MicOp_t::add) ? add :
+    (saved_fuInfo.micOp == MicOp_t::sub) ? sub :
+    (saved_fuInfo.micOp == MicOp_t::addw) ? addw :
+    (saved_fuInfo.micOp == MicOp_t::subw) ? subw :
+    (saved_fuInfo.micOp == MicOp_t::sll) ? sll :
+    (saved_fuInfo.micOp == MicOp_t::srl) ? srl :
+    (saved_fuInfo.micOp == MicOp_t::sra) ? sra :
+    (saved_fuInfo.micOp == MicOp_t::sllw) ? sllw :
+    (saved_fuInfo.micOp == MicOp_t::srlw) ? srlw :
+    (saved_fuInfo.micOp == MicOp_t::sraw) ? sraw :
+    (saved_fuInfo.micOp == MicOp_t::_xor) ? _xor :
+    (saved_fuInfo.micOp == MicOp_t::_or) ? _or :
+    (saved_fuInfo.micOp == MicOp_t::_and) ? _and :
+    (saved_fuInfo.micOp == MicOp_t::slt) ? slt :
+    (saved_fuInfo.micOp == MicOp_t::sltu) ? slru :
     0;
+
+    always @(posedge clk) begin
+        if (rst) begin
+            o_complete <= false;
+        end
+        else if (!i_wb_stall) begin
+            o_complete <= complete;
+            //output
+            o_wbInfo.robIdx <= saved_fuInfo.robIdx;
+            o_wbInfo.use_imm <= saved_fuInfo.use_imm;
+            o_wbInfo.immBIdx <= saved_fuInfo.immBIdx;
+            // o_wbInfo.is_branch <= false;// alu do not need
+            // o_wbInfo.branchBIdx <= 0;// alu do not need
+            o_wbInfo.iprd_wen <= saved_fuInfo.iprd_wen;
+            o_wbInfo.iprd_idx <= saved_fuInfo.iprd_idx;
+            o_wbInfo.wb_data <= calc_data;
+        end
+    end
+
+    assign o_fu_stall = i_wb_stall;
+
+
 
 endmodule

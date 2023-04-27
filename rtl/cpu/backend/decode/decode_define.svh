@@ -201,8 +201,7 @@ typedef struct packed {
     logic ismv; //used for mov elim
 
     MicOp_t::_u micOp_type;
-    Fu_t::_ fu_type;//maybe unused
-}decinfo_t;
+}decInfo_t;
 
 
 `endif

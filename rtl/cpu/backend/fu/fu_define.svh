@@ -13,12 +13,28 @@
 
 `define WB_WIDTH 6
 
+typedef struct packed {
+    robIdx_t robIdx;
+    logic use_imm;
+    immBIdx_t immBIdx;
+    logic is_branch;
+    branchBIdx_t branchBIdx;
+    logic iprd_wen;
+    iprIdx_t iprd_idx;
+    MicOp_t::_u micOp;
+} fuInfo_t;
+
 
 typedef struct packed {
-    logic rd_vld;
-    iprIdx_t rd_idx;
-    logic[`XDEF] rd_data;
-} bypassPort_t;
+    robIdx_t robIdx;
+    logic use_imm;
+    immBIdx_t immBIdx;// used for immOp
+    logic is_branch;
+    branchBIdx_t branchBIdx;// used for branch
+    logic iprd_wen;
+    iprIdx_t iprd_idx;
+    logic[`XDEF] wb_data;
+} wbInfo_t;
 
 
 
