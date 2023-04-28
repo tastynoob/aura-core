@@ -12,7 +12,7 @@
 `define DQ_MEM 1
 
 
-typedef struct packed {
+typedef struct {
     logic rd_wen;
     iprIdx_t rd;
     iprIdx_t rs[`NUMSRCS_INT];

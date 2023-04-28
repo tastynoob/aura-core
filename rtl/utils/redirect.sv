@@ -12,7 +12,7 @@ module redirect #(
     parameter int  NUM   = 4
 ) (
     input wire [`WDEF(NUM)] i_arch_vld,
-    input dtype i_arch_datas[MUM],
+    input dtype i_arch_datas[NUM],
     output dtype o_redirect_datas[NUM]
 );
     wire[`SDEF(NUM)] sel_offset[NUM];
