@@ -7,29 +7,33 @@
 //commit do something:
 // check csr permission
 // check exception
-
+// use spec-arch to restore core status
 
 
 
 typedef struct packed {
-    logic is_fpdst; // this dst idx is or not fp regfile idx
-    lrIdx_t lrd_idx;
-    logic rd_wen;
-    prIdx_t prd_idx;
-    prIdx_t prev_prd_idx;
+    //to rename
+    logic has_rd;
+    ilrIdx_t ilrd_idx;
+    iprIdx_t iprd_idx;
+    iprIdx_t prev_iprd_idx;
 
-    logic complete;
-    logic has_exception;
-    logic[`XDEF] pc;
-    logic[19:0] imm;// we save the inst imm into rob to save space
-    //used for debugging
-    logic[`XDEF] dst; // this inst's result
-
-} ROBCommitInfo_t;
+    //rename restore(branch mispred)
+    //flush pipeline
+    logic restore_vld;
+} renameCommitInfo_t;
 
 
 
+typedef struct packed {
+    //bpu update
+    logic branch_taken;
+    logic[`XDEF] branch_pc;
 
+    //restore bpu(branch mispred)
+    logic restore_vld;
+    logic[`XDEF] restore_pc;
+} branchCommitInfo_t;
 
 
 

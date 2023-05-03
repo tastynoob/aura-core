@@ -5,6 +5,7 @@
 `define XLEN 64
 `define XLEN_64
 
+`define FETCH_WIDTH 4
 `define DECODE_WIDTH 4
 `define RENAME_WIDTH `DECODE_WIDTH
 
@@ -46,10 +47,9 @@
 `define MEMBLOCK_ID 1
 `define FLTBLOCK_ID 2
 //used for dispQue into RS
-`define ALURS_ID 0
-`define MULRS_ID 1
-`define DIVRS_ID 2
-`define MISCRS_ID 3
+`define ALUIQ_ID 0
+`define MDUIQ_ID 1
+`define MISCIQ_ID 2
 
 
 

@@ -7,13 +7,10 @@ module rename(
     input wire clk,
     input wire[`WDEF(`DECODE_WIDTH)] i_decinfo_vld,
     input decInfo_t i_decinfo[`DECODE_WIDTH],
-    //to int block
-    output wire[`WDEF(`RENAME_WIDTH)] o_disp_intblock,
-    //to mem block
-    output wire[`WDEF(`RENAME_WIDTH)] o_disp_memblock,
+    input wire[`XDEF] i_predTakenPC,
 
-    //to float block TODO: not implemented
-    output wire[`WDEF(`RENAME_WIDTH)] o_disp_fltblock
+    output wire[`WDEF(`RENAME_WIDTH)] o_rename_vld,
+    output renameInfo_t o_renameInfo[`RENAME_WIDTH]
 );
 
 

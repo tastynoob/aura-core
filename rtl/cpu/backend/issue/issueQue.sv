@@ -20,7 +20,7 @@
 //we need to clear issued flag
 
 //unordered in,unordered out
-module int_RS #(
+module issueQue #(
     parameter int DEPTH = 8,
     parameter int INOUTPORT_NUM = 2,
     parameter int EXTERNAL_WAKEUPNUM = 2,

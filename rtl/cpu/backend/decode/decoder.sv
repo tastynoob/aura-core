@@ -13,17 +13,8 @@
 //mark the (mv x1,x1)-like as nop
 //TODO: finish decode
 module decoder (
-    input wire clk,
-    input wire rst,
-
-    input wire [`IDEF] i_inst,
-    input wire[`XDEF] i_pc,
+    input wire[`IDEF] i_inst,
     //decinfo output
-    //serialize execute, such as csr r/w
-    output wire o_need_serialize,
-    //we can get the jal inst taken pc at decode
-    output wire o_inst_jal,
-    output wire[`XDEF] o_jal_takenpc,
     output decInfo_t o_decinfo
 );
     wire[`IDEF] inst = i_inst;
@@ -243,185 +234,159 @@ module decoder (
     wire isShift = inst_SLL | inst_SLLI | inst_SLLW | inst_SLLIW | inst_SRL | inst_SRLI | inst_SRLW | inst_SRLIW | inst_SRA | inst_SRAI | inst_SRAW | inst_SRAIW | inst_C_SRAI | inst_C_SRLI | inst_C_SLLI;
     wire isLogic = inst_AND | inst_ANDI | inst_OR | inst_ORI | inst_XOR | inst_XORI;
     wire isCompare = inst_SLT | inst_SLTI | inst_SLTU | inst_SLTIU;
-    wire isBranch = inst_BEQ | inst_BGE | inst_BGEU | inst_BLT | inst_BLTU | inst_BNE;
-    wire isJump = inst_JAL | inst_JALR;
+    wire isConditionalBranch = inst_BEQ | inst_BGE | inst_BGEU | inst_BLT | inst_BLTU | inst_BNE;
+    wire isDirectBranch = inst_JAL | inst_JALR;
     wire isLoad = inst_LB | inst_LBU | inst_LH | inst_LHU | inst_LW | inst_LWU | inst_LD;
     wire isStore = inst_SB | inst_SH | inst_SW | inst_SD;
     wire isMul = inst_MUL | inst_MULH | inst_MULHSU | inst_MULHU | inst_MULW;
     wire isDiv = inst_DIV | inst_DIVU | inst_DIVUW | inst_DIVW | inst_REM | inst_REMU | inst_REMUW | inst_REMW;
     wire isCSR = inst_CSRRC | inst_CSRRCI | inst_CSRRS | inst_CSRRSI | inst_CSRRW | inst_CSRRWI;
-
+    wire isUnknow = !(isAdd | isSub | isShift | isLogic | isCompare | isConditionalBranch | isDirectBranch | isLoad | isStore | isMul | isDiv | isCSR);
     // TODO: add compressed inst
     // integer math (with rs1 rs2)
     wire isIntMath = isAdd | isSub | isShift | isLogic | isCompare;
     // replace rs2 to imm
-    wire useImm = inst_ADDI | inst_ADDIW | inst_C_ADDI | inst_SLLI | inst_SLLIW | inst_SRLI | inst_SRLIW | inst_SRAI | inst_SRAIW;
+    wire isImmMath = inst_ADDI | inst_ADDIW | inst_SLLI | inst_SLLIW | inst_SRLI | inst_SRLIW | inst_SRAI | inst_SRAIW;
+    wire use_imm = isImmMath;
 
-    wire[4:0] rd_idx = inst[11:7];
-    wire[4:0] rs1_idx = inst[19:15];
-    wire[4:0] rs2_idx = inst[24:20];
+    wire[`WDEF(5)] ilrd_idx = inst[11:7];
+    wire[`WDEF(5)] ilrs1_idx = inst[19:15];
+    wire[`WDEF(5)] ilrs2_idx = inst[24:20];
+    wire[`WDEF(12)] csr_idx = inst[31:20];
 
-    wire isCall = inst_JALR & (rd_idx==1) & (rs1_idx==1);
-    wire isRet = inst_JALR & (rd_idx==0) & (rs1_idx==1) & (inst[31:20]==0);
+    wire isCall = inst_JALR & (ilrd_idx==1) & (ilrs1_idx==1);
+    wire isRet = inst_JALR & (ilrd_idx==0) & (ilrs1_idx==1) & (inst[31:20]==0);
 
-    /*********************************************************/
-    wire has_rd = !(isBranch || isStore);
+    wire has_rd = !(isBranch || isStore) && (ilrd_idx != 0);
     wire has_rs1 = !(inst_JAL);
-    wire has_rs2;
+    wire has_rs2 = !(isImmMath || isDirectBranch);
 
 
-    // 指令中的立即数
     //jalr、load、opimm
     wire [19:0] inst_i_type_imm = {{8{inst[31]}}, inst[31:20]};
     //store
     wire [19:0] inst_s_type_imm = {{8{inst[31]}}, inst[31:25], inst[11:7]};
-    //lui、auipc
+    //lui、auipc, need to shift when use
     wire [19:0] inst_u_type_imm = inst[31:12];
     //jal
     wire [19:0] inst_j_type_imm = {inst[19:12], inst[20], inst[30:21], 1'b0};
     //branch
     wire [19:0] inst_b_type_imm = {{8{inst[31]}}, inst[7], inst[30:25], inst[11:8], 1'b0};
-    //csr zimm
-    wire [19:0] inst_csr_type_imm = {15'h0, inst[19:15]};
+    //{csr_idx,csr_zimm}
+    wire [19:0] inst_csr_type_imm = {3'd0, csr_idx ,inst[19:15]};
     //shift
     wire [19:0] inst_shift_type_imm = {15'h0, inst[24:20]};
 
     wire[19:0] inst_opimm_imm = (inst_SLLI | inst_SLLIW | inst_SRLI | inst_SRLIW | inst_SRAI | inst_SRAIW) ?
                                 inst_shift_type_imm : inst_i_type_imm;
-    //不需要译码jalr,jal的立即数
-    //对于移位指令，由于移位只需要立即数低5位，高位省略，所以为了方便，直接将inst_i_type_imm当作shamt
-    assign o_imm =  opc_lui | opc_auipc ? inst_u_type_imm   :
-                    opc_branch ? inst_b_type_imm            :
-                    opc_store ? inst_s_type_imm             :
-                    opc_load ? inst_i_type_imm              :
-                    opc_opimm ? inst_opimm_imm              :
-                    0;
 
-    wire isnop = (inst_addi) && (rd == rs1) && (inst_i_type_imm == 0);
-    wire ismv = (inst_addi) && (rd != rs1);
+    wire[`IMMDEF] imm =
+    inst_LUI | inst_AUIPC ? inst_u_type_imm   :
+    isConditionalBranch ? inst_b_type_imm            :
+    isStore ? inst_s_type_imm             :
+    isLoad | inst_JALR ? inst_i_type_imm              :
+    isImmMath ? inst_opimm_imm              :
+    inst_JAL ? inst_j_type_imm :
+    isCSR ? inst_csr_type_imm :
+    0;
+
+    wire isnop = (isIntMath) && (rd == 0);
+    wire ismv = (inst_addi) && (rd == rs1) && (imm == 0);
 
     /********************************************************/
-    //寄存器写使能
-    assign o_decinfo.rd_en =
-        (rd != 0) &
-        (opc_lui    |
-        opc_auipc   |
-        opc_jal     |
-        opc_jalr    |
-        opc_opimm   |
-        opc_op      |
-        opc_system  |
-        opc_load);
+    //regfile write enable
+    wire rd_wen =
+    (rd != 0) &
+    (opc_lui    |
+    opc_auipc   |
+    opc_jal     |
+    opc_jalr    |
+    opc_opimm   |
+    opc_op      |
+    opc_system  |
+    opc_load);
 
     //寄存器读使能1
-    assign o_decinfo.regIdx.rs1_en =
-        ( rs1!=0 ) &
-        (opc_jalr   |
-        opc_branch  |
-        opc_load    |
-        opc_store   |
-        opc_opimm   |
-        opc_op      |
-        inst_csrrw  |
-        inst_csrrs  |
-        inst_csrrc);
+    wire ilrs1_ren =
+    (rs1!=0 ) &
+    (opc_jalr   |
+    opc_branch  |
+    opc_load    |
+    opc_store   |
+    opc_opimm   |
+    opc_op      |
+    inst_csrrw  |
+    inst_csrrs  |
+    inst_csrrc);
 
     //寄存器读使能2
-    assign o_decinfo.regIdx.rs2_en = (rs2 != 0) & (opc_branch | opc_store | opc_op);
+    wire ilrs2_ren = (rs2 != 0) & (opc_branch | opc_store | opc_op);
 
-    Fu_t::_ fu_type;
-    MicOp_t::_u micop_type;
-    //fu select
-    assign fu_type =
-        opc_opimm | (opc_op & (~inst_expand_M)) |opc_branch ? Fu_t::alu :
-        inst_expand_M ? Fu_t::mdu :
-        opc_load ? Fu_t::ldu :
-        opc_store ? Fu_t::stu :
-        Fu_t::none;
 
-    //micro op select
+    //dispQue select
+    wire[`WDEF(2)] dispQue_id =
+    !(isLoad || isStore) ? `INTBLOCK_ID :
+    (isLoad || isStore) ?  `MEMBLOCK_ID :
+    0;
+    //issueQue select
+    wire[`WDEF(2)] issueQue_id =
+    (isIntMath | isImmMath) ? `ALUIQ_ID :
+    (isMul | isDiv) ? `MDUIQ_ID :
+    `MISCIQ_ID;
 
     //ALU
-    MicOp_t::_alu aluop_type;
-    assign aluop_type =
-    inst_add | inst_addi ? MicOp_t::add :
-    inst_addw | inst_addiw ? MicOp_t::addw :
-    inst_sub ? MicOp_t::sub :
-    inst_subw ? MicOp_t::subw :
+    MicOp_t::_alu aluop_type =
+    inst_LUI ? MicOp_t::lui :
+    (inst_ADD | inst_ADDI) ? MicOp_t::add :
+    (inst_SUB)  ? MicOp_t::sub :
+    (inst_ADDW | inst_ADDIW) ? MicOp_t::addw :
+    (inst_SUBW) ? MicOp_t::subw :
+    (inst_SLL | inst_SLLI) ? MicOp_t::sll :
+    (inst_SRL | inst_SRLI) ? MicOp_t::srl :
+    (inst_SRA | inst_SRAI) ? MicOp_t::sra :
+    (inst_SLLW | inst_SLLIW) ? MicOp_t::sllw :
+    (inst_SRLW | inst_SRLIW) ? MicOp_t::srlw :
+    (inst_SRAW | inst_SRAIW) ? MicOp_t::sraw :
+    (inst_XOR | inst_XORI) ? MicOp_t::_xor :
+    (inst_OR | inst_ORI) ? MicOp_t::_or :
+    (inst_AND | inst_ANDI) ? MicOp_t::_and :
+    (inst_SLT | inst_SLTI) ? MicOp_t::slt :
+    (inst_SLTU | inst_SLTIU) ? MicOp_t::sltu :
     MicOp_t::none;
-
-
-    //将rs1输出替换为pc
-    assign o_rs1topc = opc_auipc;
-    //将rs2输出替换成立即数,lui,auipc,opc,_imm
-    assign o_rs2toimm = opc_lui | opc_auipc | opc_opimm | opc_load | opc_store;
-
-    //LSU
-    // wire[`DECINFOLEN_DEF] lsuinfo;
-    // assign lsuinfo[`LSUINFO_WRCS] = opc_store;//读为0,写为1
-    // //3种掩码
-    // assign lsuinfo[`LSUINFO_OPB] = func_000 |  func_100;//字节
-    // assign lsuinfo[`LSUINFO_OPH] = func_001 |  func_101;//半字
-    // assign lsuinfo[`LSUINFO_OPW] = func_010;//全字
-    // assign lsuinfo[`LSUINFO_LU] = func_100 | func_101;//无符号拓展
-
-    //BJU
-    // wire[`DECINFOLEN_DEF] bjuinfo;
-    // assign bjuinfo[`BJUINFO_JAL]=opc_jal | opc_jalr;
-    // assign bjuinfo[`BJUINFO_BEQ]=inst_beq;
-    // assign bjuinfo[`BJUINFO_BNE]=inst_bne;
-    // assign bjuinfo[`BJUINFO_BLT]=inst_blt;
-    // assign bjuinfo[`BJUINFO_BGE]=inst_bge;
-    // assign bjuinfo[`BJUINFO_BLTU]=inst_bltu;
-    // assign bjuinfo[`BJUINFO_BGEU]=inst_bgeu;
-    // assign bjuinfo[`BJUINFO_BPU_BFLAG]=i_bpu_bflag;//分支预测跳转标志
+    wire use_alu = (aluop_type != MicOp_t::none);
 
     //MDU
-    // wire[`DECINFOLEN_DEF] mduinfo;
-    // assign mduinfo[`MDUINFO_MUL]    =inst_mul;
-    // assign mduinfo[`MDUINFO_MULH]   =inst_mulh;
-    // assign mduinfo[`MDUINFO_MULHSU] =inst_mulhsu;
-    // assign mduinfo[`MDUINFO_MULHU]  =inst_mulhu;
-    // assign mduinfo[`MDUINFO_DIV]    =inst_div;
-    // assign mduinfo[`MDUINFO_DIVU]   =inst_divu;
-    // assign mduinfo[`MDUINFO_REM]    =inst_rem;
-    // assign mduinfo[`MDUINFO_REMU]   =inst_remu;
+    MicOp_t::_mdu mduop_type =
+    inst_MUL ? MicOp_t::mul :
+    inst_MULW ? MicOp_t::mulw :
+    inst_MULH ? MicOp_t::mulh :
+    inst_MULHU ? MicOp_t::mulhu :
+    inst_MULHSU ? MicOp_t::mulhsu :
+    inst_DIV ? MicOp_t::div :
+    inst_DIVW ? MicOp_t::divw :
+    inst_DIVU ? MicOp_t::divu :
+    inst_REM ? MicOp_t::rem :
+    inst_REMW ? MicOp_t::remw :
+    inst_REMU ? MicOp_t::remu :
+    inst_REMUW ? MicOp_t::remuw :
+    MicOp_t::none;
+    wire use_mdu = (mduop_type != MicOp_t::none);
 
+    assign o_decinfo.isRVC = isRVC;
+    assign o_decinfo.imm20 = imm;
+    assign o_decinfo.rd_wen = rd_wen;
+    assign o_decinfo.ilrd_idx = ilrd_idx;
+    assign o_decinfo.ilrs_idx[0] = has_rs1 ? ilrs1_idx : 0;
+    assign o_decinfo.ilrs_idx[1] = has_rs2 ? ilrs2_idx : 0;
+    assign o_decinfo.use_imm = use_imm;
+    assign o_decinfo.dispQue_id = dispQue_id;
+    assign o_decinfo.issueQue_id = issueQue_id;
+    assign o_decinfo.ismv = ismv;
 
-
-
-    //读csr寄存器的条件：sys指令、func不为0
-    //当前是csrrw或csrrwi指令时,rdidx不为0
-    // assign o_csr_ren = opc_system & (|func) & ((inst_csrrw & inst_csrrwi) ? (rd != 0) : 1);
-    // //csr索引
-    // assign o_csridx = {`CSRIDX_DEF{o_csr_ren}} & i_inst[31:20];
-    // //func[2]==1说明是立即数
-    // assign o_zimm = {`XLEN{o_csr_ren & func[2]}} & inst_csr_type_imm;
-
-    //SCU
-    // wire [`DECINFOLEN_DEF] scuinfo;
-    // assign scuinfo[`SCUINFO_ECALL] = inst_ecall;
-    // assign scuinfo[`SCUINFO_EBREAK] = inst_ebreak;
-    // assign scuinfo[`SCUINFO_CSRRW] = inst_csrrw | inst_csrrwi;
-    // assign scuinfo[`SCUINFO_CSRRS] = inst_csrrs | inst_csrrsi;
-    // assign scuinfo[`SCUINFO_CSRRC] = inst_csrrc | inst_csrrci;
-    // assign scuinfo[`SCUINFO_CSRIMM] = func[2];
-    //写csr寄存器的条件:
-    //当前是csrrs或csrrc指令,rs1idx不为0
-    //当前是csrrsi或csrrci,zimm不为0
-    // assign scuinfo[`SCUINFO_CSRWEN] =
-    //     (inst_csrrs | inst_csrrsi | inst_csrrc | inst_csrrci) ? (rs1!=0) : |func;//只有rs1idx!=0才能写
-
-
-
-
-
-    // assign o_decinfo_grp = decinfo_grp;
-    // assign o_decinfo =  ({`DECINFOLEN{decinfo_grp[`DECINFO_GRP_ALU]}}   & aluinfo) |
-    //                     ({`DECINFOLEN{decinfo_grp[`DECINFO_GRP_LSU]}}   & lsuinfo) |
-    //                     ({`DECINFOLEN{decinfo_grp[`DECINFO_GRP_BJU]}}   & bjuinfo) |
-    //                     ({`DECINFOLEN{decinfo_grp[`DECINFO_GRP_MDU]}}   & mduinfo) |
-    //                     ({`DECINFOLEN{decinfo_grp[`DECINFO_GRP_SCU]}}   & scuinfo) ;
+    assign o_decinfo.micOp_type =
+    use_alu ? aluop_type :
+    use_mdu ? mduop_type :
+    0;
 
 
 

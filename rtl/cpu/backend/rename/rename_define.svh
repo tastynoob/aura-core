@@ -21,15 +21,19 @@
 
 
 typedef struct packed {
+    logic isRVC;
+    // different inst use different format,NOTE: csr use imm20 = {3'b0,12'csrIdx,5'zimm}
+    logic[`IMMDEF] imm20;
+    logic need_serialize; // if is csr write, need to serialize pipeline
     logic rd_wen;
-    iprIdx_t rd;
-    iprIdx_t rs1;
-    iprIdx_t rs2;
+    iprIdx_t iprd_idx;
+    iprIdx_t iprs_idx[`NUMSRCS_INT]; // if has no rs, rs2_idx should be zero
+    logic use_imm; //replace the rs2 source to imm
     //which dispQue should go
     logic[`WDEF(2)] dispQue_id;
     //which RS should go
     logic[`WDEF(2)] dispRS_id;
-    logic ismv; //used for mov elim
+
     MicOp_t::_u micOp_type;
 } renameInfo_t;
 
