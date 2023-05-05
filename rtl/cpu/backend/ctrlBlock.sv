@@ -88,6 +88,7 @@ module ctrlBlock (
         .o_decinfo     ( decode2rename_decInfo     ),
         .o_predTakenPC ( decode2rename_predTakenPC )
     );
+
     // rename
     rename u_rename(
         .rst           ( rst           ),
@@ -104,8 +105,6 @@ module ctrlBlock (
 
 
     // dispatch
-
-
 
 
 

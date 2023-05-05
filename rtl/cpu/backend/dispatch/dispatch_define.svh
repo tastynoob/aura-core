@@ -22,7 +22,7 @@ typedef struct {
     immBIdx_t immBIdx;
     branchBIdx_t branchBIdx;
     MicOp_t::_u micOp_type;
-} dispQueEntry_t;
+} intDQEntry_t;
 
 
 
