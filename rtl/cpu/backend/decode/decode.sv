@@ -13,8 +13,7 @@ module decode (
 
 
     output reg[`WDEF(`DECODE_WIDTH)] o_decinfo_vld,
-    output decInfo_t o_decinfo[`DECODE_WIDTH],
-    output reg[`XDEF] o_predTakenPC
+    output decInfo_t o_decinfo[`DECODE_WIDTH]
 );
     genvar i;
 
@@ -36,7 +35,6 @@ module decode (
         else begin
             o_decinfo_vld <= i_inst_vld;
             o_decinfo <= decinfo;
-            o_predTakenPC <= i_predTakenPC;
         end
     end
 

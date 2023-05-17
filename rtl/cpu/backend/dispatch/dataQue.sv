@@ -7,7 +7,7 @@
 
 
 // used for imm buffer, pc buffer, predTakenpc buffer
-// unorder in
+// unorder in,unorder out
 
 module dataQue #(
     parameter int DEPTH = 30,
@@ -146,6 +146,9 @@ module dataQue #(
             end
         end
     endgenerate
+
+
+    
 
 endmodule
 

@@ -186,6 +186,7 @@ endpackage
 typedef struct packed {
     logic isRVC;
     logic ismv; //used for mov elim
+    logic[`XDEF] npc;// next inst's pc
     // different inst use different format,NOTE: csr use imm20 = {3'b0,12'csrIdx,5'zimm}
     logic[`IMMDEF] imm20;
     logic need_serialize; // if is csr write, need to serialize pipeline

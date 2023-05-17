@@ -24,17 +24,19 @@ module fifo #(
     input wire [`WDEF(OUTPORT_NUM)] i_data_ren,
     output dtype o_data_rd[OUTPORT_NUM]
 );
+    wire[`WDEF(INPORT_NUM)] real_can_write = i_data_wen & o_can_write;
+    wire[`WDEF(INPORT_NUM)] real_can_read = i_data_ren & o_can_read;
     wire [`SDEF(DEPTH)] write_num, read_num;
     continuous_one #(
         .WIDTH(INPORT_NUM)
     ) u_continuous_one_0 (
-        .i_a  (i_data_wen),
+        .i_a  (real_can_write),
         .o_sum(write_num)
     );
     continuous_one #(
         .WIDTH(OUTPORT_NUM)
     ) u_continuous_one_1 (
-        .i_a  (i_data_wen),
+        .i_a  (real_can_read),
         .o_sum(read_num)
     );
     dtype buffer[DEPTH];
@@ -99,7 +101,7 @@ module fifo #(
         end
     endgenerate
 
-    `ASSERT(count < DEPTH);
-    `ORDER_CHECK(i_data_ren);
-    `ORDER_CHECK(i_data_wen);
+    `ASSERT(count <= DEPTH);
+    `ORDER_CHECK(real_can_read);
+    `ORDER_CHECK(real_can_write);
 endmodule

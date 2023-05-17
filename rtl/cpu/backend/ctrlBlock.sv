@@ -26,12 +26,7 @@ module ctrlBlock (
 
 
 
-
-
-
-
-
-    //fetch buffer
+/******************** fetch buffer ********************/
     typedef struct packed {
         logic[`IDEF] inst;
         logic[`XDEF] predTakenPC;
@@ -72,7 +67,7 @@ module ctrlBlock (
         .i_data_ren  ( fetchBuffer2Decode_inst_vld  ),
         .o_data_rd   ( toDecode_data   )
     );
-    //decode
+/******************** decode ********************/
     wire[`WDEF(`DECODE_WIDTH)] decode2rename_vld;
     decInfo_t decode2rename_decInfo[`DECODE_WIDTH];
     wire[`XDEF] decode2rename_predTakenPC[`DECODE_WIDTH];
@@ -89,7 +84,7 @@ module ctrlBlock (
         .o_predTakenPC ( decode2rename_predTakenPC )
     );
 
-    // rename
+/******************** rename ********************/
     rename u_rename(
         .rst           ( rst           ),
         .clk           ( clk           ),
