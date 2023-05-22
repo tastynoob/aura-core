@@ -1,4 +1,4 @@
-`include "issue_define.svh"
+`include "core_define.svh"
 
 
 

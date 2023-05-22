@@ -38,7 +38,7 @@
 `define NUMSRCS_INT 2
 
 
-
+`define INIT_PC 64'h8000000000000000
 
 
 

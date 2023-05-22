@@ -1,12 +1,7 @@
 `ifndef __DECODE_DEFINE_SVH__
 `define __DECODE_DEFINE_SVH__
 
-`include "core_define.svh"
-
-
-
-
-
+`include "core_config.svh"
 
 //addi xn,xn,0  空指令
 
@@ -182,25 +177,6 @@ package MicOp_t;
     }_u;
 endpackage
 
-
-typedef struct packed {
-    logic isRVC;
-    logic ismv; //used for mov elim
-    logic[`XDEF] npc;// next inst's pc
-    // different inst use different format,NOTE: csr use imm20 = {3'b0,12'csrIdx,5'zimm}
-    logic[`IMMDEF] imm20;
-    logic need_serialize; // if is csr write, need to serialize pipeline
-    logic rd_wen;
-    ilrIdx_t ilrd_idx;
-    ilrIdx_t ilrs_idx[`NUMSRCS_INT]; // if has no rs, rs2_idx should be zero
-    logic use_imm; //replace the rs2 source to imm
-    //which dispQue should go
-    logic[`WDEF(2)] dispQue_id;
-    //which IQ should go
-    logic[`WDEF(2)] issueQue_id;
-
-    MicOp_t::_u micOp_type;
-}decInfo_t;
 
 
 `endif

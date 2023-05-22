@@ -2,6 +2,7 @@
 `define __CORE_DEFINE_SVH__
 
 `include "core_config.svh"
+`include "core_comm.svh"
 
 typedef logic [`WDEF($clog2(32))] ilrIdx_t;//the int logic regfile idx
 typedef logic [`WDEF($clog2(`IPHYREG_NUM))] iprIdx_t;//the int physic regfile idx
@@ -48,6 +49,8 @@ package rv_trap_t;
         reserved_interrupts
     }interrupt;
 endpackage
+
+
 
 
 

@@ -1,4 +1,4 @@
-`include "decode_define.svh"
+`include "core_define.svh"
 
 
 //对于branch指令

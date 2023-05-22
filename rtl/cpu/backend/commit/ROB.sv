@@ -1,4 +1,4 @@
-`include "commit_define.svh"
+`include "core_define.svh"
 
 
 module ROB(

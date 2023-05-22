@@ -1,4 +1,4 @@
-`include "rename_define.svh"
+`include "core_define.svh"
 
 //li x1,1
 //mv x2,x1

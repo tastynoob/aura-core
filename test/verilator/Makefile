@@ -37,8 +37,5 @@ run:
 wave:
 	gtkwave wave.vcd
 
-test:
-	@echo $(INCLUDE_PATH)
-
 clean:
 	rm -r build

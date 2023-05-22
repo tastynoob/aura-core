@@ -1,9 +1,4 @@
-`include "dispatch_define.svh"
-
-
-`define DATAQUE_TYPE_IMM 0
-`define DATAQUE_TYPE_PC 1
-
+`include "core_define.svh"
 
 
 // used for imm buffer, pc buffer, predTakenpc buffer
@@ -14,8 +9,7 @@ module dataQue #(
     parameter int INPORT_NUM = 4,
     parameter int READPORT_NUM = 4,
     parameter int CLEAR_WID = 4,
-    parameter type dtype = logic[`XDEF],
-    parameter int QUE_TYPE = 0
+    parameter type dtype = logic[`XDEF]
 )(
     input wire clk,
     input wire rst,
@@ -148,7 +142,7 @@ module dataQue #(
     endgenerate
 
 
-    
+
 
 endmodule
 

@@ -1,31 +1,21 @@
 
+
+typedef struct packed {
+    logic[31:0] a;
+    logic[31:0] b;
+} PPP_t;
+
+
 module tb (
     input clk,
     input rst
 );
 
 `ifdef DEBUG
-
-    dataQue
-    #(
-        .DEPTH       ( 16       ),
-        .INPORT_NUM  ( 4  ),
-        .READPORT_NUM (4 ),
-        .CLEAR_WID   ( 4   ),
-        .dtype       ( logic[2:0]       ),
-        .QUE_TYPE    ( 0    )
-    )
-    u_dataQue(
-        .clk          ( clk         ),
-        .rst          ( rst         ),
-        .o_can_enq    (    ),
-        .i_enq_req    (    ),
-        .i_enq_data   (   ),
-        .o_alloc_id   (   ),
-        .i_read_dqIdx ( ),
-        .o_read_data  (  ),
-        .i_wb_vld     (     ),
-        .i_wb_dqIdx   (   )
+    wire[31:0] a,b;
+    test u_test(
+        .i_a ( {32'd1,32'd2} ),
+        .o_b ( {a,b} )
     );
 
 
@@ -34,4 +24,13 @@ module tb (
 
 endmodule
 
+
+
+
+module test(
+    input PPP_t i_a,
+    output PPP_t o_b
+);
+    assign o_b = '{i_a.b,i_a.a};
+endmodule
 

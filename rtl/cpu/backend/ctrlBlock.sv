@@ -1,5 +1,5 @@
 
-
+`include "core_define.svh"
 
 
 

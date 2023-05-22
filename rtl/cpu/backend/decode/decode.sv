@@ -1,4 +1,4 @@
-`include "decode_define.svh"
+`include "core_define.svh"
 
 
 // we may need to implement lui-load imm bypassing

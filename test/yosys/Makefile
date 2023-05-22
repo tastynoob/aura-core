@@ -21,9 +21,9 @@ tb:
 	sv2v -v -E Always tb.sv -w temp.v 
 	yosys \
 	-p "read_verilog -sv temp.v" \
-	-p "synth" \
+	-p "proc" \
 	-p "show -colors 2 -width -signed -enum -prefix out tb"
-	rm temp.v
+	#rm temp.v
 
 sv2v:
 	touch temp.v
