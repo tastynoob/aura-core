@@ -14,15 +14,20 @@ module dispQue #(
     input wire rst,
     input wire i_flush,
 
-    output wire[`WDEF(INPORT_NUM)] o_can_write,
-    input wire[`WDEF(INPORT_NUM)] i_data_wen,
-    input dtype i_data_wr[INPORT_NUM],
-
-    output wire[`WDEF(OUTPORT_NUM)] o_can_read,
-    output wire[`WDEF(OUTPORT_NUM)] i_data_ren,
-    output dtype o_data_rd[OUTPORT_NUM]
+    // enq
+    output wire o_can_enq,
+    input wire i_enq_vld, // only when enq_vld is true, can enq
+    input wire [`WDEF(INPORT_NUM)] i_enq_req,
+    input dtype i_enq_data[INPORT_NUM],
+    // deq
+    output wire [`WDEF(OUTPORT_NUM)] o_can_deq,
+    input wire [`WDEF(OUTPORT_NUM)] i_enq_req,
+    output dtype o_deq_data[OUTPORT_NUM]
 
 );
+
+    wire[`WDEF(INPORT_NUM)] reorder_enq_req;
+    dtype reorder_enq_data[INPORT_NUM];
 
     reorder
     #(
@@ -30,36 +35,38 @@ module dispQue #(
         .NUM   ( INPORT_NUM   )
     )
     u_reorder_0(
-        .i_data_vld      ( i_data_wen      ),
-        .i_datas         ( i_data_wr         ),
+        .i_data_vld      ( i_enq_req        ),
+        .i_datas         ( i_enq_data       ),
 
-        .o_data_vld      ( o_data_vld      ),
-        .o_reorder_datas ( o_reorder_datas )
+        .o_data_vld      ( reorder_enq_req  ),
+        .o_reorder_datas ( reorder_enq_data )
     );
 
 
     fifo
     #(
-        .dtype       ( dispQueEntry_t    ),
+        .dtype       ( dtype       ),
         .INPORT_NUM  ( INPORT_NUM  ),
         .OUTPORT_NUM ( OUTPORT_NUM ),
         .DEPTH       ( DEPTH       ),
         .USE_INIT    ( 0    )
     )
     u_fifo(
-        .init_data   (),
-        .clk         (clk         ),
-        .rst         (rst         ),
-        .i_flush     (i_flush     ),
+        .init_data  (  ),
+        .clk        ( clk        ),
+        .rst        ( rst        ),
+        .i_flush    ( i_flush    ),
 
-        .o_can_write (o_can_write ),
-        .i_data_wen  (i_data_wen  ),
-        .i_data_wr   (i_data_wr   ),
+        .o_can_enq  ( o_can_enq  ),
+        .i_enq_vld  ( i_enq_vld  ),
+        .i_enq_req  ( reorder_enq_req  ),
+        .i_enq_data ( reorder_enq_data ),
 
-        .o_can_read  (o_can_read  ),
-        .i_data_ren  (i_data_ren  ),
-        .o_data_rd   (o_data_rd   )
+        .o_can_deq  ( o_can_deq  ),
+        .i_enq_req  ( i_enq_req  ),
+        .o_deq_data ( o_deq_data )
     );
+
 
 
 endmodule

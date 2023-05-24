@@ -6,6 +6,9 @@
 module decode (
     input wire clk,
     input wire rst,
+    // squash
+    input wire i_squash_vld,
+    input squashInfo_t i_squashInfo,
 
     input wire[`WDEF(`DECODE_WIDTH)] i_inst_vld,
     input wire[`IDEF] i_inst[`DECODE_WIDTH],

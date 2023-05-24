@@ -162,10 +162,7 @@ package MicOp_t;
         //csr
         csrrc,
         csrrs,
-        csrrw,
-        //compressed branch(used for calc takenpc)
-        cbeqz,
-        cbnez
+        csrrw
     }_misc;
     typedef union packed{
         logic[`WDEF(`MICOP_WIDTH)] bits;

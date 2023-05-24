@@ -42,10 +42,13 @@ typedef struct {
 //mv p3,p3      ;p3:2
 //add p5,p3,p4  ;p5:1
 
-typedef struct packed {
+typedef struct {
     logic isRVC;
     logic ismv; //used for mov elim
+    logic[`XDEF] pc;
     logic[`XDEF] npc;
+    ilrIdx_t ilrd_idx;
+    iprIdx_t prev_iprd_idx;
     // different inst use different format,NOTE: csr use imm20 = {3'b0,12'csrIdx,5'zimm}
     logic[`IMMDEF] imm20;
     logic need_serialize; // if is csr write, need to serialize pipeline
@@ -66,15 +69,15 @@ typedef struct packed {
 
 // TODO: we may need to implement pcbuffer and immbuffer
 
-//dispatch queue type
-`define DQ_INT 0
-`define DQ_MEM 1
-
+typedef struct packed {
+    logic[`XDEF] pc;
+    logic[`XDEF] npc;
+} pc_and_npc_t;
 
 typedef struct {
     logic rd_wen;
-    iprIdx_t rd;
-    iprIdx_t rs[`NUMSRCS_INT];
+    iprIdx_t iprd_idx;
+    iprIdx_t iprs_idx[`NUMSRCS_INT];
     logic use_imm;
     logic[`WDEF(2)] dispRS_id;
     robIdx_t robIdx;
@@ -94,7 +97,7 @@ typedef struct {
 //  i1  | .. | p0 | p1 | p2 | p3
 
 
-typedef struct packed {
+typedef struct {
     iprIdx_t rdIdx;
     iprIdx_t rsIdx[`NUMSRCS_INT]; // reg src idx
     immBIdx_t immB_idx; // the immbuffer idx (immOp-only)
@@ -104,7 +107,7 @@ typedef struct packed {
     MicOp_t::_u micOp_type;
 } RSenqInfo_t;
 
-typedef struct packed {
+typedef struct {
     iprIdx_t rdIdx;
     iprIdx_t rsIdx[`NUMSRCS_INT]; // reg src idx
     immBIdx_t immB_idx; // the immbuffer idx (immOp-only)
@@ -115,7 +118,7 @@ typedef struct packed {
     MicOp_t::_u micOp_type;
 } RSdeqInfo_t;
 
-typedef struct packed {
+typedef struct {
     logic vld; //unused in compressed RS
     logic issued; // flag issued
     logic spec_wakeup; // flag spec wakeup
@@ -134,22 +137,49 @@ typedef struct packed {
 } RSEntry_t;
 
 
+/******************** writeback define ********************/
+
+
+typedef struct {
+    logic rd_wen;
+    iprIdx_t iprd_idx;
+    logic[`XDEF] result;
+} commWBInfo_t;
+
+typedef struct {
+    // the branchInst is mispred taken
+    logic has_mispred;
+    // is branchInst taken ? (the jal inst must taken)
+    logic branch_taken;
+    // branchInst's pc
+    logic[`XDEF] branch_pc;
+    // branchInst's taken pc
+    logic[`XDEF] branch_npc;
+} branchWBInfo_t;
+
+
 /******************** commit define ********************/
 
+// DESIGN:
+// only when branch retired, rob can send squashInfo
+// and squashInfo priority is greater than commitInfo
+// when squashed
+// set the spec-status to arch-status
 
-//commit do something:
+// commit do something:
 // check csr permission
 // check exception
 // use spec-arch to restore core status
 
-typedef struct packed {
+typedef struct {
     logic has_rd;
     ilrIdx_t ilrd_idx;
     iprIdx_t iprd_idx;
     iprIdx_t prev_iprd_idx;
+    branchBIdx_t branchBIdx;
 } ROBEntry_t;
 
-typedef struct packed {
+typedef struct {
     //to rename
     logic has_rd;
     ilrIdx_t ilrd_idx;
@@ -157,17 +187,18 @@ typedef struct packed {
     iprIdx_t prev_iprd_idx;
 } renameCommitInfo_t;
 
-typedef struct packed {
-    //bpu update
+typedef struct {
+    // bpu update
+    // is branchInst taken ? (the jal inst must taken)
     logic branch_taken;
+    // branchInst's pc
     logic[`XDEF] branch_pc;
-
-    //restore bpu(branch mispred)
-    logic[`XDEF] resteer_pc;
+    // branchInst's npc (real taken pc)
+    logic[`XDEF] branch_npc;
 } branchCommitInfo_t;
 
 
-typedef struct packed {
+typedef struct {
     logic dueToBranch;
     logic dueToMemOrder;
     logic[`XDEF] arch_pc;

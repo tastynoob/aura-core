@@ -9,11 +9,38 @@
 `define DECODE_WIDTH 4
 `define RENAME_WIDTH `DECODE_WIDTH
 
-`define DISP_TO_INT_BLOCK_PORTNUM 4
-`define DISP_TO_MEM_BLOCK_PORTNUM 4
+// dispatch
+`define IMMBUFFER_SIZE 40
+`define BRANCHBUFFER_SIZE 30
+`define INTDQ_DISP_WID 4
+`define MEMDQ_DISP_WID 4
+
+// immBuffer read port
+`define IMMBUFFER_READPORT_NUM 4
+`define IMMBUFFER_CLEARPORT_NUM 4
+`define IMMBUFFER_COMMIT_WID 4
+
+// branchBuffer read port
+// misc need 1 port
+// commit need 2 port
+`define BRANCHBUFFER_READPORT_NUM 3
+`define BRANCHBUFFER_CLEARPORT_NUM 1
+`define BRANCHBUFFER_WBPORT_NUM 1
+`define BRANCHBUFFER_COMMIT_WID 4
+
 
 
 `define COMMIT_WIDTH 4
+
+
+
+`define WBPORT_NUM 6
+
+
+
+
+`define DISP_TO_INT_BLOCK_PORTNUM 4
+`define DISP_TO_MEM_BLOCK_PORTNUM 4
 
 //int logic register index def
 `define ILRIDX_DEF `WDEF($clog2(32))
@@ -50,6 +77,9 @@
 `define ALUIQ_ID 0
 `define MDUIQ_ID 1
 `define MISCIQ_ID 2
+
+
+
 
 
 

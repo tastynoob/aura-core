@@ -2,14 +2,14 @@
 `define __CORE_DEFINE_SVH__
 
 `include "core_config.svh"
-`include "core_comm.svh"
+
 
 typedef logic [`WDEF($clog2(32))] ilrIdx_t;//the int logic regfile idx
 typedef logic [`WDEF($clog2(`IPHYREG_NUM))] iprIdx_t;//the int physic regfile idx
 typedef logic [`WDEF(12)] csrIdx_t;//the csr regfile idx
 typedef logic [`WDEF($clog2(`ROB_SIZE))] robIdx_t;
-typedef logic [`WDEF($clog2(30)-1)] immBIdx_t; // the immBuffer idx
-typedef logic [`WDEF($clog2(30)-1)] branchBIdx_t; // the branchBuffer idx
+typedef logic [`WDEF($clog2(`IMMBUFFER_SIZE)-1)] immBIdx_t; // the immBuffer idx
+typedef logic [`WDEF($clog2(`BRANCHBUFFER_SIZE)-1)] branchBIdx_t; // the branchBuffer idx
 
 package rv_trap_t;
 //mtvec mode:
@@ -51,7 +51,7 @@ package rv_trap_t;
 endpackage
 
 
-
+`include "core_comm.svh"
 
 
 `endif
