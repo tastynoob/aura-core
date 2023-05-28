@@ -44,8 +44,8 @@ module dispatch (
 
     // to int block
     input wire i_intBlock_stall,
-    output wire[`WDEF(`INTDQ_DISP_WID)] o_intDQ_vld,
-    output intDQEntry_t o_intDQ_info[`INTDQ_DISP_WID]
+    output wire[`WDEF(`INTDQ_DISP_WID)] o_intDQ_deq_vld,
+    output intDQEntry_t o_intDQ_deq_info[`INTDQ_DISP_WID]
 
     // to mem block
 
@@ -151,9 +151,9 @@ module dispatch (
 
         .o_can_deq  ( intDQ_deq_feedback  ),
         .i_enq_req  ( i_intBlock_stall ? 0 : intDQ_deq_feedback  ),
-        .o_deq_data ( o_intDQ_info )
+        .o_deq_data ( o_intDQ_deq_info )
     );
-    assign o_intDQ_vld = i_intBlock_stall ? 0 : intDQ_deq_feedback;
+    assign o_intDQ_deq_vld = intDQ_deq_feedback;
 
 
 /******************** mem block ********************/
@@ -175,9 +175,9 @@ module dispatch (
     )
     u_immBuffer(
         .clk            ( clk   ),
-        .rst            ( rst   ),
+        .rst            ( rst || i_squash_vld   ),
 
-        .o_can_enq      ( can_insert_immBuffer       ),
+        .o_can_enq      ( can_insert_immBuffer  ),
         .i_enq_vld      ( can_dispatch  ),
         .i_enq_req      ( use_imm_vec   ),
         .i_enq_data     ( imm_vec       ),
@@ -220,9 +220,9 @@ module dispatch (
     )
     u_branchBuffer(
         .clk            ( clk           ),
-        .rst            ( rst           ),
+        .rst            ( rst || i_squash_vld      ),
 
-        .o_can_enq      ( can_insert_branchBuffer              ),
+        .o_can_enq      ( can_insert_branchBuffer  ),
         .i_enq_vld      ( can_dispatch      ),
         .i_enq_req      ( use_pc_vec        ),
         .i_enq_data     ( pc_and_npc        ),

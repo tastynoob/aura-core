@@ -168,6 +168,9 @@ module dataQue #(
             assign o_willClear_data[i] = buffer[head_ptr[i]];
         end
     endgenerate
+
+    // used for waveform debug
+    wire[`SDEF(DEPTH)] AAA_count = count;
 endmodule
 
 

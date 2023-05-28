@@ -3,9 +3,10 @@
 
 `include "core_config.svh"
 
-
+//[int/fp][logic/physic]r[dest/src]Idx
 typedef logic [`WDEF($clog2(32))] ilrIdx_t;//the int logic regfile idx
 typedef logic [`WDEF($clog2(`IPHYREG_NUM))] iprIdx_t;//the int physic regfile idx
+
 typedef logic [`WDEF(12)] csrIdx_t;//the csr regfile idx
 typedef logic [`WDEF($clog2(`ROB_SIZE))] robIdx_t;
 typedef logic [`WDEF($clog2(`IMMBUFFER_SIZE)-1)] immBIdx_t; // the immBuffer idx

@@ -6,6 +6,8 @@
 `define XLEN_64
 
 `define FETCH_WIDTH 4
+
+// decode rename
 `define DECODE_WIDTH 4
 `define RENAME_WIDTH `DECODE_WIDTH
 
@@ -28,19 +30,29 @@
 `define BRANCHBUFFER_WBPORT_NUM 1
 `define BRANCHBUFFER_COMMIT_WID 4
 
+`define DISP_TO_INT_BLOCK_PORTNUM 4
+`define DISP_TO_MEM_BLOCK_PORTNUM 4
 
+//used for dispatch into dispQue
+`define INTBLOCK_ID 0
+`define MEMBLOCK_ID 1
+`define FLTBLOCK_ID 2
 
-`define COMMIT_WIDTH 4
+// issue
 
+//used for dispQue into RS
+`define ALUIQ_ID 0
+`define MDUIQ_ID 1
+`define MISCIQ_ID 2
 
+// write back
 
 `define WBPORT_NUM 6
 
 
+// commit
+`define COMMIT_WIDTH 4
 
-
-`define DISP_TO_INT_BLOCK_PORTNUM 4
-`define DISP_TO_MEM_BLOCK_PORTNUM 4
 
 //int logic register index def
 `define ILRIDX_DEF `WDEF($clog2(32))
@@ -69,14 +81,8 @@
 
 
 
-//used for dispatch into dispQue
-`define INTBLOCK_ID 0
-`define MEMBLOCK_ID 1
-`define FLTBLOCK_ID 2
-//used for dispQue into RS
-`define ALUIQ_ID 0
-`define MDUIQ_ID 1
-`define MISCIQ_ID 2
+
+
 
 
 

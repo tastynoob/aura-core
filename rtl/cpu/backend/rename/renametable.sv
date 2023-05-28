@@ -3,9 +3,9 @@
 
 
 
-//how to process multi (mv x2,x1)?
-//TODO: check for logic correctness
 //TODO: how about MEMartix implement?
+//TODO: how about spec-arch mv elim ( we can use the traditional rename and save space )
+
 module renametable(
     input wire clk,
     input wire rst,
