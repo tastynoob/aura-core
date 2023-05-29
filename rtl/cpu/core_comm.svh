@@ -47,13 +47,14 @@ typedef struct {
     logic ismv; //used for mov elim
     logic[`XDEF] pc;
     logic[`XDEF] npc;
-    ilrIdx_t ilrd_idx;
-    iprIdx_t prev_iprd_idx;
     // different inst use different format,NOTE: csr use imm20 = {3'b0,12'csrIdx,5'zimm}
     logic[`IMMDEF] imm20;
     logic need_serialize; // if is csr write, need to serialize pipeline
     logic rd_wen;
+    ilrIdx_t ilrd_idx;
     iprIdx_t iprd_idx;
+    iprIdx_t prev_iprd_idx;
+
     iprIdx_t iprs_idx[`NUMSRCS_INT]; // if has no rs, rs2_idx should be zero
     logic use_imm; //replace the rs2 source to imm
     //which dispQue should go
@@ -172,6 +173,7 @@ typedef struct {
 // use spec-arch to restore core status
 
 typedef struct {
+    logic ismv;
     logic has_rd;
     ilrIdx_t ilrd_idx;
     iprIdx_t iprd_idx;
@@ -181,6 +183,7 @@ typedef struct {
 
 typedef struct {
     //to rename
+    logic ismv;
     logic has_rd;
     ilrIdx_t ilrd_idx;
     iprIdx_t iprd_idx;

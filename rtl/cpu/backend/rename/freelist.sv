@@ -10,7 +10,7 @@ module freelist(
     output wire o_can_alloc,
     input wire[`WDEF(`RENAME_WIDTH)] i_alloc_req,
     output iprIdx_t o_alloc_prIdx[`RENAME_WIDTH],
-    //dealloc physic reg
+    //dealloc physic reg (it must have enough spec to dealloc)
     input wire[`WDEF(`COMMIT_WIDTH)] i_dealloc_req,
     input iprIdx_t i_dealloc_prIdx[`COMMIT_WIDTH],
 
@@ -62,7 +62,8 @@ module freelist(
     endgenerate
 
     wire[`WDEF(`RENAME_WIDTH)] can_deq;
-
+    wire can_enq;
+    `ASSERT(can_enq==true);
     fifo
     #(
         .dtype       ( iprIdx_t       ),
@@ -80,7 +81,7 @@ module freelist(
         .rst         ( rst         ),
         .i_flush     ( 0           ),
 
-        .o_can_enq   ( ),//dont care, it must have enough free entry to write
+        .o_can_enq   ( can_enq ),//dont care, it must have enough free entry to write
         .i_enq_vld   ( |reorder_dealloc_req   ),
         .i_enq_req   ( reorder_dealloc_req    ),
         .i_enq_data  ( reorder_dealloc_prIdx  ),

@@ -38,7 +38,7 @@ module rat_map #(
     // from commit
     input wire i_squash_vld,
     input wire[`WDEF(COMMIT_WID)] i_commit_vld,
-    input renameCommitInfo_t i_commitInfo[`WDEF(COMMIT_WID)]
+    input renameCommitInfo_t i_commitInfo[COMMIT_WID]
 
 );
     genvar i,j;
@@ -98,7 +98,7 @@ module rat_map #(
     end
 
 
-    // update rat_mapping
+    // update spec_mapping
     always_ff @( posedge clk ) begin
         if (rst==true) begin
             for (a=0;a<32;a=a+1) begin
@@ -122,9 +122,6 @@ module rat_map #(
             end
         end
     end
-
-
-
 
     // update arch_mapping
     always_ff @( posedge clk ) begin
@@ -189,7 +186,7 @@ module rat_map #(
                 // save the prevRenamed prd
                 arch_prevRenamed_prd_idx_saved <= arch_prevRenamed_prd_idx;
                 for (a=0;a<COMMIT_WID;a=a+1) begin
-                    if (i_commit_vld[a] & i_commitInfo[a].i_has_rd) begin
+                    if (i_commit_vld[a] & i_commitInfo[a].has_rd) begin
                         arch_commit_ilrd_idx_saved[a] <= i_commitInfo[a].ilrd_idx;
                     end
                     else begin
