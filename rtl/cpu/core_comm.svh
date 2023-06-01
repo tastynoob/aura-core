@@ -4,11 +4,22 @@
 `include "core_define.svh"
 `include "decode_define.svh"
 
+/******************** fetch define ********************/
+
+
+typedef struct {
+    logic[`IDEF] inst;
+    logic[`XDEF] predTakenPC;
+} fetchEntry_t;
+
+
+
 /******************** decode define ********************/
 
 typedef struct {
     logic isRVC;
     logic ismv; //used for mov elim
+    logic[`XDEF] pc;
     logic[`XDEF] npc;// next inst's pc
     // different inst use different format,NOTE: csr use imm20 = {3'b0,12'csrIdx,5'zimm}
     logic[`IMMDEF] imm20;

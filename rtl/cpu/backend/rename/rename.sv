@@ -17,7 +17,6 @@ module rename(
     // from decode
     input wire[`WDEF(`DECODE_WIDTH)] i_decinfo_vld,
     input decInfo_t i_decinfo[`DECODE_WIDTH],
-    input wire[`XDEF] i_predTakenPC,
     // to dispatch
     output wire[`WDEF(`RENAME_WIDTH)] o_rename_vld,
     output renameInfo_t o_renameInfo[`RENAME_WIDTH]
@@ -34,9 +33,6 @@ module rename(
     ilrIdx_t ilrs_idx[`RENAME_WIDTH][`NUMSRCS_INT];
     iprIdx_t iprs_idx[`RENAME_WIDTH][`NUMSRCS_INT];
 
-    reg[`XDEF] spec_pc_base;
-    wire[`XDEF] disp_pcs[`RENAME_WIDTH];
-
     always_comb begin
         for(a=0;a<`RENAME_WIDTH;a=a+1) begin
             ismv[a] = (!i_stall) & i_decinfo_vld[a] & i_decinfo[a].ismv;
@@ -44,29 +40,6 @@ module rename(
             ilrd_idx[a] = i_decinfo[a].ilrd_idx;
             for(b=0;b<`NUMSRCS_INT;b=b+1) begin
                 ilrs_idx[a][b] = i_decinfo[a].ilrs_idx[b];
-            end
-            // disp pc
-            if (a==0) begin
-                disp_pcs[a] = spec_pc_base;
-            end
-            else begin
-                disp_pcs[a] = i_decinfo[a-1].npc;
-            end
-        end
-    end
-
-    always_ff @( posedge clk ) begin : blockName
-        if(rst==true) begin
-            spec_pc_base <= `INIT_PC;
-        end
-        else if (i_squash_vld) begin
-            spec_pc_base <= i_squashInfo.arch_pc;
-        end
-        else begin
-            for(a=0;a<`RENAME_WIDTH;a=a+1) begin
-                if (i_decinfo_vld) begin
-                    spec_pc_base <= i_decinfo[a].npc;
-                end
             end
         end
     end
@@ -106,7 +79,7 @@ module rename(
                 renameInfo[a] <= '{
                     isRVC       : i_decinfo[a].isRVC,
                     ismv        : i_decinfo[a].ismv,
-                    pc          : disp_pcs[a],
+                    pc          : i_decinfo[a].pc,
                     npc         : i_decinfo[a].npc,
                     imm20       : i_decinfo[a].imm20,
                     rd_wen      : i_decinfo[a].rd_wen,

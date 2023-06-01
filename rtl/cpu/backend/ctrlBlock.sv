@@ -14,8 +14,7 @@ module ctrlBlock (
     // with fetch
     output wire o_decode_stall,
     input wire[`WDEF(`FETCH_WIDTH)] i_inst_vld,
-    input wire[`IDEF] i_inst[`FETCH_WIDTH],
-    input wire[`XDEF] i_predTakenPC[`FETCH_WIDTH]
+    input fetchEntry_t i_inst[`FETCH_WIDTH]
 
     // with exublock
 
@@ -27,10 +26,6 @@ module ctrlBlock (
 
 
 /******************** fetch buffer ********************/
-    typedef struct packed {
-        logic[`IDEF] inst;
-        logic[`XDEF] predTakenPC;
-    } fetchEntry;
     fetchEntry fromFetch_data[`FETCH_WIDTH];
     fetchEntry toDecode_data[`DECODE_WIDTH];
     wire[`WDEF(`DECODE_WIDTH)] fetchBuffer2Decode_inst_vld;
@@ -47,7 +42,7 @@ module ctrlBlock (
     end
     fifo
     #(
-        .dtype       ( fetchEntry       ),
+        .dtype       ( fetchEntry_t       ),
         .INPORT_NUM  ( `FETCH_WIDTH  ),
         .OUTPORT_NUM ( `DECODE_WIDTH ),
         .DEPTH       ( 8       ),
@@ -71,30 +66,51 @@ module ctrlBlock (
     wire[`WDEF(`DECODE_WIDTH)] decode2rename_vld;
     decInfo_t decode2rename_decInfo[`DECODE_WIDTH];
     wire[`XDEF] decode2rename_predTakenPC[`DECODE_WIDTH];
+
+
     decode u_decode(
-        .clk           ( clk           ),
-        .rst           ( rst           ),
+        .clk           (clk           ),
+        .rst           (rst           ),
 
-        .i_inst_vld    ( fetchBuffer2Decode_inst_vld    ),
-        .i_inst        ( fetchBuffer2Decode_insts        ),
-        .i_predTakenPC ( fetchBuffer2Decode_predTakenPC ),
+        .o_stall       (o_stall       ),
+        .i_stall       (i_stall       ),
+        .i_squash_vld  (i_squash_vld  ),
+        .i_squashInfo  (i_squashInfo  ),
 
-        .o_decinfo_vld ( decode2rename_vld ),
-        .o_decinfo     ( decode2rename_decInfo     ),
-        .o_predTakenPC ( decode2rename_predTakenPC )
+        .o_can_deq     (o_can_deq     ),
+        .i_inst_vld    (i_inst_vld    ),
+        .i_inst        (i_inst        ),
+        .i_inst_npc    (i_inst_npc    ),
+
+        .o_decinfo_vld (o_decinfo_vld ),
+        .o_decinfo     (o_decinfo     ),
+
+        .o_trap_vld    (o_trap_vld    ),
+        .o_trapInfo    (o_trapInfo    )
     );
 
+
+
+
 /******************** rename ********************/
+
+
     rename u_rename(
-        .rst           ( rst           ),
-        .clk           ( clk           ),
+        .rst           (rst           ),
+        .clk           (clk           ),
 
-        .i_decinfo_vld ( decode2rename_vld ),
-        .i_decinfo     ( decode2rename_decInfo     ),
-        .i_predTakenPC ( decode2rename_predTakenPC ),
+        .o_stall       (o_stall       ),
+        .i_stall       (i_stall       ),
 
-        .o_rename_vld  ( o_rename_vld  ),
-        .o_renameInfo  ( o_renameInfo  )
+        .i_squash_vld  (i_squash_vld  ),
+        .i_squashInfo  (i_squashInfo  ),
+
+        .i_commit_vld  (i_commit_vld  ),
+        .i_commitInfo  (i_commitInfo  ),
+        .i_decinfo_vld (i_decinfo_vld ),
+        .i_decinfo     (i_decinfo     ),
+        .o_rename_vld  (o_rename_vld  ),
+        .o_renameInfo  (o_renameInfo  )
     );
 
 

@@ -14,6 +14,7 @@
 //TODO: finish decode
 module decoder (
     input wire[`IDEF] i_inst,
+    input wire[`XDEF] i_inst_pc,
     input wire[`XDEF] i_inst_npc,
 
     output wire o_unknow_inst,
@@ -377,6 +378,7 @@ module decoder (
 
     assign o_decinfo.isRVC = isRVC;
     assign o_decinfo.ismv = ismv;
+    assign o_decinfo.pc = i_inst_pc;
     assign o_decinfo.npc = i_inst_npc;
     assign o_decinfo.imm20 = imm;
     assign o_decinfo.rd_wen = rd_wen;

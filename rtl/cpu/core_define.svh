@@ -16,7 +16,9 @@ package rv_trap_t;
 //mtvec mode:
 //0:Direct All exceptions set pc to BASE.
 //1:Vectored Asynchronous interrupts set pc to BASE+4×cause.
-    typedef enum logic[`WDEF($clog2(64))]{
+
+    // mcause (actually, 16bits mcause reg is enough)
+    typedef enum logic[`WDEF(16)]{
         //instruction fetch and decode
         pcUnaligned=0, // instruction address misaligned
         fetchFault=1, // instruction access fault
@@ -39,7 +41,7 @@ package rv_trap_t;
         badDivisor=24, // div/fdiv, it would not to throw trap in standard riscv
         reserved_exception
     }exception;
-    typedef enum logic[`XDEF]{
+    typedef enum logic[`WDEF(16)]{
         sSoft=1, // Supervisor software interrupt
         mSoft=3,
         sTimer=5, // Supervisor timer interrupt
@@ -49,7 +51,20 @@ package rv_trap_t;
         //>=16 Designated for platform use
         reserved_interrupts
     }interrupt;
+
 endpackage
+
+typedef struct packed {
+    // the trap type
+    logic[`WDEF(16)] cause;
+    // the cpu pc when trap triggered
+    logic[`XDEF] epc;
+    // the reason of trap
+    // exception: maybe is 32'inst or mem access address
+    // interrupt: nothing
+    logic[`XDEF] tval;
+} trapInfo_t;
+
 
 
 `include "core_comm.svh"
