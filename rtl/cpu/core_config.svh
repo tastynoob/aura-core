@@ -5,6 +5,11 @@
 `define XLEN 64
 `define XLEN_64
 
+
+// fetch
+
+`define FSQ_SIZE 4
+
 `define FETCH_WIDTH 4
 
 // decode rename
@@ -37,6 +42,7 @@
 `define INTBLOCK_ID 0
 `define MEMBLOCK_ID 1
 `define FLTBLOCK_ID 2
+`define UNKOWNBLOCK_ID 3
 
 // issue
 

@@ -4,6 +4,15 @@
 `include "core_define.svh"
 `include "decode_define.svh"
 
+/******************** branchPredictor define ********************/
+
+// each inst take
+typedef struct {
+    fsqIdx_t fsq_idx;
+    logic fsq_offset;
+} BPInfo_t;
+
+
 /******************** fetch define ********************/
 
 
@@ -96,7 +105,7 @@ typedef struct {
     immBIdx_t immBIdx;
     branchBIdx_t branchBIdx;
     MicOp_t::_u micOp_type;
-} intDQEntry_t;
+} intDQEntry_t;// to exeIntBlock
 
 
 /******************** issue define ********************/

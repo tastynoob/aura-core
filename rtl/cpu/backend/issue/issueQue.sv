@@ -41,11 +41,11 @@ module issueQue #(
     output wire[`WDEF($clog2(DEPTH)-1)] o_issue_idx,
     output wire[`WDEF(INOUTPORT_NUM)] o_can_issue,//find can issued entry
 
-    // feed back from readRegfile which is or not successed
+    // feedback from readRegfile which is or not successed
     input wire[`WDEF($clog2(DEPTH)-1)] i_feedback_idx[INOUTPORT_NUM],
-    // clear entry's vld bit
+    // clear entry's vld bit (issue successed)
     input wire[`WDEF(INOUTPORT_NUM)] i_deq_vld,//issue req
-    // clear entry's issued bit
+    // clear entry's issued bit (issue failed)
     input wire[`WDEF(INOUTPORT_NUM)] i_replay_vld,
 
     //export internal wakeup signal

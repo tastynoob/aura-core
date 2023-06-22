@@ -149,7 +149,7 @@ package MicOp_t;
     }_stu;
     typedef enum logic[`WDEF(`MICOP_WIDTH)]{
         auipc,
-        //direct branch
+        //unconditional branch
         jal,
         jalr,
         //conditional branch

@@ -27,7 +27,7 @@ module fifo #(
     output wire [`WDEF(OUTPORT_NUM)] o_can_deq,
     input wire [`WDEF(OUTPORT_NUM)] i_deq_req,
     output dtype o_deq_data[OUTPORT_NUM],
-    // TODO: rename restore
+    // DESIGN: rename restore
     // resteer (only for rename restore)
     input wire i_resteer_vld,
     // commit (only for rename restore)

@@ -17,7 +17,6 @@ module decoder (
     input wire[`XDEF] i_inst_pc,
     input wire[`XDEF] i_inst_npc,
 
-    output wire o_unknow_inst,
     //decinfo output
     output decInfo_t o_decinfo
 );
@@ -238,14 +237,14 @@ module decoder (
     wire isShift = inst_SLL | inst_SLLI | inst_SLLW | inst_SLLIW | inst_SRL | inst_SRLI | inst_SRLW | inst_SRLIW | inst_SRA | inst_SRAI | inst_SRAW | inst_SRAIW | inst_C_SRAI | inst_C_SRLI | inst_C_SLLI;
     wire isLogic = inst_AND | inst_ANDI | inst_OR | inst_ORI | inst_XOR | inst_XORI;
     wire isCompare = inst_SLT | inst_SLTI | inst_SLTU | inst_SLTIU;
-    wire isConditionalBranch = inst_BEQ | inst_BGE | inst_BGEU | inst_BLT | inst_BLTU | inst_BNE;
-    wire isDirectBranch = inst_JAL | inst_JALR;
+    wire isCondBranch = inst_BEQ | inst_BGE | inst_BGEU | inst_BLT | inst_BLTU | inst_BNE;
+    wire isUncondBranch = inst_JAL | inst_JALR;
     wire isLoad = inst_LB | inst_LBU | inst_LH | inst_LHU | inst_LW | inst_LWU | inst_LD;
     wire isStore = inst_SB | inst_SH | inst_SW | inst_SD;
     wire isMul = inst_MUL | inst_MULH | inst_MULHSU | inst_MULHU | inst_MULW;
     wire isDiv = inst_DIV | inst_DIVU | inst_DIVUW | inst_DIVW | inst_REM | inst_REMU | inst_REMUW | inst_REMW;
     wire isCSR = inst_CSRRC | inst_CSRRCI | inst_CSRRS | inst_CSRRSI | inst_CSRRW | inst_CSRRWI;
-    wire isUnknow = !(isAdd | isSub | isShift | isLogic | isCompare | isConditionalBranch | isDirectBranch | isLoad | isStore | isMul | isDiv | isCSR);
+    wire isUnknow = !(isAdd | isSub | isShift | isLogic | isCompare | isCondBranch | isUncondBranch | isLoad | isStore | isMul | isDiv | isCSR);
     // TODO: add compressed inst
     // integer math (with rs1 rs2)
     wire isIntMath = isAdd | isSub | isShift | isLogic | isCompare;
@@ -263,7 +262,7 @@ module decoder (
 
     wire has_rd = !(isBranch || isStore) && (ilrd_idx != 0);
     wire has_rs1 = !(inst_JAL);
-    wire has_rs2 = !(isImmMath || isDirectBranch);
+    wire has_rs2 = !(isImmMath || isUncondBranch);
 
 
     //jalr、load、opimm
@@ -286,7 +285,7 @@ module decoder (
 
     wire[`IMMDEF] imm =
     inst_LUI | inst_AUIPC ? inst_u_type_imm   :
-    isConditionalBranch ? inst_b_type_imm            :
+    isCondBranch ? inst_b_type_imm            :
     isStore ? inst_s_type_imm             :
     isLoad | inst_JALR ? inst_i_type_imm              :
     isImmMath ? inst_opimm_imm              :
@@ -331,6 +330,7 @@ module decoder (
     wire[`WDEF(2)] dispQue_id =
     !(isLoad || isStore) ? `INTBLOCK_ID :
     (isLoad || isStore) ?  `MEMBLOCK_ID :
+    isUnknow ? `UNKOWNBLOCK_ID :
     0;
     //issueQue select
     wire[`WDEF(2)] issueQue_id =
@@ -393,8 +393,6 @@ module decoder (
     use_alu ? aluop_type :
     use_mdu ? mduop_type :
     0;
-
-    assign o_unknow_inst = isUnknow;
 
 
 

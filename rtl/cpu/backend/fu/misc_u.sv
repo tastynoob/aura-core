@@ -56,7 +56,7 @@ module misc_u #(
     //auipc
     wire[`XDEF] auipc = i_pc + i_imm;
 
-    //direct branch
+    //unconditional branch
     wire[`XDEF] jal = i_pc + i_imm;
     wire [`XDEF] jalr = src0 + i_imm;
     wire jal_taken =
