@@ -1,20 +1,27 @@
 
 `include "core_define.svh"
 
-module tb (
-    input clk,
-    input rst
+module tb #(
+    parameter int WIDTH = 4
+)(
+    input wire clk,
+    input wire rst
 );
 
-`ifdef DEBUG
 
 
+oldest_select
+#(
+    .WIDTH (3 )
+)
+u_oldest_select(
+    .i_rob_idx        (        ),
+    .o_oldest_rob_idx ( )
+);
 
 
-`endif
 
 endmodule
-
 
 
 

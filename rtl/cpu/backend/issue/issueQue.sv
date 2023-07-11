@@ -38,11 +38,11 @@ module issueQue #(
 
     //output INOUTPORT_NUM entrys with the highest priority which is ready
     output RSdeqInfo_t o_RSdeqInfo_deq[INOUTPORT_NUM],
-    output wire[`WDEF($clog2(DEPTH)-1)] o_issue_idx,
+    output wire[`WDEF($clog2(DEPTH))] o_issue_idx,
     output wire[`WDEF(INOUTPORT_NUM)] o_can_issue,//find can issued entry
 
     // feedback from readRegfile which is or not successed
-    input wire[`WDEF($clog2(DEPTH)-1)] i_feedback_idx[INOUTPORT_NUM],
+    input wire[`WDEF($clog2(DEPTH))] i_feedback_idx[INOUTPORT_NUM],
     // clear entry's vld bit (issue successed)
     input wire[`WDEF(INOUTPORT_NUM)] i_deq_vld,//issue req
     // clear entry's issued bit (issue failed)

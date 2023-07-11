@@ -6,11 +6,15 @@
 
 /******************** branchPredictor define ********************/
 
-// each inst take
-typedef struct {
-    fsqIdx_t fsq_idx;
-    logic fsq_offset;
-} BPInfo_t;
+package BranchType;
+    typedef enum logic[2:0] {
+        isCond,
+        isDirect,
+        isIndirect,
+        isCall,
+        isRet
+    } _;
+endpackage
 
 
 /******************** fetch define ********************/
@@ -102,8 +106,8 @@ typedef struct {
     logic use_imm;
     logic[`WDEF(2)] dispRS_id;
     robIdx_t robIdx;
-    immBIdx_t immBIdx;
-    branchBIdx_t branchBIdx;
+    irobIdx_t immBIdx;
+    brobIdx_t brob_idx;
     MicOp_t::_u micOp_type;
 } intDQEntry_t;// to exeIntBlock
 
@@ -121,8 +125,8 @@ typedef struct {
 typedef struct {
     iprIdx_t rdIdx;
     iprIdx_t rsIdx[`NUMSRCS_INT]; // reg src idx
-    immBIdx_t immB_idx; // the immbuffer idx (immOp-only)
-    branchBIdx_t pcB_idx; // the pcbuffer idx (bru-only)
+    irobIdx_t immB_idx; // the immbuffer idx (immOp-only)
+    brobIdx_t pcB_idx; // the pcbuffer idx (bru-only)
     logic use_imm;
     robIdx_t rob_idx;
     MicOp_t::_u micOp_type;
@@ -131,8 +135,8 @@ typedef struct {
 typedef struct {
     iprIdx_t rdIdx;
     iprIdx_t rsIdx[`NUMSRCS_INT]; // reg src idx
-    immBIdx_t immB_idx; // the immbuffer idx (immOp-only)
-    branchBIdx_t pcB_idx; // the pcbuffer idx (bru-only)
+    irobIdx_t immB_idx; // the immbuffer idx (immOp-only)
+    brobIdx_t pcB_idx; // the pcbuffer idx (bru-only)
     logic use_imm;
 
     robIdx_t rob_idx;
@@ -149,8 +153,8 @@ typedef struct {
     logic rd_wen;
     iprIdx_t rdIdx;
     iprIdx_t rsIdx[`NUMSRCS_INT]; // reg src idx
-    immBIdx_t immB_idx; // the immbuffer idx (immOp-only)
-    branchBIdx_t pcB_idx; // the pcbuffer idx (bru-only)
+    irobIdx_t immB_idx; // the immbuffer idx (immOp-only)
+    brobIdx_t pcB_idx; // the pcbuffer idx (bru-only)
     logic use_imm; // if use imm, the rsIdx[1] will be replaced to immBuffer idx
 
     robIdx_t rob_idx;
@@ -165,19 +169,35 @@ typedef struct {
     logic rd_wen;
     iprIdx_t iprd_idx;
     logic[`XDEF] result;
-} commWBInfo_t;
+} valWBInfo_t;
+
 
 typedef struct {
+    robIdx_t rob_idx;
+} commWBInfo_t;// used for alu/mdu
+
+typedef struct {
+    robIdx_t rob_idx;
+    brobIdx_t brob_idx;
     // the branchInst is mispred taken
     logic has_mispred;
-    // is branchInst taken ? (the jal inst must taken)
+    // is branchInst actually taken ? (the jal inst must taken)
     logic branch_taken;
     // branchInst's pc
     logic[`XDEF] branch_pc;
     // branchInst's taken pc
     logic[`XDEF] branch_npc;
+
 } branchWBInfo_t;
 
+
+
+typedef struct {
+    robIdx_t rob_idx;
+    // for csr/load/store or other
+    logic has_except;
+    rv_trap_t::exception except_type;
+} exceptWBInfo_t;
 
 /******************** commit define ********************/
 
@@ -192,13 +212,29 @@ typedef struct {
 // check exception
 // use spec-arch to restore core status
 
+
+
+typedef struct packed {
+    logic[`XDEF] mstatus;
+    logic[`XDEF] mtvec;
+} csr_pack_t;
+
+
+
 typedef struct {
+    // to decoupled frontend
+    BranchType::_ branch_type;
+    fsqIdx_t fsq_idx;// it may be unused
+    logic endOfBlock;
+    // logic[`WDEF(`FETCHBLOCK_OFFSET_WIDTH)] fsq_offset; no need to store in rob
+    // to rename
+    logic isRVC;
     logic ismv;
     logic has_rd;
     ilrIdx_t ilrd_idx;
     iprIdx_t iprd_idx;
     iprIdx_t prev_iprd_idx;
-    branchBIdx_t branchBIdx;
+    brobIdx_t brob_idx;
 } ROBEntry_t;
 
 typedef struct {
@@ -212,11 +248,13 @@ typedef struct {
 
 typedef struct {
     // bpu update
-    // is branchInst taken ? (the jal inst must taken)
+    BranchType::_ branch_type;
+    fsqIdx_t fsq_idx;
+    logic endOfBlock;
     logic branch_taken;
     // branchInst's pc
-    logic[`XDEF] branch_pc;
-    // branchInst's npc (real taken pc)
+    // logic[`XDEF] branch_pc; no need, because rob has arch pc
+    // branchInst's target
     logic[`XDEF] branch_npc;
 } branchCommitInfo_t;
 

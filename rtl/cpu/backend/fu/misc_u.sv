@@ -14,7 +14,7 @@ module misc_u #(
     output wire o_fu_stall,
     //data input
     input wire[`XDEF] i_data[BYPASS_WID],
-    input wire[`WDEF($clog2(BYPASS_WID)-1)] i_data_idx[`NUMSRCS_INT],//only need to save data_idx
+    input wire[`WDEF($clog2(BYPASS_WID))] i_data_idx[`NUMSRCS_INT],//only need to save data_idx
 
     //imm
     input wire[`IMMDEF] i_imm,
@@ -30,7 +30,7 @@ module misc_u #(
 );
     reg saved_has_vld;
     fuInfo_t saved_fuInfo;
-    reg[`WDEF($clog2(BYPASS_WID)-1)] saved_data_idx[`NUMSRCS_INT];
+    reg[`WDEF($clog2(BYPASS_WID))] saved_data_idx[`NUMSRCS_INT];
     //single cycle execute
     wire complete = saved_has_vld;
 
@@ -112,7 +112,7 @@ module misc_u #(
             o_wbInfo.use_imm <= saved_fuInfo.use_imm;
             o_wbInfo.immBIdx <= saved_fuInfo.immBIdx;
             // o_wbInfo.is_branch <= false;// alu do not need
-            // o_wbInfo.branchBIdx <= 0;// alu do not need
+            // o_wbInfo.brob_idx <= 0;// alu do not need
             o_wbInfo.iprd_wen <= saved_fuInfo.iprd_wen;
             o_wbInfo.iprd_idx <= saved_fuInfo.iprd_idx;
             o_wbInfo.wb_data <= calc_data;

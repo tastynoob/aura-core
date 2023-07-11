@@ -13,11 +13,11 @@ module regfile #(
     input wire clk,
     input wire rst,
 
-    input wire[`WDEF($clog2(SIZE)-1)] i_read_idx[READPORT_NUM],
+    input wire[`WDEF($clog2(SIZE))] i_read_idx[READPORT_NUM],
     output wire[`XDEF] o_read_data[READPORT_NUM],
 
     input wire[`WDEF(WBPORT_NUM)] i_write_en,
-    input wire[`WDEF($clog2(SIZE)-1)] i_write_idx[WBPORT_NUM],
+    input wire[`WDEF($clog2(SIZE))] i_write_idx[WBPORT_NUM],
     input wire[`XDEF] i_write_data[WBPORT_NUM]
 );
     integer i;

@@ -21,19 +21,19 @@ module dispatch (
     input renameInfo_t i_enq_inst[`RENAME_WIDTH],
 
     // read immBuffer
-    input immBIdx_t i_immB_read_dqIdx[`IMMBUFFER_READPORT_NUM],
+    input irobIdx_t i_immB_read_dqIdx[`IMMBUFFER_READPORT_NUM],
     output dtype o_immB_read_data[`IMMBUFFER_READPORT_NUM],
     input wire[`WDEF(`IMMBUFFER_CLEARPORT_NUM)] i_immB_clear_vld,
-    input immBIdx_t i_immB_clear_dqIdx[`IMMBUFFER_CLEARPORT_NUM],
+    input irobIdx_t i_immB_clear_dqIdx[`IMMBUFFER_CLEARPORT_NUM],
 
     // read and writeback branchBuffer
-    input immBIdx_t i_branchB_read_dqIdx[`BRANCHBUFFER_READPORT_NUM],
+    input irobIdx_t i_branchB_read_dqIdx[`BRANCHBUFFER_READPORT_NUM],
     output dtype o_branchB_read_data[`BRANCHBUFFER_READPORT_NUM],
     input wire[`WDEF(`BRANCHBUFFER_CLEARPORT_NUM)] i_branchB_clear_vld,
-    input immBIdx_t i_branchB_clear_dqIdx[`BRANCHBUFFER_CLEARPORT_NUM],
+    input irobIdx_t i_branchB_clear_dqIdx[`BRANCHBUFFER_CLEARPORT_NUM],
     // writeback (only for branchBuffer)
     input wire[`WDEF(`BRANCHBUFFER_WBPORT_NUM)] i_branchB_wb_vld,
-    input wire[`WDEF($clog2(DEPTH)-1)] i_branchB_wb_dqIdx[`BRANCHBUFFER_WBPORT_NUM],
+    input wire[`WDEF($clog2(DEPTH))] i_branchB_wb_dqIdx[`BRANCHBUFFER_WBPORT_NUM],
     input wire[`XDEF] i_branchB_wb_npc[`BRANCHBUFFER_WBPORT_NUM],
 
     // from rob/commit
@@ -56,11 +56,11 @@ module dispatch (
 
     //alloc immBubbfer id
     wire[`WDEF(`RENAME_WIDTH)] use_imm_vec;
-    immBIdx_t immBIdx_vec[`RENAME_WIDTH];// alloced immBuffer id
+    irobIdx_t immBIdx_vec[`RENAME_WIDTH];// alloced immBuffer id
     wire[`IMMDEF] imm_vec[`RENAME_WIDTH];
     // alloced branchBuffer id
     wire[`WDEF(`RENAME_WIDTH)] use_pc_vec;
-    branchBIdx_t branchBIdx_vec[`RENAME_WIDTH];
+    brobIdx_t brob_idx_vec[`RENAME_WIDTH];
     wire[`XDEF] branch_pc_vec[`RENAME_WIDTH];
 
     always_comb begin
@@ -77,10 +77,10 @@ module dispatch (
 
     wire can_insert_intDQ;
     wire can_insert_memDQ;
-    wire can_insert_branchBuffer;
+    wire can_insert_brob;
     wire can_insert_immBuffer;
     // only when can_dispatch is true
-    wire can_dispatch = i_can_insert_rob && can_insert_intDQ && can_insert_memDQ && can_insert_immBuffer && can_insert_branchBuffer;
+    wire can_dispatch = i_can_insert_rob && can_insert_intDQ && can_insert_memDQ && can_insert_immBuffer && can_insert_brob;
 
     wire[`WDEF(`RENAME_WIDTH)] insert_rob_vld;
     wire[`WDEF(`RENAME_WIDTH)] insert_intDQ_vld;
@@ -100,7 +100,7 @@ module dispatch (
                     ilrd_idx        : i_enq_inst[a].ilrd_idx,
                     iprd_idx        : i_enq_inst[a].iprd_idx,
                     prev_iprd_idx   : i_enq_inst[a].prev_iprd_idx,
-                    branchBIdx      : branchBIdx_vec[a]
+                    brob_idx      : brob_idx_vec[a]
                 };
                 // new intDQ entry
                 if (i_enq_inst[a].disqQue_id == `INTBLOCK_ID && (!i_enq_inst[a].ismv)) begin
@@ -114,7 +114,7 @@ module dispatch (
                         dispRS_id  : i_enq_inst[a].dispRS_id,
                         robIdx     : i_alloc_robIdx[a],
                         immBIdx    : immBIdx_vec[a],
-                        branchBIdx : branchBIdx_vec[a],
+                        brob_idx : brob_idx_vec[a],
                         micOp_type : i_enq_inst[a].micOp_type
                     };
                 end
@@ -193,17 +193,12 @@ module dispatch (
 
 /******************** branch buffer ********************/
     // DESIGN:
-    // only when branch commit finished
-    // this entry can be freed
-    // why?
-    // because we need branchInst's pc o update bpu
-
-    // branchBuffer must write and save the npc from writeback
+    // branchBuffer need to save the branchInst's result of npc
 
     pc_and_npc_t pc_and_npc[`RENAME_WIDTH];
     generate
         for (i=0;i<`RENAME_WIDTH;i=i+1) begin : gen_for
-            assign pc_and_npc[i] = '{pc:i_enq_inst[i].pc,npc:i_enq_inst[i].npc};
+            assign pc_and_npc[i] = '{pc:i_enq_inst[i].pc,npc:0};
         end
     endgenerate
 
@@ -213,7 +208,7 @@ module dispatch (
         .INPORT_NUM     ( `RENAME_WIDTH ),
         .READPORT_NUM   ( `BRANCHBUFFER_READPORT_NUM  ),
         .CLEARPORT_NUM  ( `BRANCHBUFFER_CLEARPORT_NUM ),
-        .WBPORT_NUM     ( `BRANCHBUFFER_WBPORT_NUM             ),// the num of bpu
+        .WBPORT_NUM     ( `BRANCHBUFFER_WBPORT_NUM             ),// the num of bju
         .COMMIT_WID     ( `BRANCHBUFFER_COMMIT_WID             ),
         .dtype          ( pc_and_npc_t  ),
         .ISBRANCHBUFFER ( 1             ) // only for branchBuffer
@@ -222,11 +217,11 @@ module dispatch (
         .clk            ( clk           ),
         .rst            ( rst || i_squash_vld      ),
 
-        .o_can_enq      ( can_insert_branchBuffer  ),
+        .o_can_enq      ( can_insert_brob  ),
         .i_enq_vld      ( can_dispatch      ),
         .i_enq_req      ( use_pc_vec        ),
         .i_enq_data     ( pc_and_npc        ),
-        .o_alloc_id     ( branchBIdx_vec    ),
+        .o_alloc_id     ( brob_idx_vec    ),
 
         .i_read_dqIdx   ( i_branchB_read_dqIdx  ),
         .o_read_data    ( o_branchB_read_data   ),

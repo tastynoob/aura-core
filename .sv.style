@@ -3,3 +3,4 @@
 -struct-union-name-style
 -line-length=150
 -no-tabs=false
+-parameter-name-style

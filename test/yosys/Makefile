@@ -3,7 +3,7 @@
 
 
 
-SV_FILES := $(shell find rtl -name "*.sv*")
+SV_FILES := $(shell find ../../rtl -name "*.sv*")
 SV_PATHS := $(shell find ../../rtl -type d)
 SV_PATHS := $(addprefix -I ,$(SV_PATHS))
 aura:
@@ -21,7 +21,8 @@ tb:
 	sv2v -v -E Always tb.sv -w temp.v 
 	yosys \
 	-p "read_verilog -sv temp.v" \
-	-p "proc" \
+	-p "proc; proc_mux; memory; proc_clean; proc_rmdead; proc_prune; opt; opt_clean; opt_dff; opt_demorgan; opt_dff; opt_expr; opt_mem; opt_muxtree; opt_reduce" \
+	-p "synth_xilinx" \
 	-p "show -colors 2 -width -signed -enum -prefix out tb"
 	#rm temp.v
 

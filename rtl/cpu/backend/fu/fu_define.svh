@@ -16,9 +16,9 @@
 typedef struct packed {
     robIdx_t robIdx;
     logic use_imm;
-    immBIdx_t immBIdx;
+    irobIdx_t immBIdx;
     logic is_branch;
-    branchBIdx_t branchBIdx;
+    brobIdx_t brob_idx;
     logic iprd_wen;
     iprIdx_t iprd_idx;
     MicOp_t::_u micOp;
@@ -28,9 +28,9 @@ typedef struct packed {
 typedef struct packed {
     robIdx_t robIdx;
     logic use_imm;
-    immBIdx_t immBIdx;// used for immOp
+    irobIdx_t immBIdx;// used for immOp
     logic is_branch;
-    branchBIdx_t branchBIdx;// used for branch
+    brobIdx_t brob_idx;// used for branch
     logic iprd_wen;
     iprIdx_t iprd_idx;
     logic[`XDEF] wb_data;

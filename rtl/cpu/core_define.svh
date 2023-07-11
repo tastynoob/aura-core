@@ -3,17 +3,20 @@
 
 `include "core_config.svh"
 
-typedef logic[`WDEF($clog2(`FSQ_SIZE)-1)] fsqIdx_t;
-
+typedef logic[`WDEF($clog2(`FSQ_SIZE))] fsqIdx_t;
+typedef struct packed {
+    logic flipped;
+    logic [`WDEF($clog2(`ROB_SIZE))] idx;
+} robIdx_t;
+// typedef logic [`WDEF($clog2(`ROB_SIZE))] robIdx_t;
+typedef logic [`WDEF($clog2(`IMMBUFFER_SIZE))] irobIdx_t; // the immBuffer idx
+typedef logic [`WDEF($clog2(`BRANCHBUFFER_SIZE))] brobIdx_t; // the branchBuffer idx
 
 //[int/fp][logic/physic]r[dest/src]Idx
 typedef logic [`WDEF($clog2(32))] ilrIdx_t;//the int logic regfile idx
 typedef logic [`WDEF($clog2(`IPHYREG_NUM))] iprIdx_t;//the int physic regfile idx
-
 typedef logic [`WDEF(12)] csrIdx_t;//the csr regfile idx
-typedef logic [`WDEF($clog2(`ROB_SIZE))] robIdx_t;
-typedef logic [`WDEF($clog2(`IMMBUFFER_SIZE)-1)] immBIdx_t; // the immBuffer idx
-typedef logic [`WDEF($clog2(`BRANCHBUFFER_SIZE)-1)] branchBIdx_t; // the branchBuffer idx
+
 
 package rv_trap_t;
 //mtvec mode:

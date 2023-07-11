@@ -6,6 +6,14 @@
 `define XLEN_64
 
 
+// branch predictor
+// the fetch block max size is 64
+
+`define FETCHBLOCK_MAX_INST 64 // byte
+// actually pc = fetch start pc + (offset<<1)
+`define FETCHBLOCK_OFFSET_WIDTH ($clog2(`FETCHBLOCK_MAX_INST) - 1)
+
+
 // fetch
 
 `define FSQ_SIZE 4
@@ -51,13 +59,18 @@
 `define MDUIQ_ID 1
 `define MISCIQ_ID 2
 
-// write back
+// execute and write back
+
+`define ALU_NUM 3
+`define MDU_NUM 2
+`define MISC_NUM 1
 
 `define WBPORT_NUM 6
 
 
 // commit
 `define COMMIT_WIDTH 4
+`define ROB_SIZE 128
 
 
 //int logic register index def
