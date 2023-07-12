@@ -174,10 +174,14 @@ typedef struct {
 
 typedef struct {
     robIdx_t rob_idx;
-} commWBInfo_t;// used for alu/mdu
+    // used for debug
+    logic[`XDEF] result;
+} commWBInfo_t;// used for fu
 
 typedef struct {
+    BranchType::_ branch_type;
     robIdx_t rob_idx;
+    ftqIdx_t ftq_idx;
     brobIdx_t brob_idx;
     // the branchInst is mispred taken
     logic has_mispred;
@@ -187,8 +191,7 @@ typedef struct {
     logic[`XDEF] branch_pc;
     // branchInst's taken pc
     logic[`XDEF] branch_npc;
-
-} branchWBInfo_t;
+} branchWBInfo_t;// writeback to rob and ftq
 
 
 
@@ -213,20 +216,29 @@ typedef struct {
 // use spec-arch to restore core status
 
 
+typedef struct packed {
+    // trap info
+    logic interrupt_vectored;
+    logic[1:0] level;
+    logic[`XDEF] status;
+    logic[`XDEF] tvec;
+} csr_in_pack_t;
 
 typedef struct packed {
-    logic[`XDEF] mstatus;
-    logic[`XDEF] mtvec;
-} csr_pack_t;
-
-
+    // trap handle
+    logic[`XDEF] epc;
+    logic[`XDEF] cause;
+    logic[`XDEF] tval;
+    logic[`IDEF] tinst;
+    logic[`IDEF] tval2;
+    //
+} csr_out_pack_t;
 
 typedef struct {
     // to decoupled frontend
     BranchType::_ branch_type;
-    fsqIdx_t fsq_idx;// it may be unused
-    logic endOfBlock;
-    // logic[`WDEF(`FETCHBLOCK_OFFSET_WIDTH)] fsq_offset; no need to store in rob
+    ftqIdx_t ftq_idx;
+    // logic[`WDEF(`FETCHBLOCK_OFFSET_WIDTH)] ftq_offset; no need to store in rob
     // to rename
     logic isRVC;
     logic ismv;
@@ -234,7 +246,6 @@ typedef struct {
     ilrIdx_t ilrd_idx;
     iprIdx_t iprd_idx;
     iprIdx_t prev_iprd_idx;
-    brobIdx_t brob_idx;
 } ROBEntry_t;
 
 typedef struct {
@@ -246,22 +257,10 @@ typedef struct {
     iprIdx_t prev_iprd_idx;
 } renameCommitInfo_t;
 
-typedef struct {
-    // bpu update
-    BranchType::_ branch_type;
-    fsqIdx_t fsq_idx;
-    logic endOfBlock;
-    logic branch_taken;
-    // branchInst's pc
-    // logic[`XDEF] branch_pc; no need, because rob has arch pc
-    // branchInst's target
-    logic[`XDEF] branch_npc;
-} branchCommitInfo_t;
-
 
 typedef struct {
     logic dueToBranch;
-    logic dueToMemOrder;
+    logic branch_taken;
     logic[`XDEF] arch_pc;
 } squashInfo_t;
 

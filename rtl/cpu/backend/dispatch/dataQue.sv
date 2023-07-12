@@ -17,13 +17,18 @@ module dataQue #(
 )(
     input wire clk,
     input wire rst,
+    input wire i_stall, // only for rob
     // enq data
     output wire o_can_enq,
     input wire i_enq_vld, // only when enq_vld is true, dataQue can enq
     input wire[`WDEF(INPORT_NUM)] i_enq_req,
     input dtype i_enq_data[INPORT_NUM],
-    output wire[`WDEF(INPORT_NUM)] o_ptr_flipped,
+    output wire o_ptr_flipped[INPORT_NUM],
     output wire[`WDEF($clog2(DEPTH))] o_alloc_id[INPORT_NUM],
+    // output the actually enq_vld and enq_idx (only for ftqOffset_buffer)
+    output wire[`WDEF(INPORT_NUM)] o_enq_vld,
+    output wire[`WDEF($clog2(DEPTH))] o_enq_idx[INPORT_NUM],
+
     // read data
     input wire[`WDEF($clog2(DEPTH))] i_read_dqIdx[READPORT_NUM],
     output dtype o_read_data[READPORT_NUM],
@@ -45,6 +50,8 @@ module dataQue #(
 
     wire[`WDEF(INPORT_NUM)] enq_req;
     dtype enq_data[INPORT_NUM];
+    reg[`WDEF($clog2(DEPTH))] enq_ptr[INPORT_NUM],head_ptr[COMMIT_WID];
+    reg enq_ptr_flipped[INPORT_NUM];
 
     reorder
     #(
@@ -57,9 +64,6 @@ module dataQue #(
         .o_data_vld      ( enq_req      ),
         .o_reorder_datas ( enq_data )
     );
-
-    reg[`WDEF($clog2(DEPTH))] enq_ptr[INPORT_NUM],head_ptr[COMMIT_WID];
-    reg enq_ptr_flipped[INPORT_NUM];
 
     redirect
     #(
@@ -86,11 +90,14 @@ module dataQue #(
     reg[`WDEF(DEPTH)] vld_bits;
     reg[`WDEF(DEPTH)] clear_bits;
     reg[`SDEF(DEPTH)] count;
-    wire[`SDEF(DEPTH)] renaming = (DEPTH - count);
+    wire[`SDEF(DEPTH)] remaining = (DEPTH - count);
     wire[`WDEF(INPORT_NUM)] real_enq_vld = o_can_enq ? enq_req : 0;
     wire[`SDEF(DEPTH)] real_enq_num, enq_num, clear_num;
     /* verilator lint_off UNOPTFLAT */
     wire[`WDEF(INPORT_NUM)] can_clear_vld;
+
+    assign o_enq_vld = real_enq_vld;
+    assign o_enq_idx = enq_ptr;
 
     count_one
     #(
@@ -101,7 +108,7 @@ module dataQue #(
         .o_sum ( enq_num        )
     );
 
-    assign o_can_enq = enq_num <= renaming;
+    assign o_can_enq = enq_num <= remaining;
 
     count_one
     #(
@@ -161,13 +168,11 @@ module dataQue #(
                 end
             end
             //clear/commit
-            if (can_clear_vld[0]) begin
-                for (j=0;j<COMMIT_WID;j=j+1) begin
-                    if (can_clear_vld[j]) begin
-                        vld_bits[head_ptr[j]] <= false;
-                    end
-                    head_ptr[j] <= (head_ptr[j] + clear_num) < DEPTH ? (head_ptr[j] + clear_num) : (head_ptr[j] + clear_num - DEPTH);
+            for (j=0;j<COMMIT_WID;j=j+1) begin
+                if (can_clear_vld[j]) begin
+                    vld_bits[head_ptr[j]] <= false;
                 end
+                head_ptr[j] <= (head_ptr[j] + clear_num) < DEPTH ? (head_ptr[j] + clear_num) : (head_ptr[j] + clear_num - DEPTH);
             end
             // wb
             if (ISBRANCHBUFFER != 0) begin
@@ -182,21 +187,23 @@ module dataQue #(
     end
 
     generate
+        if (!ISROB) begin:gen_if
+            for(i=0;i<READPORT_NUM;i=i+1) begin:gen_for
+                assign o_read_data[i] = buffer[i_read_dqIdx[i]];
+            end
+        end
+
         for (i = 0; i < COMMIT_WID; i = i + 1) begin:gen_for
             if (i==0) begin:gen_if
-                assign can_clear_vld[i] = vld_bits[head_ptr[i]] & clear_bits[head_ptr[i]];
+                assign can_clear_vld[i] = vld_bits[head_ptr[i]] & clear_bits[head_ptr[i]] & (ISROB ? !i_stall : 1);
             end
             else begin:gen_else
                 assign can_clear_vld[i] = (vld_bits[head_ptr[i]] & clear_bits[head_ptr[i]]) & can_clear_vld[i-1];
             end
-            assign o_willClear_vld[i] = can_clear_vld[i];
-            assign o_willClear_idx[i] = head_ptr[i];
-            assign o_willClear_data[i] = buffer[head_ptr[i]];
-        end
-
-        for(i=0;i<INPORT_NUM;i=i+1) begin:gen_for
             if (ISROB) begin:gen_if
-                assign o_ptr_flipped[i] = enq_ptr_flipped[i];
+                assign o_willClear_vld[i] = can_clear_vld[i];
+                assign o_willClear_idx[i] = head_ptr[i];
+                assign o_willClear_data[i] = buffer[head_ptr[i]];
             end
         end
     endgenerate

@@ -4,8 +4,8 @@
 
 
 // DESIGN:
-// issue -> read regfile/immBuffer/branchBuffer/fsq -> bypass/calcuate pc -> execute
-// pc = (fsq_base_pc << offsetLen) + offset
+// issue -> read regfile/immBuffer/branchBuffer/ftq -> bypass/calcuate pc -> execute
+// pc = (ftq_base_pc << offsetLen) + offset
 
 
 // 4 alu
@@ -34,8 +34,8 @@ module intBlock #(
     output irobIdx_t o_immB_idx[ALU_NUM + MISC_NUM],
     input wire[`IMMDEF] i_imm_data[ALU_NUM + MISC_NUM],
 
-    // fsq read
-    output fsqIdx_t o_fsq_idx[MISC_NUM],
+    // ftq read (read port shared with commit)
+    output ftqIdx_t o_ftq_idx[MISC_NUM],
 
     // writeback
     output wire[`WDEF(ALU_NUM + MDU_NUM + MISC_NUM)] o_wb_vld,

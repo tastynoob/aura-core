@@ -3,14 +3,15 @@
 
 `include "core_config.svh"
 
-typedef logic[`WDEF($clog2(`FSQ_SIZE))] fsqIdx_t;
+typedef logic[`WDEF($clog2(`FTQ_SIZE))] ftqIdx_t;
+typedef logic[`WDEF(`FETCHBLOCK_OFFSET_WIDTH)] ftqOffset_t;
 typedef struct packed {
     logic flipped;
     logic [`WDEF($clog2(`ROB_SIZE))] idx;
 } robIdx_t;
 // typedef logic [`WDEF($clog2(`ROB_SIZE))] robIdx_t;
 typedef logic [`WDEF($clog2(`IMMBUFFER_SIZE))] irobIdx_t; // the immBuffer idx
-typedef logic [`WDEF($clog2(`BRANCHBUFFER_SIZE))] brobIdx_t; // the branchBuffer idx
+typedef logic [`WDEF($clog2(`ROB_SIZE))] brobIdx_t; // the branchBuffer idx
 
 //[int/fp][logic/physic]r[dest/src]Idx
 typedef logic [`WDEF($clog2(32))] ilrIdx_t;//the int logic regfile idx
@@ -59,18 +60,6 @@ package rv_trap_t;
     }interrupt;
 
 endpackage
-
-typedef struct packed {
-    // the trap type
-    logic[`WDEF(16)] cause;
-    // the cpu pc when trap triggered
-    logic[`XDEF] epc;
-    // the reason of trap
-    // exception: maybe is 32'inst or mem access address
-    // interrupt: nothing
-    logic[`XDEF] tval;
-} trapInfo_t;
-
 
 
 `include "core_comm.svh"

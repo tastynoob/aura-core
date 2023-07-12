@@ -16,7 +16,7 @@
 
 // fetch
 
-`define FSQ_SIZE 4
+`define FTQ_SIZE 4
 
 `define FETCH_WIDTH 4
 
