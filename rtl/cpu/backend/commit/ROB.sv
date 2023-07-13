@@ -37,16 +37,23 @@ module ROB(
     input wire clk,
     input wire rst,
 
+    // TODO; trap control
     // from/to csr
     input csr_in_pack_t i_csr_pack,
+    output csr_out_pack_t o_csr_pack,
 
-    //from dispatch insert, enque
+    // from dispatch insert, enque
     output wire o_can_enq,
     input wire i_enq_vld,
     input wire[`WDEF(`RENAME_WIDTH)] i_enq_req,
+    input wire[`WDEF(`RENAME_WIDTH)] i_insert_rob_ismv,
     input ROBEntry_t i_new_entry[`RENAME_WIDTH],
     input ftqOffset_t i_new_entry_ftqOffset[`RENAME_WIDTH],//ftqOffset separate from rob
     output robIdx_t o_alloc_robIdx[`RENAME_WIDTH],
+
+    // read ftqOffset from exu
+    input wire[`WDEF($clog2(`ROB_SIZE))] i_read_ftqOffset_idx[`MISC_NUM],
+    output ftqOffset_t o_read_ftqOffset_data[`MISC_NUM],
 
     // write back, from exu
     // common writeback
@@ -69,14 +76,19 @@ module ROB(
     output ftqIdx_t o_ftq_idx,
     input wire[`XDEF] i_ftq_startAddress,
 
-    //to decoupled frontend
+    //to decoupled frontend, notify which inst was committed
     output wire o_branch_commit_vld,
-    output ftqIdx_t o_committed_ftq_idx,// set the ftq commit_ptr to this
+    output ftqIdx_t o_committed_ftq_idx,// set the ftq commit_ptr to this(last committed ftqIdx)
+
+    // we need to notify which store was committed
+    output wire o_commit_vld,
+    output wire[`WDEF($clog2(`ROB_SIZE))] o_committed_rob_idx,
 
     // pipeline control
     output wire o_squash_vld,
     output squashInfo_t o_squashInfo
 );
+    `ORDER_CHECK(i_enq_req);
     genvar i;
     integer j;
     reg commit_stall;
@@ -133,6 +145,7 @@ module ROB(
         .o_can_enq        ( o_can_enq       ),
         .i_enq_vld        ( i_enq_vld       ),
         .i_enq_req        ( i_enq_req       ),
+        .i_enq_req_mark_finished ( i_insert_rob_ismv ),
         .i_enq_data       ( i_new_entry     ),
         .o_ptr_flipped    ( ptr_flipped     ),
         .o_alloc_id       ( alloc_idx       ),
@@ -146,54 +159,51 @@ module ROB(
         .o_willClear_idx  ( willCommit_idx  ),
         .o_willClear_data ( willCommit_data )
     );
-    ftqOffset_t reordered_ftqOffset[`RENAME_WIDTH];
-    reorder
-    #(
-        .dtype ( ftqOffset_t    ),
-        .NUM   ( `RENAME_WIDTH  )
-    )
-    u_reorder(
-        .i_data_vld      ( i_enq_req             ),
-        .i_datas         ( i_new_entry_ftqOffset ),
-        .o_data_vld      (),
-        .o_reorder_datas ( reordered_ftqOffset   )
-    );
+
     always_ff @( posedge clk ) begin
         for(j=0;j<`RENAME_WIDTH;j=j+1) begin
+            // write ftqOffset
             if (enq_vld[j]) begin
-                ftqOffset_buffer[enq_idx[i]] <= reordered_ftqOffset[i];
+                ftqOffset_buffer[enq_idx[i]] <= i_new_entry_ftqOffset[i];
             end
         end
     end
 
-
-
+    generate
+        // read from exu
+        for(i=0;i<`MISC_NUM;i=i+1) begin:gen_for
+            assign o_read_ftqOffset_data[i] = ftqOffset_buffer[i_read_ftqOffset_idx[i]];
+        end
+    endgenerate
 
 
 /****************************************************************************************************/
-// commit to decoupled and rename
-//
+// commit, update the ftq commit_ptr, rename status, storeQue
+// decoupled front commit can be one cycle later than rob commit (actually both in one cycle)
+// rename commit, storeQue commit and rob commit must in one cycle
 /****************************************************************************************************/
-    reg[`WDEF(`COMMIT_WIDTH)] renameCommit_vld;
-    renameCommitInfo_t renameCommitInfo[`COMMIT_WIDTH];
-    // only can commit one fetchblock
-    reg branchCommit_vld;
-    ftqIdx_t committed_ftq_idx;
 
-    always_ff @( posedge clk ) begin : blockName
-        if (rst) begin
-            renameCommit_vld <= 0;
-            branchCommit_vld <= 0;
+
+    assign o_branch_commit_vld = canCommit_vld[0];
+    assign o_committed_ftq_idx = last_committed_inst.ftq_idx;
+
+    assign o_rename_commit = canCommit_vld;
+    //TODO: rename commit info
+    generate
+        for(i=0;i<`COMMIT_WIDTH;i=i+1) begin:gen_for
+            assign o_rename_commitInfo[i] = '{
+                ismv:willCommit_data[i].ismv,
+                has_rd:willCommit_data[i].has_rd,
+                ilrd_idx:willCommit_data[i].ilrd_idx,
+                iprd_idx:willCommit_data[i].iprd_idx,
+                prev_iprd_idx:willCommit_data[i].prev_iprd_idx
+            };
         end
-        else begin
-            if (canCommit_vld[0]) begin
-                branchCommit_vld <= 1;
-            end
-            else begin
-                branchCommit_vld <= 0;
-            end
-        end
-    end
+    endgenerate
+
+    assign o_commit_vld = canCommit_vld[0];
+    assign o_committed_rob_idx = last_committed_rob_idx;
+
 
 
 /****************************************************************************************************/
@@ -304,13 +314,14 @@ module ROB(
 // if mispred && (has_except || has_interrupt) mepc = bmhr.npc else mecp = ftq[ftq_idx[last_commit]] + offset;
 // NOTE: the fetchblock start pc read from ftq, the ftqOffset read from ftqOffset_buffer
 // if trap, we need one more cycle to process trap
+// trap process and csr update in one cycle
 /****************************************************************************************************/
 
     commit_status_t::_ status;
     wire[`XDEF] last_committed_pc;
     wire[`XDEF] trap_ret_pc;
     reg last_committed_isRVC;
-    ftqOffset_t ftq_offset;
+    ftqOffset_t ftqOffset;
     reg squash_vld;
     squashInfo_t squashInfo;
     always_ff @( posedge clk ) begin
@@ -328,7 +339,8 @@ module ROB(
                 status <= commit_status_t::trapProcess;
                 // NOTE: if has except, last_committed_inst = (excepted inst - 1)
                 last_committed_isRVC <= last_committed_inst.isRVC;
-                ftq_offset <= ftqOffset_buffer[last_committed_rob_idx];
+                // read from rob
+                ftqOffset <= ftqOffset_buffer[last_committed_rob_idx];
             end
             else if (status == commit_status_t::trapProcess) begin
                 // s2: compute the squashInfo
@@ -339,7 +351,7 @@ module ROB(
                 //// TODO: trap address select
                 squashInfo.arch_pc <= has_interrupt ? i_csr_pack.tvec + (0) : i_csr_pack.tvec;
                 // TODO:
-                // if has trap: mepc = i_ftq_startAddress + ftq_offset + isRVC ? 2:4
+                // if has trap: mepc = i_ftq_startAddress + ftqOffset + isRVC ? 2:4
             end
             else if (has_mispred) begin
                 squash_vld <= true;
@@ -353,7 +365,7 @@ module ROB(
     assign o_squash_vld = squash_vld;
     assign o_squashInfo = squashInfo;
 
-    assign last_committed_pc = i_ftq_startAddress + ftq_offset;
+    assign last_committed_pc = i_ftq_startAddress + ftqOffset;
     assign trap_ret_pc = last_committed_pc + (last_committed_isRVC ? 2:4);
 
 

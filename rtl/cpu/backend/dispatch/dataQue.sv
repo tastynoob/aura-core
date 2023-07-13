@@ -12,7 +12,6 @@ module dataQue #(
     parameter int WBPORT_NUM = 4,
     parameter int COMMIT_WID = 4,
     parameter type dtype = logic[`XDEF],
-    parameter int ISBRANCHBUFFER = 0,
     parameter int ISROB = 0
 )(
     input wire clk,
@@ -22,6 +21,7 @@ module dataQue #(
     output wire o_can_enq,
     input wire i_enq_vld, // only when enq_vld is true, dataQue can enq
     input wire[`WDEF(INPORT_NUM)] i_enq_req,
+    input wire[`WDEF(INPORT_NUM)] i_enq_req_mark_finished,// only for rob
     input dtype i_enq_data[INPORT_NUM],
     output wire o_ptr_flipped[INPORT_NUM],
     output wire[`WDEF($clog2(DEPTH))] o_alloc_id[INPORT_NUM],
@@ -53,17 +53,25 @@ module dataQue #(
     reg[`WDEF($clog2(DEPTH))] enq_ptr[INPORT_NUM],head_ptr[COMMIT_WID];
     reg enq_ptr_flipped[INPORT_NUM];
 
-    reorder
-    #(
-        .dtype ( dtype ),
-        .NUM   ( INPORT_NUM   )
-    )
-    u_reorder(
-    	.i_data_vld      ( i_enq_req      ),
-        .i_datas         ( i_enq_data         ),
-        .o_data_vld      ( enq_req      ),
-        .o_reorder_datas ( enq_data )
-    );
+    if(!ISROB) begin:gen_if
+        reorder
+        #(
+            .dtype ( dtype ),
+            .NUM   ( INPORT_NUM   )
+        )
+        u_reorder(
+            .i_data_vld      ( i_enq_req      ),
+            .i_datas         ( i_enq_data         ),
+            .o_data_vld      ( enq_req      ),
+            .o_reorder_datas ( enq_data )
+        );
+    end
+    else begin:gen_else
+    // if isROB, the enq_req must in order
+        assign enq_req = i_enq_req;
+        assign enq_data = i_enq_data;
+        `ORDER_CHECK(enq_req);
+    end
 
     redirect
     #(
@@ -115,7 +123,7 @@ module dataQue #(
         .WIDTH ( INPORT_NUM     )
     )
     u_count_one_1(
-        .i_a   ( i_enq_vld ? real_enq_vld : 0 ),
+        .i_a   ( real_enq_vld   ),
         .o_sum ( real_enq_num   )
     );
 
@@ -153,6 +161,9 @@ module dataQue #(
                         vld_bits[enq_ptr[j]] <= true;
                         buffer[enq_ptr[j]] <= i_enq_data[j];
                     end
+                    if (ISROB && i_enq_req_mark_finished) begin
+                        clear_bits[enq_ptr[j]] <= true;
+                    end
                     if ((enq_ptr[j] + real_enq_num) < DEPTH) begin
                     end
                     else if(ISROB) begin // flipped
@@ -173,15 +184,6 @@ module dataQue #(
                     vld_bits[head_ptr[j]] <= false;
                 end
                 head_ptr[j] <= (head_ptr[j] + clear_num) < DEPTH ? (head_ptr[j] + clear_num) : (head_ptr[j] + clear_num - DEPTH);
-            end
-            // wb
-            if (ISBRANCHBUFFER != 0) begin
-                for (j=0;j<WBPORT_NUM;j=j+1) begin
-                    if (i_wb_vld[j]) begin
-                        buffer[i_wb_dqIdx[j]].npc <= i_wb_npc[j];
-                        assert (vld_bits[i_wb_dqIdx[j]]==true);
-                    end
-                end
             end
         end
     end

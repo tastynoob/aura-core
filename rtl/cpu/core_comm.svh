@@ -67,10 +67,10 @@ typedef struct {
 //add p5,p3,p4  ;p5:1
 
 typedef struct {
+    ftqIdx_t ftq_idx;
+    ftqOffset_t ftqOffset;
     logic isRVC;
     logic ismv; //used for mov elim
-    logic[`XDEF] pc;
-    logic[`XDEF] npc;
     // different inst use different format,NOTE: csr use imm20 = {3'b0,12'csrIdx,5'zimm}
     logic[`IMMDEF] imm20;
     logic need_serialize; // if is csr write, need to serialize pipeline
@@ -92,22 +92,15 @@ typedef struct {
 
 /******************** dispatch define ********************/
 
-// TODO: we may need to implement pcbuffer and immbuffer
-
-typedef struct packed {
-    logic[`XDEF] pc;
-    logic[`XDEF] npc;
-} pc_and_npc_t;
-
 typedef struct {
     logic rd_wen;
     iprIdx_t iprd_idx;
     iprIdx_t iprs_idx[`NUMSRCS_INT];
     logic use_imm;
     logic[`WDEF(2)] dispRS_id;
-    robIdx_t robIdx;
-    irobIdx_t immBIdx;
-    brobIdx_t brob_idx;
+    ftqIdx_t ftq_idx;
+    robIdx_t rob_idx;
+    irobIdx_t irob_idx;
     MicOp_t::_u micOp_type;
 } intDQEntry_t;// to exeIntBlock
 
@@ -226,6 +219,7 @@ typedef struct packed {
 
 typedef struct packed {
     // trap handle
+    logic has_trap;
     logic[`XDEF] epc;
     logic[`XDEF] cause;
     logic[`XDEF] tval;
@@ -235,10 +229,7 @@ typedef struct packed {
 } csr_out_pack_t;
 
 typedef struct {
-    // to decoupled frontend
-    BranchType::_ branch_type;
     ftqIdx_t ftq_idx;
-    // logic[`WDEF(`FETCHBLOCK_OFFSET_WIDTH)] ftq_offset; no need to store in rob
     // to rename
     logic isRVC;
     logic ismv;
