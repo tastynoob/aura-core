@@ -31,55 +31,22 @@ module decode (
     // which inst need to deq from fetchbuffer
     output wire[`WDEF(`DECODE_WIDTH)] o_can_deq,
     input wire[`WDEF(`DECODE_WIDTH)] i_inst_vld,
-    input wire[`IDEF] i_inst[`DECODE_WIDTH],
-    input wire[`XDEF] i_inst_npc,
+    input fetchEntry_t i_inst[`DECODE_WIDTH],
     // to rename
     output reg[`WDEF(`DECODE_WIDTH)] o_decinfo_vld,
     output decInfo_t o_decinfo[`DECODE_WIDTH]
 );
     genvar i;
     integer a;
-
-    wire[`WDEF(`DECODE_WIDTH)] real_inst_vld;
     `ORDER_CHECK(real_inst_vld);
 
-    reg[`XDEF] spec_pc_base;
-    wire[`XDEF] disp_pcs[`RENAME_WIDTH];
-
-    always_comb begin
-        for(a=0;a<`DECODE_WIDTH;a=a+1) begin
-            // disp pc
-            if (a==0) begin
-                disp_pcs[a] = spec_pc_base;
-            end
-            else begin
-                disp_pcs[a] = i_decinfo[a-1].npc;
-            end
-        end
-    end
-    always_ff @( posedge clk ) begin
-        if(rst==true) begin
-            spec_pc_base <= `INIT_PC;
-        end
-        else if (i_squash_vld) begin
-            spec_pc_base <= i_squashInfo.arch_pc;
-        end
-        else begin
-            for(a=0;a<`RENAME_WIDTH;a=a+1) begin
-                if (real_inst_vld[a]) begin
-                    spec_pc_base <= i_decinfo[a].npc;
-                end
-            end
-        end
-    end
-
+    wire[`WDEF(`DECODE_WIDTH)] unKnown_inst;
     decInfo_t decinfo[`DECODE_WIDTH];
     generate
         for(i=0;i<`DECODE_WIDTH;i=i+1) begin: gen_decode
             decoder u_decoder(
-                .i_inst           ( i_inst[i]      ),
-                .i_inst_npc       ( disp_pcs[i]    ),
-                .i_inst_npc       ( i_inst_npc[i]  ),
+                .i_inst           ( i_inst[i].inst      ),
+                .o_unkown_inst    ( unKnown_inst[i]),
                 .o_decinfo        ( decinfo[i]     )
             );
 
@@ -88,15 +55,13 @@ module decode (
 
     always_comb begin
         for(a=0;a<`DECODE_WIDTH;a=a+1) begin
-            if (a==0) begin
-                real_inst_vld[a] = i_inst_vld[a];
-            end
-            else begin
-                real_inst_vld[a] = i_inst_vld[a];
-            end
+            decinfo[a].ftq_idx = i_inst[i].ftq_idx;
+            decinfo[a].ftqOffset = i_inst[i].ftqOffset;
+            decinfo[a].has_except = unKnown_inst || i_inst[i].has_except;
+            decinfo[a].except = unKnown_inst ? rv_trap_t::instIllegal : i_inst[i].except;
         end
-
-        o_can_deq = (i_stall) ? 0 : real_inst_vld;
+        o_can_deq = (i_stall) ? 0 : i_inst_vld;
+        o_decinfo_vld = i_inst_vld;
     end
 
 endmodule

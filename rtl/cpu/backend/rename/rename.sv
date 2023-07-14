@@ -77,10 +77,12 @@ module rename(
             rename_vld <= i_decinfo_vld;
             for(a=0;a<`RENAME_WIDTH;a=a+1) begin
                 renameInfo[a] <= '{
+                    ftq_idx     : i_decinfo[a].ftq_idx,
+                    ftqOffset   : i_decinfo[a].ftqOffset,
+                    has_except  : i_decinfo[a].has_except,
+                    except      : i_decinfo[a].except,
                     isRVC       : i_decinfo[a].isRVC,
                     ismv        : i_decinfo[a].ismv,
-                    pc          : i_decinfo[a].pc,
-                    npc         : i_decinfo[a].npc,
                     imm20       : i_decinfo[a].imm20,
                     rd_wen      : i_decinfo[a].rd_wen,
                     ilrd_idx    : i_decinfo[a].ilrd_idx,

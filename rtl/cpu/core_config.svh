@@ -11,7 +11,7 @@
 
 `define FETCHBLOCK_MAX_INST 64 // byte
 // actually pc = fetch start pc + (offset<<1)
-`define FETCHBLOCK_OFFSET_WIDTH ($clog2(`FETCHBLOCK_MAX_INST) - 1)
+`define FETCHBLOCK_OFFSET_WIDTH ($clog2(`FETCHBLOCK_MAX_INST))
 
 
 // fetch

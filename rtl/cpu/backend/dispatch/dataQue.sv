@@ -65,34 +65,38 @@ module dataQue #(
             .o_data_vld      ( enq_req      ),
             .o_reorder_datas ( enq_data )
         );
+
+        redirect
+        #(
+            .dtype ( logic[`WDEF($clog2(DEPTH))] ),
+            .NUM   ( INPORT_NUM   )
+        )
+        u_redirect_0(
+            .i_arch_vld       ( i_enq_req       ),
+            .i_arch_datas     ( enq_ptr     ),
+            .o_redirect_datas ( o_alloc_id )
+        );
+        redirect
+        #(
+            .dtype ( logic ),
+            .NUM   ( INPORT_NUM   )
+        )
+        u_redirect_1(
+            .i_arch_vld       ( i_enq_req       ),
+            .i_arch_datas     ( enq_ptr_flipped     ),
+            .o_redirect_datas ( o_ptr_flipped )
+        );
+
     end
     else begin:gen_else
     // if isROB, the enq_req must in order
         assign enq_req = i_enq_req;
         assign enq_data = i_enq_data;
+
+        assign o_alloc_id = enq_ptr;
+        assign o_ptr_flipped = enq_ptr_flipped;
         `ORDER_CHECK(enq_req);
     end
-
-    redirect
-    #(
-        .dtype ( logic[`WDEF($clog2(DEPTH))] ),
-        .NUM   ( INPORT_NUM   )
-    )
-    u_redirect_0(
-    	.i_arch_vld       ( i_enq_req       ),
-        .i_arch_datas     ( enq_ptr     ),
-        .o_redirect_datas ( o_alloc_id )
-    );
-    redirect
-    #(
-        .dtype ( logic ),
-        .NUM   ( INPORT_NUM   )
-    )
-    u_redirect_1(
-    	.i_arch_vld       ( i_enq_req       ),
-        .i_arch_datas     ( enq_ptr_flipped     ),
-        .o_redirect_datas ( o_ptr_flipped )
-    );
 
     dtype buffer[DEPTH];
     reg[`WDEF(DEPTH)] vld_bits;
@@ -137,8 +141,8 @@ module dataQue #(
     );
 
     always_ff @(posedge clk) begin
-        if (rst==true) begin
-            vld_bits <= 0;
+        if (rst) begin
+            vld_bits <= {DEPTH{1'b0}};
             clear_bits <= {DEPTH{1'b0}};
             count <= 0;
             for (j = 0; j < INPORT_NUM; j = j + 1) begin
@@ -161,7 +165,7 @@ module dataQue #(
                         vld_bits[enq_ptr[j]] <= true;
                         buffer[enq_ptr[j]] <= i_enq_data[j];
                     end
-                    if (ISROB && i_enq_req_mark_finished) begin
+                    if (ISROB && i_enq_req_mark_finished[j]) begin
                         clear_bits[enq_ptr[j]] <= true;
                     end
                     if ((enq_ptr[j] + real_enq_num) < DEPTH) begin
@@ -182,6 +186,7 @@ module dataQue #(
             for (j=0;j<COMMIT_WID;j=j+1) begin
                 if (can_clear_vld[j]) begin
                     vld_bits[head_ptr[j]] <= false;
+                    clear_bits[head_ptr[j]] <= false;
                 end
                 head_ptr[j] <= (head_ptr[j] + clear_num) < DEPTH ? (head_ptr[j] + clear_num) : (head_ptr[j] + clear_num - DEPTH);
             end
@@ -190,6 +195,7 @@ module dataQue #(
 
     generate
         if (!ISROB) begin:gen_if
+        // if is imm reorder buffer
             for(i=0;i<READPORT_NUM;i=i+1) begin:gen_for
                 assign o_read_data[i] = buffer[i_read_dqIdx[i]];
             end
@@ -197,10 +203,10 @@ module dataQue #(
 
         for (i = 0; i < COMMIT_WID; i = i + 1) begin:gen_for
             if (i==0) begin:gen_if
-                assign can_clear_vld[i] = vld_bits[head_ptr[i]] & clear_bits[head_ptr[i]] & (ISROB ? !i_stall : 1);
+                assign can_clear_vld[i] = clear_bits[head_ptr[i]] & (ISROB ? !i_stall : 1);
             end
             else begin:gen_else
-                assign can_clear_vld[i] = (vld_bits[head_ptr[i]] & clear_bits[head_ptr[i]]) & can_clear_vld[i-1];
+                assign can_clear_vld[i] = clear_bits[head_ptr[i]] & can_clear_vld[i-1];
             end
             if (ISROB) begin:gen_if
                 assign o_willClear_vld[i] = can_clear_vld[i];

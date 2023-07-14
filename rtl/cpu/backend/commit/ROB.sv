@@ -33,6 +33,13 @@ typedef enum logic[1:0] {
 endpackage
 
 
+function automatic int robIdx_compare(robIdx_t a, robIdx_t b);// is a older than b, if a==b return false
+        return (a.flipped == i_rob_idx[1].flipped) ?
+        (a.idx < b.idx) :
+        (a.idx > b.idx);
+endfunction
+
+
 module ROB(
     input wire clk,
     input wire rst,
@@ -51,9 +58,15 @@ module ROB(
     input ftqOffset_t i_new_entry_ftqOffset[`RENAME_WIDTH],//ftqOffset separate from rob
     output robIdx_t o_alloc_robIdx[`RENAME_WIDTH],
 
-    // read ftqOffset from exu
+    // exu read ftqOffset (exu read from rob)
     input wire[`WDEF($clog2(`ROB_SIZE))] i_read_ftqOffset_idx[`MISC_NUM],
     output ftqOffset_t o_read_ftqOffset_data[`MISC_NUM],
+
+
+    // read by the last commited insts
+    // rob read ftq_startAddress (rob read from ftq)
+    output ftqIdx_t o_ftq_idx,
+    input wire[`XDEF] i_ftq_startAddress,
 
     // write back, from exu
     // common writeback
@@ -70,12 +83,6 @@ module ROB(
     output wire[`WDEF(`COMMIT_WIDTH)] o_rename_commit,
     output renameCommitInfo_t o_rename_commitInfo[`COMMIT_WIDTH],
 
-    // used for trap
-    // from decoupled frontend
-    // read from the last commited insts
-    output ftqIdx_t o_ftq_idx,
-    input wire[`XDEF] i_ftq_startAddress,
-
     //to decoupled frontend, notify which inst was committed
     output wire o_branch_commit_vld,
     output ftqIdx_t o_committed_ftq_idx,// set the ftq commit_ptr to this(last committed ftqIdx)
@@ -91,6 +98,8 @@ module ROB(
     `ORDER_CHECK(i_enq_req);
     genvar i;
     integer j;
+
+
     reg commit_stall;
     wire[`WDEF(`COMMIT_WIDTH)] canCommit_vld;
     wire[`WDEF(`COMMIT_WIDTH)] willCommit_vld;
@@ -186,9 +195,9 @@ module ROB(
 
     assign o_branch_commit_vld = canCommit_vld[0];
     assign o_committed_ftq_idx = last_committed_inst.ftq_idx;
-
+    // TODO: we may need to improve rename method
+    // rename rob commit -> physical register used buffer
     assign o_rename_commit = canCommit_vld;
-    //TODO: rename commit info
     generate
         for(i=0;i<`COMMIT_WIDTH;i=i+1) begin:gen_for
             assign o_rename_commitInfo[i] = '{
@@ -215,6 +224,9 @@ module ROB(
 // rob need to get the oldest mispred branch to squash
 // ftq has the same number of writeback as the number of bju
 // send the last committed ftqIdx to ftq to commit
+// NOTE: if (mispred | except | normal | normal) we do except first
+// if (normal | except | mispred | normal) we do mispred first
+// if (normal | mispred | normal | normal) and has interrupt, we need assign mepc to mispre actuallt target
 /****************************************************************************************************/
 
     // we need to store the oldest branch which was mispred
@@ -238,25 +250,40 @@ module ROB(
             end
         end
     end
+
+    wire[`WDEF(`COMMIT_WIDTH)] temp_0;// 0 | 0 | 1(has_mispred) | 1
+    wire[`WDEF(`COMMIT_WIDTH)] temp_1;// 0 | 0 | 1(has_mispred) | 0
     generate
-        // 0 | 0 | 1(has_mispred) | 1
-        wire[`WDEF(`COMMIT_WIDTH)] temp_0;
-        for(i=`COMMIT_WIDTH-1;i>=0;i=i-1) begin:gen_for
-            if (i==`COMMIT_WIDTH-1) begin :gen_if
-                assign temp_0[i] = willCommit_vld[i] && (willCommit_idx[i] == bmhr.rob_idx.idx);
+
+        for(i=0;i<`COMMIT_WIDTH;i=i+1) begin:gen_for
+            if (i==0) begin:gen_if
+                assign temp_0[i] = willCommit_vld[i];
             end
             else begin:gen_else
-                assign temp_0[i] = willCommit_vld[i] && (willCommit_idx[i] == bmhr.rob_idx.idx) || temp_0[i+1];
+                assign temp_0[i] = willCommit_vld[i] && (willCommit_idx[i-1] != bmhr.rob_idx.idx) && temp_0[i-1];
             end
+            assign temp_1[i] = willCommit_vld[i] && (willCommit_idx[i] == bmhr.rob_idx.idx);
         end
+        `ASSERT(count_one(temp_1) <= 1);
     endgenerate
-    assign has_mispred = temp_0[0] && bmhr.mispred;
+    assign has_mispred = (|temp_1) && bmhr.mispred;
 
 
 /****************************************************************************************************/
-// except process
+// trap process
 // get the oldest exception
-//
+// if :
+// mispred: 0 | 0 | 1 | 0 (temp_1)
+// except:  0 | 1 | 0 | 0 (temp_3)
+// ignore except
+// if :
+// mispred: 0 | 1 | 0 | 0 (temp_1)
+// except:  0 | 0 | 1 | 0 (temp_3)
+// has except
+// if :
+// mispred: 0 | 0 | 1 | 0 (temp_1)
+// except:  0 | 0 | 1 | 0 (temp_3)
+// assert(false)
 /****************************************************************************************************/
 
     // we need to store the oldest inst whicth has excepted
@@ -267,11 +294,11 @@ module ROB(
             ehr.has_except <= 0;
         end
         else begin
-            if (i_branchwb_vld && i_exceptwb_info.has_except) begin
-                if ((ehr.rob_idx.flipped == i_exceptwb_info.rob_idx.flipped) ? (i_branchwb_info.rob_idx.idx < ehr.rob_idx.idx) : (i_branchwb_info.rob_idx.idx > ehr.rob_idx.idx)) begin
+            if (i_exceptwb_vld) begin
+                if ((ehr.rob_idx.flipped == i_exceptwb_info.rob_idx.flipped) ? (i_exceptwb_info.rob_idx.idx < ehr.rob_idx.idx) : (i_exceptwb_info.rob_idx.idx > ehr.rob_idx.idx)) begin
                     ehr <= '{
                         rob_idx:i_exceptwb_info.rob_idx,
-                        has_except:i_exceptwb_info.has_except,
+                        has_except:1, // if write except, it must be true
                         except_type:i_exceptwb_info.except_type
                     };
                 end
@@ -279,23 +306,25 @@ module ROB(
         end
     end
     generate
-        // normal:
-        // 1 | 1 | 1 | 1
-        // 0 | 0(has_except) | 1 | 1
-        wire[`WDEF(`COMMIT_WIDTH)] temp_1;
-        // 0 | 1(has_except) | 0 | 0
-        wire[`WDEF(`COMMIT_WIDTH)] temp_2;
+        wire[`WDEF(`COMMIT_WIDTH)] temp_2;// 0 | 0(has_except) | 1 | 1
+        wire[`WDEF(`COMMIT_WIDTH)] temp_3;// 0 | 1(has_except) | 0 | 0
         for(i=0;i<`COMMIT_WIDTH;i=i+1) begin:gen_for
             if (i==0) begin :gen_if
-                assign temp_1[i] = willCommit_vld[i] && (willCommit_idx[i] != bmhr.rob_idx.idx);
+                assign temp_2[i] = willCommit_vld[i] && (willCommit_idx[i] != ehr.rob_idx.idx);
             end
             else begin:gen_else
-                assign temp_1[i] = willCommit_vld[i] && (willCommit_idx[i] != bmhr.rob_idx.idx) && temp_1[i+1];
+                assign temp_2[i] = willCommit_vld[i] && (willCommit_idx[i] != ehr.rob_idx.idx) && temp_2[i-1];
             end
-            assign temp_2[i] = willCommit_vld[i] && (willCommit_idx[i] == bmhr.rob_idx.idx);
+            assign temp_3[i] = willCommit_vld[i] && (willCommit_idx[i] == ehr.rob_idx.idx);
         end
+        `ASSERT(count_one(temp_3) <= 1);
     endgenerate
-    assign has_except = (|temp_2) && ehr.has_except;
+    // mispred robIdx > except robIdx
+    assign has_except = (|temp_3) && ehr.has_except && (temp_3 < temp_1);
+    `ASSERT ((temp_3 != temp_1) || ((temp_3 == 0) && (temp_1 == 0)));
+
+    assign canCommit_vld = has_except ? temp_2 : temp_0;
+    assign o_ftq_idx = last_committed_ins.ftq_idx;
 
     always_comb begin
         for(j=0;j<`COMMIT_WIDTH;j=j+1) begin
@@ -305,7 +334,6 @@ module ROB(
             end
         end
     end
-    assign canCommit_vld = has_except ?  temp_1 : willCommit_vld;
 
 /****************************************************************************************************/
 // retire
@@ -331,7 +359,7 @@ module ROB(
             squash_vld <= 0;
         end
         else begin
-            // | commit and read ftq (normal) | (trapProcess) | squash
+            // pipe: (| commit and read ftq (normal) | (trapProcess) | squash)
             // 0                              1               2
             if ((has_except || has_interrupt) && (status==commit_status_t::normal)) begin
                 // s1: stall and read ftq;
@@ -351,7 +379,10 @@ module ROB(
                 //// TODO: trap address select
                 squashInfo.arch_pc <= has_interrupt ? i_csr_pack.tvec + (0) : i_csr_pack.tvec;
                 // TODO:
-                // if has trap: mepc = i_ftq_startAddress + ftqOffset + isRVC ? 2:4
+                // if has interrupt, we must wait for a safe cycle
+                // if has trap: mepc = has_mispred ? bmhr.npc : i_ftq_startAddress + ftqOffset + isRVC ? 2:4
+                // if has interrupt and squash : wait for squash finish
+                // if has interrupt and rob is empty: mepc = last inst pc + ismv 2:4
             end
             else if (has_mispred) begin
                 squash_vld <= true;

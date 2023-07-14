@@ -22,7 +22,10 @@ endpackage
 
 typedef struct {
     logic[`IDEF] inst;
-    logic[`XDEF] predTakenPC;
+    ftqIdx_t ftq_idx;
+    ftqOffset_t ftqOffset;
+    logic has_except;
+    rv_trap_t::exception except;
 } fetchEntry_t;
 
 
@@ -30,10 +33,12 @@ typedef struct {
 /******************** decode define ********************/
 
 typedef struct {
+    ftqIdx_t ftq_idx;
+    ftqOffset_t ftqOffset;
+    logic has_except;
+    rv_trap_t::exception except;
     logic isRVC;
     logic ismv; //used for mov elim
-    logic[`XDEF] pc;
-    logic[`XDEF] npc;// next inst's pc
     // different inst use different format,NOTE: csr use imm20 = {3'b0,12'csrIdx,5'zimm}
     logic[`IMMDEF] imm20;
     logic need_serialize; // if is csr write, need to serialize pipeline
@@ -69,6 +74,8 @@ typedef struct {
 typedef struct {
     ftqIdx_t ftq_idx;
     ftqOffset_t ftqOffset;
+    logic has_except;
+    rv_trap_t::exception except;
     logic isRVC;
     logic ismv; //used for mov elim
     // different inst use different format,NOTE: csr use imm20 = {3'b0,12'csrIdx,5'zimm}
@@ -93,14 +100,15 @@ typedef struct {
 /******************** dispatch define ********************/
 
 typedef struct {
+    ftqIdx_t ftq_idx;
+    robIdx_t rob_idx;
+    irobIdx_t irob_idx;
+
     logic rd_wen;
     iprIdx_t iprd_idx;
     iprIdx_t iprs_idx[`NUMSRCS_INT];
     logic use_imm;
     logic[`WDEF(2)] dispRS_id;
-    ftqIdx_t ftq_idx;
-    robIdx_t rob_idx;
-    irobIdx_t irob_idx;
     MicOp_t::_u micOp_type;
 } intDQEntry_t;// to exeIntBlock
 
@@ -191,7 +199,6 @@ typedef struct {
 typedef struct {
     robIdx_t rob_idx;
     // for csr/load/store or other
-    logic has_except;
     rv_trap_t::exception except_type;
 } exceptWBInfo_t;
 

@@ -14,9 +14,8 @@
 //TODO: finish decode
 module decoder (
     input wire[`IDEF] i_inst,
-    input wire[`XDEF] i_inst_pc,
-    input wire[`XDEF] i_inst_npc,
 
+    output wire o_unkown_inst,
     //decinfo output
     output decInfo_t o_decinfo
 );
@@ -376,10 +375,10 @@ module decoder (
     MicOp_t::none;
     wire use_mdu = (mduop_type != MicOp_t::none);
 
+    assign o_unkown_inst = isUnknow;
+
     assign o_decinfo.isRVC = isRVC;
     assign o_decinfo.ismv = ismv;
-    assign o_decinfo.pc = i_inst_pc;
-    assign o_decinfo.npc = i_inst_npc;
     assign o_decinfo.imm20 = imm;
     assign o_decinfo.rd_wen = rd_wen;
     assign o_decinfo.ilrd_idx = ilrd_idx;
