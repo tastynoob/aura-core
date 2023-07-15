@@ -80,7 +80,7 @@ module rename(
             rename_vld <= 0;
         end
         else if (!i_stall) begin
-            rename_vld <= i_decinfo_vld;
+            rename_vld <= can_rename ? i_decinfo_vld : 0;
             for(fa=0;fa<`RENAME_WIDTH;fa=fa+1) begin
                 renameInfo[fa] <= '{
                     ftq_idx     : i_decinfo[fa].ftq_idx,

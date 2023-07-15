@@ -52,7 +52,6 @@ module dispQue #(
         .USE_INIT    ( 0    )
     )
     u_fifo(
-        .init_data  (  ),
         .clk        ( clk        ),
         .rst        ( rst        ),
         .i_flush    ( i_flush    ),
