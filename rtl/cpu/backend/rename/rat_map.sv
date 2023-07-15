@@ -90,6 +90,7 @@ module rat_map #(
                     end
                 end
             end
+            o_renamed_prd_idx = renamed_prd_idx;
         end
     end
 
@@ -217,7 +218,7 @@ module rat_map #(
                     if ((arch_prevRenamed_prd_idx_saved[ca] == arch_mapping[arch_commit_ilrd_idx_saved[ca]]) ||
                         (arch_commit_ilrd_idx_saved[ca] == 0) ||
                         (arch_prevRenamed_prd_idx_saved[ca] == arch_prevRenamed_prd_idx_saved[ca])) begin
-                        bits_dealloc[ca] = true;
+                        bits_dealloc[ca] = false;
                     end
                 end
                 if (bits_dealloc[ca]) begin

@@ -21,14 +21,20 @@ module redirect #(
         genvar i;
         //todo: finish it
         for(i=0;i<NUM;i=i+1)begin:gen_for
+            if (i==0) begin:gen_if
+                assign sel_offset[0] = 0;
+            end
+            else begin:gen_else
             count_one
             #(
                 .WIDTH ( i+1 )
             )
             u_count_one(
-                .i_a   ( i_arch_vld[i:0]   ),
+                .i_a   ( i_arch_vld[i-1:0]),
                 .o_sum ( sel_offset[i] )
             );
+            end
+
             always_comb begin
                 if(i_arch_vld[i])begin
                     o_redirect_datas[i] = i_arch_datas[sel_offset[i]];

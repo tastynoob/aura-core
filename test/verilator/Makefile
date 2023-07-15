@@ -10,7 +10,7 @@ aura:
 	--cc tb.sv --exe tb.cpp --top-module $(top) \
 	$(INCLUDE_PATH) \
 	--x-assign unique --x-initial unique \
-	--assert --timing --trace -j \
+	--assert --timing --trace --trace-structs -j \
 	-DDEBUG -Mdir build -o aura \
 	-Wno-WIDTH -Wno-PINMISSING -Wno-TIMESCALEMOD -Wno-ENUMVALUE
 

@@ -98,7 +98,7 @@ module ROB(
     ROBEntry_t willCommit_data[`COMMIT_WIDTH];
     wire has_mispred;
     wire has_except;
-    wire has_interrupt;
+    wire has_interrupt=0;//TODO:interrupt
 
     // if has except, last_committed_inst = (excepted inst - 1)
     ROBEntry_t last_committed_inst;

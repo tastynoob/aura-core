@@ -9,7 +9,7 @@ module tb #(
 );
 
 fetchEntry_t temp = '{
-inst : 32'h00000013,
+inst : 32'b00000000000100001000000010110011,
 ftq_idx:0,
 ftqOffset:0,
 has_except:0,

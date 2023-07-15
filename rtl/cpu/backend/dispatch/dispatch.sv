@@ -37,6 +37,9 @@ module dispatch (
     output wire o_exceptwb_vld,
     output exceptWBInfo_t o_exceptwb_info,
 
+    // to exeBlock
+    // TODO: we need to set the busytable
+
     // to int block
     input wire i_intBlock_stall,
     output wire[`WDEF(`INTDQ_DISP_WID)] o_intDQ_deq_vld,

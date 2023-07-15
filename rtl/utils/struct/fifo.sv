@@ -102,9 +102,12 @@ module fifo #(
                 for(fa=0;fa<DEPTH;fa=fa+1) begin
                     buffer[fa] = fa+1;
                 end
+                count <= DEPTH;
+            end
+            else begin
+                count <= 0;
             end
 
-            count <= 0;
             for (fa = 0; fa < INPORT_NUM; fa = fa + 1) begin
                 enq_ptr[fa] <= fa;
             end
@@ -112,12 +115,10 @@ module fifo #(
                 deq_ptr[fa] <= fa;
             end
         end
-        else if (USE_RENAME != 0) begin
-            if (i_resteer_vld) begin
-                count <= arch_count;
-                for (fa = 0; fa < INPORT_NUM; fa = fa + 1) begin
-                    deq_ptr[fa] <= arch_deq_ptr + fa;
-                end
+        else if ((USE_RENAME != 0) && i_resteer_vld) begin
+            count <= arch_count;
+            for (fa = 0; fa < INPORT_NUM; fa = fa + 1) begin
+                deq_ptr[fa] <= arch_deq_ptr + fa;
             end
         end
         else begin
