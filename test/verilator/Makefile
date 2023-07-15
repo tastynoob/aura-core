@@ -12,7 +12,7 @@ aura:
 	--x-assign unique --x-initial unique \
 	--assert --timing --trace -j \
 	-DDEBUG -Mdir build -o aura \
-	-Wno-WIDTH -Wno-PINMISSING -Wno-TIMESCALEMOD
+	-Wno-WIDTH -Wno-PINMISSING -Wno-TIMESCALEMOD -Wno-ENUMVALUE
 
 	@if [ $$? -ne 0 ]; then \
 		echo "**********verilator generate failed**********"; \

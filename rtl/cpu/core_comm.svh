@@ -91,7 +91,7 @@ typedef struct {
     //which dispQue should go
     logic[`WDEF(2)] dispQue_id;
     //which RS should go
-    logic[`WDEF(2)] dispRS_id;
+    logic[`WDEF(2)] issueQue_id;
 
     MicOp_t::_u micOp_type;
 } renameInfo_t;
@@ -108,7 +108,7 @@ typedef struct {
     iprIdx_t iprd_idx;
     iprIdx_t iprs_idx[`NUMSRCS_INT];
     logic use_imm;
-    logic[`WDEF(2)] dispRS_id;
+    logic[`WDEF(2)] issueQue_id;
     MicOp_t::_u micOp_type;
 } intDQEntry_t;// to exeIntBlock
 

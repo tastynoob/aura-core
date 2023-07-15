@@ -13,14 +13,15 @@ module dispatch (
     // to rename
     output wire o_stall,
 
+    input wire i_squash_vld,
+
     // from rename
-    output wire o_can_enq,
     input wire[`WDEF(`RENAME_WIDTH)] i_enq_vld,
     input renameInfo_t i_enq_inst[`RENAME_WIDTH],
 
     // read immBuffer (clear when writeback)
     input irobIdx_t i_immB_read_dqIdx[`IMMBUFFER_READPORT_NUM],
-    output dtype o_immB_read_data[`IMMBUFFER_READPORT_NUM],
+    output imm_t o_immB_read_data[`IMMBUFFER_READPORT_NUM],
     input wire[`WDEF(`IMMBUFFER_CLEARPORT_NUM)] i_immB_clear_vld,
     input irobIdx_t i_immB_clear_dqIdx[`IMMBUFFER_CLEARPORT_NUM],
 
@@ -83,7 +84,7 @@ module dispatch (
                 iprd_idx        : i_enq_inst[a].iprd_idx,
                 prev_iprd_idx   : i_enq_inst[a].prev_iprd_idx
             };
-            o_new_robEntry_ftqOffset[a] = i_enq_inst[a].ftqOffSet;
+            o_new_robEntry_ftqOffset[a] = i_enq_inst[a].ftqOffset;
             new_intDQEntry[a] =
             '{
                 ftq_idx    : i_enq_inst[a].ftq_idx,
@@ -93,18 +94,18 @@ module dispatch (
                 iprd_idx   : i_enq_inst[a].iprd_idx,
                 iprs_idx   : i_enq_inst[a].iprs_idx,
                 use_imm    : i_enq_inst[a].use_imm,
-                dispRS_id  : i_enq_inst[a].dispRS_id,
+                issueQue_id  : i_enq_inst[a].issueQue_id,
                 micOp_type : i_enq_inst[a].micOp_type
             };
             if (i_enq_vld[a]) begin
                 // new rob entry
                 insert_rob_vld[a] = true;
                 // new intDQ entry, skip mv
-                if (i_enq_inst[a].disqQue_id == `INTBLOCK_ID && (!i_enq_inst[a].ismv)) begin
+                if (i_enq_inst[a].dispQue_id == `INTBLOCK_ID && (!i_enq_inst[a].ismv)) begin
                     insert_intDQ_vld[a] = true;
                 end
                 // new memDQ entry
-                if (i_enq_inst[a].disqQue_id == `MEMBLOCK_ID) begin
+                if (i_enq_inst[a].dispQue_id == `MEMBLOCK_ID) begin
                     insert_memDQ_vld[a] = true;
                     //TODO:new_memDQEntry
                 end
@@ -172,7 +173,7 @@ module dispatch (
         .i_enq_data ( new_intDQEntry      ),
 
         .o_can_deq  ( intDQ_deq_feedback  ),
-        .i_enq_req  ( i_intBlock_stall ? 0 : intDQ_deq_feedback  ),
+        .i_deq_req  ( i_intBlock_stall ? 0 : intDQ_deq_feedback  ),
         .o_deq_data ( o_intDQ_deq_info )
     );
     assign o_intDQ_deq_vld = intDQ_deq_feedback;
@@ -197,11 +198,11 @@ module dispatch (
         .READPORT_NUM   ( `IMMBUFFER_READPORT_NUM   ),
         .CLEARPORT_NUM  ( `IMMBUFFER_CLEARPORT_NUM  ),
         .COMMIT_WID     ( `IMMBUFFER_COMMIT_WID     ),
-        .dtype          ( logic[`IMMDEF]  )
+        .dtype          ( imm_t  )
     )
     u_immBuffer(
         .clk            ( clk   ),
-        .rst            ( rst   ),
+        .rst            ( rst || i_squash_vld   ),
 
         .o_can_enq      ( can_insert_immBuffer  ),
         .i_enq_vld      ( can_dispatch  ),

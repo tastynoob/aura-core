@@ -18,6 +18,8 @@ typedef logic [`WDEF($clog2(32))] ilrIdx_t;//the int logic regfile idx
 typedef logic [`WDEF($clog2(`IPHYREG_NUM))] iprIdx_t;//the int physic regfile idx
 typedef logic [`WDEF(12)] csrIdx_t;//the csr regfile idx
 
+typedef logic [`IMMDEF] imm_t;
+
 
 package rv_trap_t;
 //mtvec mode:

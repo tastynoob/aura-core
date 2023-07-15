@@ -167,7 +167,7 @@ module rat_map #(
             // bypass, compute prev_prd by spec-arch mapping
             for(a=1;a<COMMIT_WID;a=a+1) begin
                 for(b=0;b<a;b=b+1) begin
-                    if (i_commit_vld[a] && (i_commitInfo[a].ilrd_idx == i_commitInfo[b].i_lrd_idx)) begin
+                    if (i_commit_vld[a] && (i_commitInfo[a].ilrd_idx == i_commitInfo[b].ilrd_idx)) begin
                         arch_prevRenamed_prd_idx[a] = i_commitInfo[b].iprd_idx;
                     end
                 end
@@ -205,10 +205,10 @@ module rat_map #(
             for(a=0;a<COMMIT_WID;a=a+1) begin
                 bits_dealloc[a] = true;
                 for(b=0;b<COMMIT_WID;b=b+1) begin
-                    if ((arch_prevRenamed_prd_idx_saved[a] == arch_mapping[arch_commit_ilrd_idx_saved[b]]) ||
-                        (arch_commit_ilrd_idx_saved[b] == 0) ||
-                        (arch_prevRenamed_prd_idx_saved[a] == arch_prevRenamed_prd_idx_saved[b])) begin
-                        bits_dealloc[a] = false;
+                    if ((arch_prevRenamed_prd_idx_saved[a] == arch_mapping[arch_commit_ilrd_idx_saved[a]]) ||
+                        (arch_commit_ilrd_idx_saved[a] == 0) ||
+                        (arch_prevRenamed_prd_idx_saved[a] == arch_prevRenamed_prd_idx_saved[a])) begin
+                        bits_dealloc[a] = true;
                     end
                 end
                 if (bits_dealloc[a]) begin
@@ -266,7 +266,7 @@ module rat_map #(
         prIdx_t AAA_spec_a4 = spec_mapping[14];
         prIdx_t AAA_spec_a5 = spec_mapping[15];
         prIdx_t AAA_spec_a6 = spec_mapping[16];
-        prIdx_t AAA_spec_a6 = spec_mapping[17];
+        prIdx_t AAA_spec_a7 = spec_mapping[17];
         prIdx_t AAA_spec_s2 = spec_mapping[18];
         prIdx_t AAA_spec_s3 = spec_mapping[19];
         prIdx_t AAA_spec_s4 = spec_mapping[20];
@@ -300,7 +300,7 @@ module rat_map #(
         prIdx_t AAA_arch_a4 = arch_mapping[14];
         prIdx_t AAA_arch_a5 = arch_mapping[15];
         prIdx_t AAA_arch_a6 = arch_mapping[16];
-        prIdx_t AAA_arch_a6 = arch_mapping[17];
+        prIdx_t AAA_arch_a7 = arch_mapping[17];
         prIdx_t AAA_arch_s2 = arch_mapping[18];
         prIdx_t AAA_arch_s3 = arch_mapping[19];
         prIdx_t AAA_arch_s4 = arch_mapping[20];

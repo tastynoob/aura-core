@@ -10,7 +10,6 @@ module rename(
     input wire i_stall,
     // squash
     input wire i_squash_vld,
-    input squashInfo_t i_squashInfo,
     // from commit
     input wire[`WDEF(`COMMIT_WIDTH)] i_commit_vld,
     input renameCommitInfo_t i_commitInfo[`COMMIT_WIDTH],
@@ -84,16 +83,17 @@ module rename(
                     isRVC       : i_decinfo[a].isRVC,
                     ismv        : i_decinfo[a].ismv,
                     imm20       : i_decinfo[a].imm20,
+                    need_serialize : i_decinfo[a].need_serialize,
                     rd_wen      : i_decinfo[a].rd_wen,
                     ilrd_idx    : i_decinfo[a].ilrd_idx,
-                    iprd_dix    : iprd_idx,
+                    iprd_idx    : iprd_idx,
                     prev_iprd_idx : prev_iprd_idx,
 
                     iprs_idx    : iprs_idx,
 
                     use_imm     : i_decinfo[a].use_imm,
                     dispQue_id  : i_decinfo[a].dispQue_id,
-                    dispRS_id   : i_decinfo[a].dispRS_id,
+                    issueQue_id   : i_decinfo[a].issueQue_id,
                     micOp_type  : i_decinfo[a].micOp_type
                 };
             end

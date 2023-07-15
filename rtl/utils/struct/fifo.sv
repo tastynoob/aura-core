@@ -47,7 +47,7 @@ module fifo #(
     	.i_a   ( i_enq_req   ),
         .o_sum ( enq_num )
     );
-    assign o_can_enq = enq_num < remaining;
+    assign o_can_enq = enq_num <= remaining;
 
     count_one #(
         .WIDTH  ( INPORT_NUM    )
@@ -150,7 +150,7 @@ module fifo #(
 
     generate
         for (i = 0; i < OUTPORT_NUM; i = i + 1) begin : gen_output
-            assign o_can_deq[i] = i < existing;
+            assign o_can_deq[i] = (i+1) <= existing;
             assign o_deq_data[i]  = buffer[deq_ptr[i]];
         end
     endgenerate

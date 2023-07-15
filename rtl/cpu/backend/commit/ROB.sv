@@ -33,13 +33,6 @@ typedef enum logic[1:0] {
 endpackage
 
 
-function automatic int robIdx_compare(robIdx_t a, robIdx_t b);// is a older than b, if a==b return false
-        return (a.flipped == i_rob_idx[1].flipped) ?
-        (a.idx < b.idx) :
-        (a.idx > b.idx);
-endfunction
-
-
 module ROB(
     input wire clk,
     input wire rst,
@@ -62,12 +55,6 @@ module ROB(
     input wire[`WDEF($clog2(`ROB_SIZE))] i_read_ftqOffset_idx[`MISC_NUM],
     output ftqOffset_t o_read_ftqOffset_data[`MISC_NUM],
 
-
-    // read by the last commited insts
-    // rob read ftq_startAddress (rob read from ftq)
-    output ftqIdx_t o_ftq_idx,
-    input wire[`XDEF] i_ftq_startAddress,
-
     // write back, from exu
     // common writeback
     input wire[`WDEF(`WBPORT_NUM)] i_wb_vld,
@@ -79,17 +66,22 @@ module ROB(
     input wire i_exceptwb_vld,
     input exceptWBInfo_t i_exceptwb_info,
 
-    //to rename
-    output wire[`WDEF(`COMMIT_WIDTH)] o_rename_commit,
-    output renameCommitInfo_t o_rename_commitInfo[`COMMIT_WIDTH],
-
-    //to decoupled frontend, notify which inst was committed
-    output wire o_branch_commit_vld,
-    output ftqIdx_t o_committed_ftq_idx,// set the ftq commit_ptr to this(last committed ftqIdx)
-
     // we need to notify which store was committed
     output wire o_commit_vld,
     output wire[`WDEF($clog2(`ROB_SIZE))] o_committed_rob_idx,
+
+    // to rename
+    output wire[`WDEF(`COMMIT_WIDTH)] o_rename_commit,
+    output renameCommitInfo_t o_rename_commitInfo[`COMMIT_WIDTH],
+
+    // to decoupled frontend, notify which inst was committed
+    output wire o_branch_commit_vld,
+    output ftqIdx_t o_committed_ftq_idx,// set the ftq commit_ptr to this(last committed ftqIdx)
+
+    // read by the last commited insts
+    // rob read ftq_startAddress (rob read from ftq)
+    output ftqIdx_t o_ftq_idx,
+    input wire[`XDEF] i_ftq_startAddress,
 
     // pipeline control
     output wire o_squash_vld,
@@ -324,7 +316,7 @@ module ROB(
     `ASSERT ((temp_3 != temp_1) || ((temp_3 == 0) && (temp_1 == 0)));
 
     assign canCommit_vld = has_except ? temp_2 : temp_0;
-    assign o_ftq_idx = last_committed_ins.ftq_idx;
+    assign o_ftq_idx = last_committed_inst.ftq_idx;
 
     always_comb begin
         for(j=0;j<`COMMIT_WIDTH;j=j+1) begin

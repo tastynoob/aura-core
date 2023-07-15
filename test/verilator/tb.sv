@@ -9,15 +9,11 @@ module tb #(
 );
 
 
-
-oldest_select
-#(
-    .WIDTH (3 )
-)
-u_oldest_select(
-    .i_rob_idx        (        ),
-    .o_oldest_rob_idx ( )
+ctrlBlock u_ctrlBlock(
+    .clk                   (clk                   ),
+    .rst                   (rst                   )
 );
+
 
 
 

@@ -21,7 +21,7 @@ module dispQue #(
     input dtype i_enq_data[INPORT_NUM],
     // deq
     output wire [`WDEF(OUTPORT_NUM)] o_can_deq,
-    input wire [`WDEF(OUTPORT_NUM)] i_enq_req,
+    input wire [`WDEF(OUTPORT_NUM)] i_deq_req,
     output dtype o_deq_data[OUTPORT_NUM]
 
 );
@@ -63,7 +63,7 @@ module dispQue #(
         .i_enq_data ( reorder_enq_data ),
 
         .o_can_deq  ( o_can_deq  ),
-        .i_enq_req  ( i_enq_req  ),
+        .i_deq_req  ( i_deq_req  ),
         .o_deq_data ( o_deq_data )
     );
 

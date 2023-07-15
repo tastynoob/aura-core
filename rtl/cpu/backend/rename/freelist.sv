@@ -16,7 +16,7 @@ module freelist(
 
     // from commit
     input wire i_resteer_vld,
-    input wire[`WDEF(COMMIT_WID)] i_commit_vld
+    input wire[`WDEF(`COMMIT_WIDTH)] i_commit_vld
 );
 
     wire[`WDEF(`COMMIT_WIDTH)] reorder_dealloc_req;
@@ -44,7 +44,7 @@ module freelist(
     #(
         .WIDTH ( `RENAME_WIDTH )
     )
-    u_count_one(
+    u_count_one_0(
         .i_a   ( i_alloc_req   ),
         .o_sum ( alloc_num )
     );
@@ -114,7 +114,7 @@ module freelist(
     #(
         .WIDTH ( `RENAME_WIDTH )
     )
-    u_count_one(
+    u_count_one_1(
         .i_a   ( can_deq   ),
         .o_sum ( can_deq_num )
     );

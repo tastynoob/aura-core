@@ -19,13 +19,11 @@
 module decode (
     input wire clk,
     input wire rst,
-    // to fetch
-    output wire o_stall,
+
     // from rename
     input wire i_stall,
     // squash
     input wire i_squash_vld,
-    input squashInfo_t i_squashInfo,
 
     // from fetchBuffer
     // which inst need to deq from fetchbuffer
@@ -38,7 +36,6 @@ module decode (
 );
     genvar i;
     integer a;
-    `ORDER_CHECK(real_inst_vld);
 
     wire[`WDEF(`DECODE_WIDTH)] unKnown_inst;
     decInfo_t decinfo[`DECODE_WIDTH];

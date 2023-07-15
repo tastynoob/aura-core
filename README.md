@@ -10,18 +10,15 @@
 - [yosys](https://github.com/YosysHQ/yosys) (with plugin [antmicro/yosys-systemverilog](https://github.com/antmicro/yosys-systemverilog))
 
 ## doc
-plz see *.drawio.png in rtl
+plz see *.drawio.png in doc
 
 # todo list
 
 ## frontend
-- nothing
+- ftb
+- ftq
 
 ## backend
-- deocde
-- rename
-- dispatch
 - issue
 - fus
 - wb
-- rob
