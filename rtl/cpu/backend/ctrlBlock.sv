@@ -46,7 +46,7 @@ module ctrlBlock (
 
 );
     genvar i;
-    integer j;
+    int j;
 
 /****************************************************************************************************/
 // fetch inst buffer
@@ -70,7 +70,7 @@ module ctrlBlock (
         .rst         ( rst  ),
         .i_flush     ( o_squash_vld   ),
 
-        .o_can_enq ( can_insert_instBuffer ),
+        .o_can_enq  ( can_insert_instBuffer ),
         .i_enq_vld   ( can_insert_instBuffer ),
         .i_enq_req   ( i_inst_vld  ),
         .i_enq_data  ( i_inst   ),
@@ -167,7 +167,7 @@ module ctrlBlock (
 
         .i_immB_read_dqIdx        (        ),
         .o_immB_read_data         (         ),
-        .i_immB_clear_vld         (         ),
+        .i_immB_clear_vld         ( 0         ),
         .i_immB_clear_dqIdx       (       ),
 
         .i_can_insert_rob         ( toDispatch_can_insert   ),
@@ -181,7 +181,7 @@ module ctrlBlock (
         .o_exceptwb_vld           ( toROB_disp_exceptwb_vld         ),
         .o_exceptwb_info          ( toROB_disp_exceptwb_info         ),
         // to intBlock
-        .i_intBlock_stall         (          ),
+        .i_intBlock_stall         ( 0          ),
         .o_intDQ_deq_vld          (          ),
         .o_intDQ_deq_info         (          )
     );

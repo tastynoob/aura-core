@@ -30,7 +30,6 @@ module renametable(
 
 );
     genvar i;
-    integer a;
 
     wire[`WDEF(`COMMIT_WIDTH)] int_dealloc_vld;
     iprIdx_t int_dealloc_iprd_idx[`COMMIT_WIDTH];
@@ -84,11 +83,11 @@ module renametable(
         .i_commit_vld    ( (i_commit_vld & commit_has_rd & (~commit_ismv))    )
     );
 
-    always_comb begin
-        for(a=0;a<`COMMIT_WIDTH;a=a+1) begin
-            commit_has_rd[a] = i_commitInfo[a].has_rd;
-            commit_ismv[a] = i_commitInfo[a].ismv;
+    generate
+        for(i=0;i<`COMMIT_WIDTH;i=i+1) begin:gen_for
+            assign commit_has_rd[i] = i_commitInfo[i].has_rd;
+            assign commit_ismv[i] = i_commitInfo[i].ismv;
         end
-    end
+    endgenerate
 
 endmodule

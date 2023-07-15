@@ -62,7 +62,7 @@ module issueQue #(
 );
 
     genvar i;
-    integer j,k,p;
+    int j,k,p;
     //used for spec wakeup
     int wakeup_source_num = ((INTERNAL_WAKEUP == 1 ? INOUTPORT_NUM : 0) + EXTERNAL_WAKEUPNUM);
 

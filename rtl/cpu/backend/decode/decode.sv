@@ -35,31 +35,42 @@ module decode (
     output decInfo_t o_decinfo[`DECODE_WIDTH]
 );
     genvar i;
-    integer a;
 
     wire[`WDEF(`DECODE_WIDTH)] unKnown_inst;
-    decInfo_t decinfo[`DECODE_WIDTH];
+    decInfo_t temp[`DECODE_WIDTH];
     generate
         for(i=0;i<`DECODE_WIDTH;i=i+1) begin: gen_decode
             decoder u_decoder(
                 .i_inst           ( i_inst[i].inst      ),
                 .o_unkown_inst    ( unKnown_inst[i]),
-                .o_decinfo        ( decinfo[i]     )
+                .o_decinfo        ( temp[i]     )
             );
 
         end
     endgenerate
 
-    always_comb begin
-        for(a=0;a<`DECODE_WIDTH;a=a+1) begin
-            decinfo[a].ftq_idx = i_inst[i].ftq_idx;
-            decinfo[a].ftqOffset = i_inst[i].ftqOffset;
-            decinfo[a].has_except = unKnown_inst || i_inst[i].has_except;
-            decinfo[a].except = unKnown_inst ? rv_trap_t::instIllegal : i_inst[i].except;
+    reg[`WDEF(`RENAME_WIDTH)] decinfo_vld;
+    decInfo_t decinfo[`DECODE_WIDTH];
+    always_ff @(posedge clk) begin
+        int fa;
+        if (rst) begin
+            decinfo_vld <= 0;
         end
-        o_can_deq = (i_stall) ? 0 : i_inst_vld;
-        o_decinfo_vld = i_inst_vld;
+        else if (!i_stall) begin
+            decinfo_vld <= i_inst_vld;
+            for(fa=0;fa<`DECODE_WIDTH;fa=fa+1) begin
+                decinfo[fa] <= temp[fa];
+                decinfo[fa].ftq_idx <= i_inst[fa].ftq_idx;
+                decinfo[fa].ftqOffset <= i_inst[fa].ftqOffset;
+                decinfo[fa].has_except <= unKnown_inst || i_inst[fa].has_except;
+                decinfo[fa].except <= unKnown_inst ? rv_trap_t::instIllegal : i_inst[fa].except;
+            end
+        end
     end
+    assign o_can_deq = i_stall ? 0 : i_inst_vld;
+
+    assign o_decinfo_vld = decinfo_vld;
+    assign o_decinfo = decinfo;
 
 endmodule
 

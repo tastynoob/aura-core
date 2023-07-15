@@ -15,7 +15,7 @@ module bypass_sel #(
     output wire[`XDEF] o_target_data
 );
     always_comb begin
-        integer j,temp;
+        int j,temp;
         temp=0;
         o_target_vld=false;
         o_target_data = 0;

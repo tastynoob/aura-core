@@ -47,7 +47,7 @@ module dispatch (
 
 );
     genvar i;
-    integer a;
+
 
     //alloc immBubbfer id
     wire[`WDEF(`RENAME_WIDTH)] use_imm_vec;
@@ -55,65 +55,61 @@ module dispatch (
     wire[`IMMDEF] imm_vec[`RENAME_WIDTH];
 
     wire can_insert_intDQ;
-    wire can_insert_memDQ;
+    wire can_insert_memDQ = 1;
     wire can_insert_immBuffer;
     // only when can_dispatch is true
     wire can_dispatch = i_can_insert_rob && can_insert_intDQ && can_insert_memDQ && can_insert_immBuffer;
 
-    wire[`WDEF(`RENAME_WIDTH)] insert_rob_vld;
-    wire[`WDEF(`RENAME_WIDTH)] insert_intDQ_vld;
-    wire[`WDEF(`RENAME_WIDTH)] insert_memDQ_vld;
+    logic[`WDEF(`RENAME_WIDTH)] insert_rob_vld;
+    logic[`WDEF(`RENAME_WIDTH)] insert_intDQ_vld;
+    logic[`WDEF(`RENAME_WIDTH)] insert_memDQ_vld;
     intDQEntry_t new_intDQEntry[`RENAME_WIDTH];
 
     rv_trap_t::exception oldest_except;
-    always_comb begin
-        for(a=0;a<`RENAME_WIDTH;a=a+1) begin
-            insert_rob_vld[a] = false;
-            insert_intDQ_vld[a] = false;
-            insert_memDQ_vld[a] = false;
-            o_insert_rob_ismv[a] = i_enq_inst[a].ismv;
-            use_imm_vec[i] = i_enq_vld[i] && i_enq_inst[i].use_imm;
-            imm_vec[i] = i_enq_inst[i].imm20;
-            o_new_robEntry[a] =
+
+    // new rob entry
+    assign insert_rob_vld = i_enq_vld;
+    generate
+        for(i=0;i<`RENAME_WIDTH;i=i+1) begin:gen_for
+            // new intDQ entry, skip mv
+            assign insert_intDQ_vld[i] = i_enq_vld[i] && (i_enq_inst[i].dispQue_id == `INTBLOCK_ID) && (!i_enq_inst[i].ismv);
+            // new memDQ entry
+            assign insert_memDQ_vld[i] = i_enq_vld[i] && (i_enq_inst[i].dispQue_id == `MEMBLOCK_ID);
+
+            assign o_insert_rob_ismv[i] = i_enq_inst[i].ismv;
+            assign use_imm_vec[i] = i_enq_vld[i] && i_enq_inst[i].use_imm;
+            assign imm_vec[i] = i_enq_inst[i].imm20;
+            assign o_new_robEntry[i] =
             '{
-                ftq_idx         : i_enq_inst[a].ftq_idx,
-                isRVC           : i_enq_inst[a].isRVC,
-                ismv            : i_enq_inst[a].ismv,
-                has_rd          : i_enq_inst[a].rd_wen,
-                ilrd_idx        : i_enq_inst[a].ilrd_idx,
-                iprd_idx        : i_enq_inst[a].iprd_idx,
-                prev_iprd_idx   : i_enq_inst[a].prev_iprd_idx
+                ftq_idx         : i_enq_inst[i].ftq_idx,
+                isRVC           : i_enq_inst[i].isRVC,
+                ismv            : i_enq_inst[i].ismv,
+                has_rd          : i_enq_inst[i].rd_wen,
+                ilrd_idx        : i_enq_inst[i].ilrd_idx,
+                iprd_idx        : i_enq_inst[i].iprd_idx,
+                prev_iprd_idx   : i_enq_inst[i].prev_iprd_idx
             };
-            o_new_robEntry_ftqOffset[a] = i_enq_inst[a].ftqOffset;
-            new_intDQEntry[a] =
+            assign o_new_robEntry_ftqOffset[i] = i_enq_inst[i].ftqOffset;
+            assign new_intDQEntry[i] =
             '{
-                ftq_idx    : i_enq_inst[a].ftq_idx,
-                rob_idx    : i_alloc_robIdx[a],
-                irob_idx   : irob_alloc_idx[a],
-                rd_wen     : i_enq_inst[a].rd_wen,
-                iprd_idx   : i_enq_inst[a].iprd_idx,
-                iprs_idx   : i_enq_inst[a].iprs_idx,
-                use_imm    : i_enq_inst[a].use_imm,
-                issueQue_id  : i_enq_inst[a].issueQue_id,
-                micOp_type : i_enq_inst[a].micOp_type
+                ftq_idx    : i_enq_inst[i].ftq_idx,
+                rob_idx    : i_alloc_robIdx[i],
+                irob_idx   : irob_alloc_idx[i],
+                rd_wen     : i_enq_inst[i].rd_wen,
+                iprd_idx   : i_enq_inst[i].iprd_idx,
+                iprs_idx   : i_enq_inst[i].iprs_idx,
+                use_imm    : i_enq_inst[i].use_imm,
+                issueQue_id  : i_enq_inst[i].issueQue_id,
+                micOp_type : i_enq_inst[i].micOp_type
             };
-            if (i_enq_vld[a]) begin
-                // new rob entry
-                insert_rob_vld[a] = true;
-                // new intDQ entry, skip mv
-                if (i_enq_inst[a].dispQue_id == `INTBLOCK_ID && (!i_enq_inst[a].ismv)) begin
-                    insert_intDQ_vld[a] = true;
-                end
-                // new memDQ entry
-                if (i_enq_inst[a].dispQue_id == `MEMBLOCK_ID) begin
-                    insert_memDQ_vld[a] = true;
-                    //TODO:new_memDQEntry
-                end
-            end
         end
-        for(a=`RENAME_WIDTH-1;a>=0;a=a-1) begin
-            if (i_enq_vld[a] && i_enq_inst[a].has_except) begin
-                oldest_except = i_enq_inst[a].except;
+    endgenerate
+    always_comb begin
+        int ca;
+        oldest_except = i_enq_inst[`RENAME_WIDTH-1].except;
+        for(ca=`RENAME_WIDTH-1;ca>=0;ca=ca-1) begin
+            if (i_enq_vld[ca] && i_enq_inst[ca].has_except) begin
+                oldest_except = i_enq_inst[ca].except;
             end
         end
     end
@@ -130,15 +126,16 @@ module dispatch (
     reg[`WDEF(`RENAME_WIDTH)] has_except;
     exceptWBInfo_t oldest_except_info;
     always_ff @( posedge clk ) begin
+        int fa;
         if(rst) begin
             has_except <= 0;
         end
         else begin
-            for(a=`RENAME_WIDTH-1;i>=0;i=i-1) begin
-                has_except <= insert_rob_vld[a] && i_enq_inst[a].has_except && can_dispatch;
+            for(fa=`RENAME_WIDTH-1;fa>=0;fa=fa-1) begin
+                has_except[fa] <= insert_rob_vld[fa] && i_enq_inst[fa].has_except && can_dispatch;
             end
             oldest_except_info <= '{
-                rob_idx : i_alloc_robIdx[a],
+                rob_idx : i_alloc_robIdx[fa],
                 except_type: oldest_except
             };
         end

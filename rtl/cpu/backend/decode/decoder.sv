@@ -245,7 +245,7 @@ module decoder (
     wire isCSR = inst_CSRRC | inst_CSRRCI | inst_CSRRS | inst_CSRRSI | inst_CSRRW | inst_CSRRWI;
     wire isUnknow = !(isAdd | isSub | isShift | isLogic | isCompare | isCondBranch | isUncondBranch | isLoad | isStore | isMul | isDiv | isCSR);
     // TODO: add compressed inst
-    // integer math (with rs1 rs2)
+    // int math (with rs1 rs2)
     wire isIntMath = isAdd | isSub | isShift | isLogic | isCompare;
     // replace rs2 to imm
     wire isImmMath = inst_ADDI | inst_ADDIW | inst_SLLI | inst_SLLIW | inst_SRLI | inst_SRLIW | inst_SRAI | inst_SRAIW;
@@ -383,7 +383,7 @@ module decoder (
     assign o_decinfo.ilrd_idx = ilrd_idx;
     assign o_decinfo.ilrs_idx[0] = has_rs1 ? ilrs1_idx : 0;
     assign o_decinfo.ilrs_idx[1] = has_rs2 ? ilrs2_idx : 0;
-    assign o_decinfo.use_imm = use_imm;
+    assign o_decinfo.use_imm = use_imm && (imm != 0) && (has_rd);
     assign o_decinfo.dispQue_id = dispQue_id;
     assign o_decinfo.issueQue_id = issueQue_id;
 

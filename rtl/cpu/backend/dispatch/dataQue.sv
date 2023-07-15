@@ -9,7 +9,6 @@ module dataQue #(
     parameter int INPORT_NUM = 4,
     parameter int READPORT_NUM = 4,
     parameter int CLEARPORT_NUM = 4,
-    parameter int WBPORT_NUM = 4,
     parameter int COMMIT_WID = 4,
     parameter type dtype = logic[`XDEF],
     parameter int ISROB = 0
@@ -36,17 +35,13 @@ module dataQue #(
     input wire[`WDEF(CLEARPORT_NUM)] i_clear_vld,
     input wire[`WDEF($clog2(DEPTH))] i_clear_dqIdx[CLEARPORT_NUM],
 
-    // writeback (only for branchBuffer)
-    input wire[`WDEF(WBPORT_NUM)] i_wb_vld,
-    input wire[`WDEF($clog2(DEPTH))] i_wb_dqIdx[WBPORT_NUM],
-    input wire[`XDEF] i_wb_npc[WBPORT_NUM],
     // used for rob commit (only for commit)
     output wire[`WDEF(COMMIT_WID)] o_willClear_vld,
     output wire[`WDEF($clog2(DEPTH))] o_willClear_idx[COMMIT_WID],
     output dtype o_willClear_data[COMMIT_WID]
 );
     genvar i;
-    integer j;
+    int j;
 
     wire[`WDEF(INPORT_NUM)] enq_req;
     dtype enq_data[INPORT_NUM];
@@ -103,7 +98,7 @@ module dataQue #(
     reg[`WDEF(DEPTH)] clear_bits;
     reg[`SDEF(DEPTH)] count;
     wire[`SDEF(DEPTH)] remaining = (DEPTH - count);
-    wire[`WDEF(INPORT_NUM)] real_enq_vld = o_can_enq ? enq_req : 0;
+    wire[`WDEF(INPORT_NUM)] real_enq_vld = o_can_enq && i_enq_vld ? enq_req : 0;
     wire[`SDEF(DEPTH)] real_enq_num, enq_num, clear_num;
     /* verilator lint_off UNOPTFLAT */
     wire[`WDEF(INPORT_NUM)] can_clear_vld;
@@ -158,23 +153,24 @@ module dataQue #(
         else begin
             count <= count + real_enq_num - clear_num;
             //enq
-            if (i_enq_vld) begin
-                for ( j = 0; j < INPORT_NUM; j = j + 1) begin
-                    enq_ptr[j] <= (enq_ptr[j] + real_enq_num) < DEPTH ? (enq_ptr[j] + real_enq_num) : (enq_ptr[j] + real_enq_num - DEPTH);
-                    if (real_enq_vld[j]) begin
-                        vld_bits[enq_ptr[j]] <= true;
-                        buffer[enq_ptr[j]] <= i_enq_data[j];
-                    end
-                    if (ISROB && i_enq_req_mark_finished[j]) begin
-                        clear_bits[enq_ptr[j]] <= true;
-                    end
-                    if ((enq_ptr[j] + real_enq_num) < DEPTH) begin
-                    end
-                    else if(ISROB) begin // flipped
-                        enq_ptr_flipped[j] <= ~enq_ptr_flipped[j];
-                    end
+
+            for ( j = 0; j < INPORT_NUM; j = j + 1) begin
+                enq_ptr[j] <= (enq_ptr[j] + real_enq_num) < DEPTH ? (enq_ptr[j] + real_enq_num) : (enq_ptr[j] + real_enq_num - DEPTH);
+                if (real_enq_vld[j]) begin
+                    vld_bits[enq_ptr[j]] <= true;
+                    buffer[enq_ptr[j]] <= i_enq_data[j];
+                end
+                if ((enq_ptr[j] + real_enq_num) < DEPTH) begin
+                end
+                else if(ISROB) begin // flipped
+                    enq_ptr_flipped[j] <= ~enq_ptr_flipped[j];
+                end
+
+                if (ISROB && real_enq_vld[j] && i_enq_req_mark_finished[j]) begin
+                    clear_bits[enq_ptr[j]] <= true;
                 end
             end
+
             // mark can clear
             for (j=0;j<CLEARPORT_NUM;j=j+1) begin
                 if (i_clear_vld[j]) begin
@@ -218,6 +214,10 @@ module dataQue #(
 
     // used for waveform debug
     wire[`SDEF(DEPTH)] AAA_count = count;
+
+    wire[`SDEF(DEPTH)] AAA_enq_num = real_enq_num;
+
+    wire[`SDEF(DEPTH)] AAA_clear_num = clear_num;
 endmodule
 
 

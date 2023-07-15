@@ -23,7 +23,7 @@ module rat_map #(
     input wire[`WDEF(WIDTH)] i_ismv,
     input wire[`WDEF(WIDTH)] i_has_rd,
     input lrIdx_t i_lrd_idx[WIDTH],
-    input prIdx_t i_alloc_prd_idx[WIDTH][NUMSRCS],
+    input prIdx_t i_alloc_prd_idx[WIDTH],
     output prIdx_t o_renamed_prd_idx[WIDTH],
     output prIdx_t o_prevRenamed_prd_idx[WIDTH],// used for commit release
 
@@ -42,7 +42,6 @@ module rat_map #(
 
 );
     genvar i,j;
-    integer a,b;
 
     // if is int regfile, the x0 should be fixedmapping
     prIdx_t spec_mapping[32];
@@ -65,48 +64,52 @@ module rat_map #(
             for (j=0; j<NUMSRCS; j=j+1) begin:gen_for
                 assign renamed0_prs_idx[i][j] = spec_mapping[i_lrs_idx[i][j]];
             end
-
             assign prevRenamed_prd_idx[i] = spec_mapping[i_lrd_idx[i]];
         end
     endgenerate
 
     always_comb begin
-        for(a=0;a<WIDTH;a=a+1) begin
+        int ca,cb;
+        for(ca=0;ca<WIDTH;ca=ca+1) begin
             // rename srcs
-            for (b=0;b<NUMSRCS;b=b+1) begin
-                renamed1_prs_idx[a][b] = renamed0_prs_idx[a][b];
-            end
-            for(integer k=0;k<a;k=k+1) begin
-                for(b=0;b<NUMSRCS;b=b+1) begin
-                    if ((i_lrs_idx[a][b] == i_lrd_idx[k]) && i_has_rd[k]) begin
-                        renamed1_prs_idx[a][b] = renamed_prd_idx[k];
-                    end
-                end
+            for (cb=0;cb<NUMSRCS;cb=cb+1) begin
+                renamed1_prs_idx[ca][cb] = renamed0_prs_idx[ca][cb];
             end
 
             // rename dest
-            if ((PHYREG_TYPE==0) && i_ismv[a]) begin
-                renamed_prd_idx[a] = renamed1_prs_idx[a][0];
+            if ((PHYREG_TYPE==0) && i_ismv[ca]) begin
+                renamed_prd_idx[ca] = renamed1_prs_idx[ca][0];
             end else begin
-                renamed_prd_idx[a] = i_alloc_prd_idx[a];
+                renamed_prd_idx[ca] = i_alloc_prd_idx[ca];
             end
-        end
-        if (PHYREG_TYPE==0) begin
-            assert(spec_mapping[0]==0);
-            assert(arch_mapping[0]==0);
+
+            for(int ck=0;ck<ca;ck=ck+1) begin
+                for(cb=0;cb<NUMSRCS;cb=cb+1) begin
+                    if ((i_lrs_idx[ca][cb] == i_lrd_idx[ck]) && i_has_rd[ck]) begin
+                        renamed1_prs_idx[ca][cb] = renamed_prd_idx[ck];
+                    end
+                end
+            end
         end
     end
 
+    if (PHYREG_TYPE==0) begin:gen_if
+        `ASSERT(spec_mapping[0]==0);
+        `ASSERT(arch_mapping[0]==0);
+    end
+
+    assign o_renamed_prs_idx = renamed1_prs_idx;
 
     // update spec_mapping
     always_ff @( posedge clk ) begin
+        int fa,fb;
         if (rst==true) begin
-            for (a=0;a<32;a=a+1) begin
-                if ((PHYREG_TYPE==0) && (a==0)) begin
-                    spec_mapping[a] <= 0;
+            for (fa=0;fa<32;fa=fa+1) begin
+                if ((PHYREG_TYPE==0) && (fa==0)) begin
+                    spec_mapping[fa] <= 0;
                 end
                 else begin
-                    spec_mapping[a] <= 0;
+                    spec_mapping[fa] <= 0;
                 end
             end
         end
@@ -114,10 +117,10 @@ module rat_map #(
             spec_mapping <= arch_mapping;
         end
         else begin
-            for (a=0;a<WIDTH;a=a+1) begin
-                if (i_has_rd[a]) begin
-                    assert(i_lrd_idx[a] != 0);
-                    spec_mapping[i_lrd_idx[a]] <= renamed_prd_idx[a];
+            for (fa=0;fa<WIDTH;fa=fa+1) begin
+                if (i_has_rd[fa]) begin
+                    assert(i_lrd_idx[fa] != 0);
+                    spec_mapping[i_lrd_idx[fa]] <= renamed_prd_idx[fa];
                 end
             end
         end
@@ -125,22 +128,23 @@ module rat_map #(
 
     // update arch_mapping
     always_ff @( posedge clk ) begin
+        int fa,fb;
         if (rst==true) begin
-            for (a=0;a<32;a=a+1) begin
-                if ((PHYREG_TYPE==0) && (a==0)) begin
-                    arch_mapping[a] <= 0;
+            for (fa=0;fa<32;fa=fa+1) begin
+                if ((PHYREG_TYPE==0) && (fa==0)) begin
+                    arch_mapping[fa] <= 0;
                 end
                 else begin
-                    arch_mapping[a] <= 0;
+                    arch_mapping[fa] <= 0;
                 end
             end
         end
         else begin
-            for (a=0;a<COMMIT_WID;a=a+1) begin
-                if (i_commit_vld[a] && i_commitInfo[a].has_rd) begin
+            for (fa=0;fa<COMMIT_WID;fa=fa+1) begin
+                if (i_commit_vld[fa] && i_commitInfo[fa].has_rd) begin
                     if (PHYREG_TYPE==0) begin
-                        assert(i_commitInfo[a].ilrd_idx != 0);
-                        arch_mapping[i_commitInfo[a].ilrd_idx] <= i_commitInfo[a].iprd_idx;
+                        assert(i_commitInfo[fa].ilrd_idx != 0);
+                        arch_mapping[i_commitInfo[fa].ilrd_idx] <= i_commitInfo[fa].iprd_idx;
                     end
                 end
             end
@@ -155,20 +159,21 @@ module rat_map #(
         // compute prevRenamed_iprd
         iprIdx_t arch_prevRenamed_prd_idx[COMMIT_WID];
         always_comb begin
+            int ca,cb;
             // set default value
-            for(a=0;a<COMMIT_WID;a=a+1) begin
-                if (i_commit_vld[a] && i_commitInfo[a].has_rd) begin
-                    arch_prevRenamed_prd_idx[a] = arch_mapping[i_commitInfo[a].ilrd_idx];
+            for(ca=0;ca<COMMIT_WID;ca=ca+1) begin
+                if (i_commit_vld[ca] && i_commitInfo[ca].has_rd) begin
+                    arch_prevRenamed_prd_idx[ca] = arch_mapping[i_commitInfo[ca].ilrd_idx];
                 end
                 else begin
-                    arch_prevRenamed_prd_idx[a] = 0;
+                    arch_prevRenamed_prd_idx[ca] = 0;
                 end
             end
             // bypass, compute prev_prd by spec-arch mapping
-            for(a=1;a<COMMIT_WID;a=a+1) begin
-                for(b=0;b<a;b=b+1) begin
-                    if (i_commit_vld[a] && (i_commitInfo[a].ilrd_idx == i_commitInfo[b].ilrd_idx)) begin
-                        arch_prevRenamed_prd_idx[a] = i_commitInfo[b].iprd_idx;
+            for(ca=1;ca<COMMIT_WID;ca=ca+1) begin
+                for(cb=0;cb<ca;cb=cb+1) begin
+                    if (i_commit_vld[ca] && (i_commitInfo[ca].ilrd_idx == i_commitInfo[cb].ilrd_idx)) begin
+                        arch_prevRenamed_prd_idx[ca] = i_commitInfo[cb].iprd_idx;
                     end
                 end
             end
@@ -178,19 +183,22 @@ module rat_map #(
         ilrIdx_t arch_commit_ilrd_idx_saved[COMMIT_WID];
         iprIdx_t arch_prevRenamed_prd_idx_saved[COMMIT_WID];
         always_ff @( posedge clk ) begin
+            int fa,fb;
             if (rst == true) begin
-                arch_commit_ilrd_idx_saved <= 0;
-                arch_prevRenamed_prd_idx_saved <= 0;
+                for(fa=0;fa<COMMIT_WID;fa=fa+1) begin
+                    arch_commit_ilrd_idx_saved[fa] <= 0;
+                    arch_prevRenamed_prd_idx_saved[fa] <= 0;
+                end
             end
             else begin
                 // save the prevRenamed prd
                 arch_prevRenamed_prd_idx_saved <= arch_prevRenamed_prd_idx;
-                for (a=0;a<COMMIT_WID;a=a+1) begin
-                    if (i_commit_vld[a] & i_commitInfo[a].has_rd) begin
-                        arch_commit_ilrd_idx_saved[a] <= i_commitInfo[a].ilrd_idx;
+                for (fa=0;fa<COMMIT_WID;fa=fa+1) begin
+                    if (i_commit_vld[fa] & i_commitInfo[fa].has_rd) begin
+                        arch_commit_ilrd_idx_saved[fa] <= i_commitInfo[fa].ilrd_idx;
                     end
                     else begin
-                        arch_commit_ilrd_idx_saved[a] <= 0;
+                        arch_commit_ilrd_idx_saved[fa] <= 0;
                     end
                 end
 
@@ -198,24 +206,25 @@ module rat_map #(
         end
 
         // second cycle: compute which prd need to be released
-        wire[`WDEF(COMMIT_WID)] bits_dealloc;
+        logic[`WDEF(COMMIT_WID)] bits_dealloc;
         iprIdx_t real_dealloc_iprd[COMMIT_WID];
 
         always_comb begin
-            for(a=0;a<COMMIT_WID;a=a+1) begin
-                bits_dealloc[a] = true;
-                for(b=0;b<COMMIT_WID;b=b+1) begin
-                    if ((arch_prevRenamed_prd_idx_saved[a] == arch_mapping[arch_commit_ilrd_idx_saved[a]]) ||
-                        (arch_commit_ilrd_idx_saved[a] == 0) ||
-                        (arch_prevRenamed_prd_idx_saved[a] == arch_prevRenamed_prd_idx_saved[a])) begin
-                        bits_dealloc[a] = true;
+            int ca,cb;
+            for(ca=0;ca<COMMIT_WID;ca=ca+1) begin
+                bits_dealloc[ca] = true;
+                for(cb=0;cb<COMMIT_WID;cb=cb+1) begin
+                    if ((arch_prevRenamed_prd_idx_saved[ca] == arch_mapping[arch_commit_ilrd_idx_saved[ca]]) ||
+                        (arch_commit_ilrd_idx_saved[ca] == 0) ||
+                        (arch_prevRenamed_prd_idx_saved[ca] == arch_prevRenamed_prd_idx_saved[ca])) begin
+                        bits_dealloc[ca] = true;
                     end
                 end
-                if (bits_dealloc[a]) begin
-                    real_dealloc_iprd[a] = arch_prevRenamed_prd_idx_saved[a];
+                if (bits_dealloc[ca]) begin
+                    real_dealloc_iprd[ca] = arch_prevRenamed_prd_idx_saved[ca];
                 end
                 else begin
-                    real_dealloc_iprd[a] = 0;
+                    real_dealloc_iprd[ca] = 0;
                 end
             end
         end
@@ -224,7 +233,8 @@ module rat_map #(
         iprIdx_t dealloc_iprd_idx[COMMIT_WID];
 
         // saved
-        always_ff @( posedge clk ) begin : blockName
+        always_ff @( posedge clk ) begin
+            int fa,fb;
             if (rst==true) begin
                 dealloc_vld <= 0;
             end
@@ -239,9 +249,10 @@ module rat_map #(
     end
     else begin : gen_else
         // always_comb begin
-        //     for(a=0;a<COMMIT_WID;a=a+1) begin
-        //         o_dealloc_vld[a] = i_commit_vld[a] && i_commitInfo[a].has_rd;
-        //         o_dealloc_prd_idx[a] = i_commitInfo[a].prev_iprd_idx;
+        //     int ca,cb;
+        //     for(ca=0;ca<COMMIT_WID;ca=ca+1) begin
+        //         o_dealloc_vld[ca] = i_commit_vld[ca] && i_commitInfo[ca].has_rd;
+        //         o_dealloc_prd_idx[ca] = i_commitInfo[ca].prev_iprd_idx;
         //     end
         // end
     end

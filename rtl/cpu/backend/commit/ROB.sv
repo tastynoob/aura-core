@@ -89,7 +89,6 @@ module ROB(
 );
     `ORDER_CHECK(i_enq_req);
     genvar i;
-    integer j;
 
 
     reg commit_stall;
@@ -104,7 +103,7 @@ module ROB(
     // if has except, last_committed_inst = (excepted inst - 1)
     ROBEntry_t last_committed_inst;
     // if has except last_committed_rob_idx = (excepted inst - 1)
-    wire[`WDEF($clog2(`ROB_SIZE))] last_committed_rob_idx;
+    logic[`WDEF($clog2(`ROB_SIZE))] last_committed_rob_idx;
 
     wire ptr_flipped[`RENAME_WIDTH];
     wire[`WDEF($clog2(`ROB_SIZE))] alloc_idx[`RENAME_WIDTH];
@@ -116,10 +115,10 @@ module ROB(
             };
         end
     endgenerate
-    wire[`WDEF($clog2(`ROB_SIZE))] clear_idx[`COMMIT_WIDTH];
+    wire[`WDEF($clog2(`ROB_SIZE))] wb_idx[`WBPORT_NUM];
     generate
         for(i=0;i<`COMMIT_WIDTH;i=i+1) begin:gen_for
-            assign clear_idx[i] = i_wbInfo[i].rob_idx.idx;
+            assign wb_idx[i] = i_wbInfo[i].rob_idx.idx;
         end
     endgenerate
     // NOTE: if commited insts has multi fetchblock ends
@@ -133,7 +132,6 @@ module ROB(
         .INPORT_NUM     ( `RENAME_WIDTH ),
         .READPORT_NUM   ( 0             ),
         .CLEARPORT_NUM  ( `WBPORT_NUM   ),
-        .WBPORT_NUM     ( 0             ),
         .COMMIT_WID     ( `COMMIT_WIDTH ),
         .dtype          ( ROBEntry_t    ),
         .ISROB          ( 1             )
@@ -154,7 +152,7 @@ module ROB(
         .o_enq_idx        ( enq_idx         ),
         // inst finished
         .i_clear_vld      ( i_wb_vld      ),
-        .i_clear_dqIdx    ( clear_idx    ),
+        .i_clear_dqIdx    ( wb_idx    ),
 
         .o_willClear_vld  ( willCommit_vld  ),
         .o_willClear_idx  ( willCommit_idx  ),
@@ -162,10 +160,11 @@ module ROB(
     );
 
     always_ff @( posedge clk ) begin
-        for(j=0;j<`RENAME_WIDTH;j=j+1) begin
+        int fj;
+        for(fj=0;fj<`RENAME_WIDTH;fj=fj+1) begin
             // write ftqOffset
-            if (enq_vld[j]) begin
-                ftqOffset_buffer[enq_idx[i]] <= i_new_entry_ftqOffset[i];
+            if (enq_vld[fj]) begin
+                ftqOffset_buffer[enq_idx[fj]] <= i_new_entry_ftqOffset[fj];
             end
         end
     end
@@ -242,7 +241,7 @@ module ROB(
             end
         end
     end
-
+    /* verilator lint_off UNOPTFLAT */
     wire[`WDEF(`COMMIT_WIDTH)] temp_0;// 0 | 0 | 1(has_mispred) | 1
     wire[`WDEF(`COMMIT_WIDTH)] temp_1;// 0 | 0 | 1(has_mispred) | 0
     generate
@@ -298,6 +297,7 @@ module ROB(
         end
     end
     generate
+        /* verilator lint_off UNOPTFLAT */
         wire[`WDEF(`COMMIT_WIDTH)] temp_2;// 0 | 0(has_except) | 1 | 1
         wire[`WDEF(`COMMIT_WIDTH)] temp_3;// 0 | 1(has_except) | 0 | 0
         for(i=0;i<`COMMIT_WIDTH;i=i+1) begin:gen_for
@@ -319,10 +319,13 @@ module ROB(
     assign o_ftq_idx = last_committed_inst.ftq_idx;
 
     always_comb begin
-        for(j=0;j<`COMMIT_WIDTH;j=j+1) begin
-            if(canCommit_vld[j]) begin
-                last_committed_inst = willCommit_data[j];
-                last_committed_rob_idx = willCommit_idx[j];
+        int ca;
+        last_committed_inst = willCommit_data[0];
+        last_committed_rob_idx = willCommit_idx[0];
+        for(ca=0;ca<`COMMIT_WIDTH;ca=ca+1) begin
+            if(canCommit_vld[ca]) begin
+                last_committed_inst = willCommit_data[ca];
+                last_committed_rob_idx = willCommit_idx[ca];
             end
         end
     end
@@ -391,6 +394,15 @@ module ROB(
     assign last_committed_pc = i_ftq_startAddress + ftqOffset;
     assign trap_ret_pc = last_committed_pc + (last_committed_isRVC ? 2:4);
 
+
+    // used for debug
+    wire[`WDEF(`RENAME_WIDTH)] AAA_inserte_vec = (o_can_enq && i_enq_vld) ? i_enq_req : 0;
+
+    wire[`WDEF(`RENAME_WIDTH)] AAA_insert_ismv_nop = (o_can_enq && i_enq_vld) ? i_insert_rob_ismv & i_enq_req : 0;
+
+    wire[`WDEF(`WBPORT_NUM)] AAA_writeback_vec = i_wb_vld;
+
+    wire[`WDEF(`COMMIT_WIDTH)] AAA_can_commit_vec = canCommit_vld;
 
 
 endmodule

@@ -20,7 +20,7 @@ module rename(
     output wire[`WDEF(`RENAME_WIDTH)] o_rename_vld,
     output renameInfo_t o_renameInfo[`RENAME_WIDTH]
 );
-    integer a,b;
+    genvar i;
 
     wire can_rename;
     wire[`WDEF(`RENAME_WIDTH)] ismv;
@@ -32,13 +32,19 @@ module rename(
     ilrIdx_t ilrs_idx[`RENAME_WIDTH][`NUMSRCS_INT];
     iprIdx_t iprs_idx[`RENAME_WIDTH][`NUMSRCS_INT];
 
+    generate
+        for(i=0;i<`RENAME_WIDTH;i=i+1) begin:gen_for
+            assign ismv[i] = i_decinfo_vld[i] & i_decinfo[i].ismv;
+            assign has_rd[i] = i_decinfo_vld[i] & i_decinfo[i].rd_wen & (!i_stall);
+            assign ilrd_idx[i] = i_decinfo[i].ilrd_idx;
+        end
+    endgenerate
+
     always_comb begin
-        for(a=0;a<`RENAME_WIDTH;a=a+1) begin
-            ismv[a] = (!i_stall) & i_decinfo_vld[a] & i_decinfo[a].ismv;
-            has_rd[a] = (!i_stall) & i_decinfo_vld[a] & i_decinfo[a].rd_wen;
-            ilrd_idx[a] = i_decinfo[a].ilrd_idx;
-            for(b=0;b<`NUMSRCS_INT;b=b+1) begin
-                ilrs_idx[a][b] = i_decinfo[a].ilrs_idx[b];
+        int ca,cb;
+        for(ca=0;ca<`RENAME_WIDTH;ca=ca+1) begin
+            for(cb=0;cb<`NUMSRCS_INT;cb=cb+1) begin
+                ilrs_idx[ca][cb] = i_decinfo[ca].ilrs_idx[cb];
             end
         end
     end
@@ -52,7 +58,7 @@ module rename(
         .o_can_rename           ( can_rename           ),
 
         .i_ismv                 ( ismv                 ),
-        .i_has_rd               ( has_rd               ),
+        .i_has_rd               ( has_rd ),
         .i_ilrd_idx             ( ilrd_idx             ),
         .o_renamed_iprd_idx     ( iprd_idx     ),
         .o_prevRenamed_iprd_idx ( prev_iprd_idx ),
@@ -69,32 +75,33 @@ module rename(
     renameInfo_t renameInfo[`RENAME_WIDTH];
 
     always_ff @( posedge clk ) begin
+        int fa,fb;
         if ((rst==true) || i_squash_vld) begin
             rename_vld <= 0;
         end
         else if (!i_stall) begin
             rename_vld <= i_decinfo_vld;
-            for(a=0;a<`RENAME_WIDTH;a=a+1) begin
-                renameInfo[a] <= '{
-                    ftq_idx     : i_decinfo[a].ftq_idx,
-                    ftqOffset   : i_decinfo[a].ftqOffset,
-                    has_except  : i_decinfo[a].has_except,
-                    except      : i_decinfo[a].except,
-                    isRVC       : i_decinfo[a].isRVC,
-                    ismv        : i_decinfo[a].ismv,
-                    imm20       : i_decinfo[a].imm20,
-                    need_serialize : i_decinfo[a].need_serialize,
-                    rd_wen      : i_decinfo[a].rd_wen,
-                    ilrd_idx    : i_decinfo[a].ilrd_idx,
-                    iprd_idx    : iprd_idx,
-                    prev_iprd_idx : prev_iprd_idx,
+            for(fa=0;fa<`RENAME_WIDTH;fa=fa+1) begin
+                renameInfo[fa] <= '{
+                    ftq_idx     : i_decinfo[fa].ftq_idx,
+                    ftqOffset   : i_decinfo[fa].ftqOffset,
+                    has_except  : i_decinfo[fa].has_except,
+                    except      : i_decinfo[fa].except,
+                    isRVC       : i_decinfo[fa].isRVC,
+                    ismv        : i_decinfo[fa].ismv,
+                    imm20       : i_decinfo[fa].imm20,
+                    need_serialize : i_decinfo[fa].need_serialize,
+                    rd_wen      : i_decinfo[fa].rd_wen,
+                    ilrd_idx    : i_decinfo[fa].ilrd_idx,
+                    iprd_idx    : iprd_idx[fa],
+                    prev_iprd_idx : prev_iprd_idx[fa],
 
-                    iprs_idx    : iprs_idx,
+                    iprs_idx    : iprs_idx[fa],
 
-                    use_imm     : i_decinfo[a].use_imm,
-                    dispQue_id  : i_decinfo[a].dispQue_id,
-                    issueQue_id   : i_decinfo[a].issueQue_id,
-                    micOp_type  : i_decinfo[a].micOp_type
+                    use_imm     : i_decinfo[fa].use_imm,
+                    dispQue_id  : i_decinfo[fa].dispQue_id,
+                    issueQue_id   : i_decinfo[fa].issueQue_id,
+                    micOp_type  : i_decinfo[fa].micOp_type
                 };
             end
         end

@@ -20,7 +20,7 @@ module regfile #(
     input wire[`WDEF($clog2(SIZE))] i_write_idx[WBPORT_NUM],
     input wire[`XDEF] i_write_data[WBPORT_NUM]
 );
-    integer i;
+    int i;
     generate
         if (HAS_ZERO != 0) begin:gen_has_zero
             reg[`XDEF] buffer[1:SIZE];
