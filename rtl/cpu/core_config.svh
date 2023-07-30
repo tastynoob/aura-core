@@ -15,9 +15,7 @@
 
 
 // fetch
-
-`define FTQ_SIZE 4
-
+`define FTQ_SIZE 16
 `define FETCH_WIDTH 4
 
 // decode rename
@@ -56,14 +54,16 @@
 
 //used for dispQue into RS
 `define ALUIQ_ID 0
-`define MDUIQ_ID 1
-`define MISCIQ_ID 2
+`define BRUIQ_ID 1
+`define MDUIQ_ID 2
+`define SCUIQ_ID 3
+
 
 // execute and write back
 
-`define ALU_NUM 3
+`define ALU_NUM 4
 `define MDU_NUM 2
-`define MISC_NUM 1
+`define BRU_NUM 2
 
 `define WBPORT_NUM 6
 

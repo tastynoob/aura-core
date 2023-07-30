@@ -16,14 +16,17 @@ module exeBlock(
     // writeback to rob
     // common writeback
     output wire[`WDEF(`WBPORT_NUM)] o_wb_vld,
-    output commWBInfo_t o_wbInfo[`WBPORT_NUM],
+    output valwbInfo_t o_wbInfo[`WBPORT_NUM],
     // branch writeback (branch taken or mispred)
     output wire o_branchwb_vld,
-    output branchWBInfo_t o_branchwb_info,
+    output branchwbInfo_t o_branchwb_info,
     // except writeback
     output wire o_exceptwb_vld,
-    output exceptWBInfo_t o_exceptwb_info
+    output exceptwbInfo_t o_exceptwb_info
 );
+    genvar i;
+
+
 
 
 endmodule

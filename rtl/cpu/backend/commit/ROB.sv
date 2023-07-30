@@ -10,18 +10,18 @@ typedef struct {
     logic[`XDEF] npc;
 } branch_mispred_handle;
 
-
 typedef struct {
     robIdx_t rob_idx;
     logic has_except;
     rv_trap_t::exception except_type;
 } except_handle;
 
-
 typedef struct packed {
     robIdx_t rob_idx;
     logic[`XDEF] access_addr;
 } lsu_handle;
+
+// TODO: we need to merge the bmhr, ehr and lsu_handle
 
 package commit_status_t;
 
@@ -33,6 +33,9 @@ typedef enum logic[1:0] {
 endpackage
 
 
+
+// DESIGN: branch writeback to ftq and rob
+// when write rob, we need to select the oldest branch which is mispred
 module ROB(
     input wire clk,
     input wire rst,
@@ -52,19 +55,19 @@ module ROB(
     output robIdx_t o_alloc_robIdx[`RENAME_WIDTH],
 
     // exu read ftqOffset (exu read from rob)
-    input wire[`WDEF($clog2(`ROB_SIZE))] i_read_ftqOffset_idx[`MISC_NUM],
-    output ftqOffset_t o_read_ftqOffset_data[`MISC_NUM],
+    input wire[`WDEF($clog2(`ROB_SIZE))] i_read_ftqOffset_idx[`BRU_NUM],
+    output ftqOffset_t o_read_ftqOffset_data[`BRU_NUM],
 
     // write back, from exu
     // common writeback
     input wire[`WDEF(`WBPORT_NUM)] i_wb_vld,
-    input commWBInfo_t i_wbInfo[`WBPORT_NUM],
-    // branch writeback (branch taken or mispred)
+    input valwbInfo_t i_valwb_info[`WBPORT_NUM],
+    // branch writeback
     input wire i_branchwb_vld,
-    input branchWBInfo_t i_branchwb_info,
+    input branchwbInfo_t i_branchwb_info,
     // except writeback
     input wire i_exceptwb_vld,
-    input exceptWBInfo_t i_exceptwb_info,
+    input exceptwbInfo_t i_exceptwb_info,
 
     // we need to notify which store was committed
     output wire o_commit_vld,
@@ -118,7 +121,7 @@ module ROB(
     wire[`WDEF($clog2(`ROB_SIZE))] wb_idx[`WBPORT_NUM];
     generate
         for(i=0;i<`COMMIT_WIDTH;i=i+1) begin:gen_for
-            assign wb_idx[i] = i_wbInfo[i].rob_idx.idx;
+            assign wb_idx[i] = i_valwb_info[i].rob_idx.idx;
         end
     endgenerate
     // NOTE: if commited insts has multi fetchblock ends
@@ -171,7 +174,7 @@ module ROB(
 
     generate
         // read from exu
-        for(i=0;i<`MISC_NUM;i=i+1) begin:gen_for
+        for(i=0;i<`BRU_NUM;i=i+1) begin:gen_for
             assign o_read_ftqOffset_data[i] = ftqOffset_buffer[i_read_ftqOffset_idx[i]];
         end
     endgenerate

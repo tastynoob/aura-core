@@ -35,7 +35,7 @@ module dispatch (
     input robIdx_t i_alloc_robIdx[`RENAME_WIDTH],
     // if frontend or decode has except
     output wire o_exceptwb_vld,
-    output exceptWBInfo_t o_exceptwb_info,
+    output exceptwbInfo_t o_exceptwb_info,
 
     // to exeBlock
     // TODO: we need to set the busytable
@@ -127,7 +127,7 @@ module dispatch (
 /****************************************************************************************************/
 
     reg[`WDEF(`RENAME_WIDTH)] has_except;
-    exceptWBInfo_t oldest_except_info;
+    exceptwbInfo_t oldest_except_info;
     always_ff @( posedge clk ) begin
         int fa;
         if(rst) begin

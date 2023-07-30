@@ -1,7 +1,15 @@
 `include "core_define.svh"
 
 
+typedef struct {
+    logic vld; //unused in compressed RS
+    logic issued; // flag issued
+    logic spec_wakeup; // flag spec wakeup
+    logic[`WDEF(`NUMSRCS_INT)] src_rdy; // which src is ready
+    logic[`WDEF(`NUMSRCS_INT)] src_spec_rdy; // which src is speculative ready
 
+    exeInfo_t info;
+} IQEntry;
 
 //use uncompressed scheme
 //uncompressed scheme must use with read-regfile befor issue
@@ -10,14 +18,17 @@
 //TODO:finish speculative wakeup logic
 
 //DESIGN
-//only when readRegfile successed, the entry of rs can be clear
+//only when readRegfile successed, the IQentry can be clear
 //if we want to impletement inst excute back to back
 //we need wakeup earlier (speculative wakeup)
 //
 //when one inst was selected
 //we can wakeup other insts in one cycle
-//if one inst was speculative wakeup and actually it was not ready
+//if one inst was speculative wakeup and read data incomplete
 //we need to clear issued flag
+//
+// if the fus was handled by IQ is singleCycle execute
+// it's speculative wakeup always right
 
 //unordered in,unordered out
 module issueQue #(
@@ -26,33 +37,36 @@ module issueQue #(
     parameter int EXTERNAL_WAKEUPNUM = 2,
     parameter int WBPORT_NUM = 6,
     //is or not enable internal wakeup
-    parameter int INTERNAL_WAKEUP = 1
+    parameter int INTERNAL_WAKEUP = 1,
+    parameter int SINGLEEXE = 0
 ) (
     input wire clk,
     input wire rst,
 
+    input i_stall,
+
     //enq
     output wire[`WDEF(INOUTPORT_NUM)] o_can_enq,
     input wire[`WDEF(INOUTPORT_NUM)] i_enq_req,
-    input RSenqInfo_t i_RSenqInfo_enq[INOUTPORT_NUM],
+    input exeInfo_t i_enq_exeInfo[INOUTPORT_NUM],
 
     //output INOUTPORT_NUM entrys with the highest priority which is ready
-    output RSdeqInfo_t o_RSdeqInfo_deq[INOUTPORT_NUM],
-    output wire[`WDEF($clog2(DEPTH))] o_issue_idx,
     output wire[`WDEF(INOUTPORT_NUM)] o_can_issue,//find can issued entry
+    output wire[`WDEF($clog2(DEPTH))] o_issue_idx,
+    output exeInfo_t o_issue_exeInfo[INOUTPORT_NUM],
 
+    // clear entry's vld bit (issue successed)
+    input wire[`WDEF(INOUTPORT_NUM)] i_issue_finished_vec,
+    // replay entry's issued bit (issue failed)
+    input wire[`WDEF(INOUTPORT_NUM)] i_issue_replay_vec,
     // feedback from readRegfile which is or not successed
     input wire[`WDEF($clog2(DEPTH))] i_feedback_idx[INOUTPORT_NUM],
-    // clear entry's vld bit (issue successed)
-    input wire[`WDEF(INOUTPORT_NUM)] i_deq_vld,//issue req
-    // clear entry's issued bit (issue failed)
-    input wire[`WDEF(INOUTPORT_NUM)] i_replay_vld,
 
     //export internal wakeup signal
     output wire[`WDEF(INOUTPORT_NUM)] o_export_wakeup_vld,
     output iprIdx o_export_wakeup_rdIdx[INOUTPORT_NUM],
 
-    //external wakeup source (not necessarily correct)
+    //external wakeup source (speculative arousal)
     input wire[`WDEF(EXTERNAL_WAKEUPNUM)] i_ext_wakeup_vld,
     input iprIdx_t i_ext_wakeup_rdIdx[EXTERNAL_WAKEUPNUM],
 
@@ -62,21 +76,22 @@ module issueQue #(
 );
 
     genvar i;
-    int j,k,p;
-    //used for spec wakeup
-    int wakeup_source_num = ((INTERNAL_WAKEUP == 1 ? INOUTPORT_NUM : 0) + EXTERNAL_WAKEUPNUM);
 
-    RSEntry_t buffer[DEPTH];
-    wire[`SDEF(INOUTPORT_NUM)] enq_num,deq_num;
-    wire[`WDEF(DEPTH)] entry_ready_to_issue;
+    //used for spec wakeup
+    localparam int wakeup_source_num = ((INTERNAL_WAKEUP == 1 ? INOUTPORT_NUM : 0) + EXTERNAL_WAKEUPNUM);
+
+    IQEntry buffer[DEPTH];
+
     //find the entry idx of buffer which can issue
-    wire[`WDEF(INOUTPORT_NUM)] enq_find_free, deq_find_ready;//is find the entry which is ready to issye
-    wire[`SDEF(DEPTH)] enq_idx[INOUTPORT_NUM] ,deq_idx[INOUTPORT_NUM];//the entrys that ready to issue
+    logic[`WDEF(INOUTPORT_NUM)] enq_find_free, deq_find_ready;//is find the entry which is ready to issye
+    logic[`SDEF(DEPTH)] enq_idx[INOUTPORT_NUM] ,deq_idx[INOUTPORT_NUM];//the entrys that ready to issue
     reg[`WDEF(INOUTPORT_NUM)] saved_deq_find_ready;//T0 compute and T1 use
     reg[`SDEF(DEPTH)] saved_deq_idx[INOUTPORT_NUM];
+
     assign o_can_issue = saved_deq_find_ready;
     assign o_issue_idx = saved_deq_idx;
     assign o_can_enq = enq_find_free;
+
     wire[`WDEF(INOUTPORT_NUM)] real_enq_req = enq_find_free & i_enq_req;
 
     //spec wakeup source
@@ -87,19 +102,19 @@ module issueQue #(
         for (i=0;i<wakeup_source_num;i=i+1) begin: gen_for
             if (INTERNAL_WAKEUP==1 && i < INOUTPORT_NUM) begin : gen_internal_wakeup
                 //internal wakeup source
-                assign wakeup_src_vld[i] = deq_find_ready[i] & buffer[deq_idx[i]].rd_wen;
+                assign wakeup_src_vld[i] = deq_find_ready[i] & buffer[deq_idx[i]].info.rd_wen;
                 assign wakeup_rdIdx[i] = buffer[deq_idx[i]].rdIdx;
             end
             else begin: gen_external_wakeup
-                assign temp = i - (INTERNAL_WAKEUP == 1 ? INOUTPORT_NUM : 0);
+                assign temp_idx = i - (INTERNAL_WAKEUP == 1 ? INOUTPORT_NUM : 0);
                 //external wakeup source
-                assign wakeup_src_vld[i] = i_ext_wakeup_vld[temp];
-                assign wakeup_rdIdx[i] = i_ext_wakeup_rdIdx[temp];
+                assign wakeup_src_vld[i] = i_ext_wakeup_vld[temp_idx];
+                assign wakeup_rdIdx[i] = i_ext_wakeup_rdIdx[temp_idx];
             end
         end
         //export internal wakeup signal
         for (i=0;i<INOUTPORT_NUM;i=i+1) begin:gen_for
-            assign o_export_wakeup_vld[i] = deq_find_ready[i] & buffer[deq_idx[i]].rd_wen;
+            assign o_export_wakeup_vld[i] = deq_find_ready[i] & buffer[deq_idx[i]].info.rd_wen;
             assign o_export_wakeup_rdIdx[i] = buffer[deq_idx[i]].rdIdx;
         end
     endgenerate
@@ -107,12 +122,13 @@ module issueQue #(
 
     //update status
     always_ff @( posedge clk ) begin
-        if (rst==true) begin
-            for (j=0;j<INOUTPORT_NUM;j=j+1) begin
-                saved_deq_find_ready[i] <= false;
+        int fa,fb,fc;
+        if (rst) begin
+            for (fa=0;fa<INOUTPORT_NUM;fa=fa+1) begin
+                saved_deq_find_ready[fa] <= false;
             end
-            for (j=0;j<DEPTH;j=j+1) begin
-                buffer[j].vld <= false;
+            for (fa=0;fa<DEPTH;fa=fa+1) begin
+                buffer[fa].vld <= false;
             end
         end
         else begin
@@ -122,43 +138,47 @@ module issueQue #(
 
             for (j=0;j<INOUTPORT_NUM;j=j+1) begin
                 //enq
-                if (real_enq_req[j]) begin
-                    buffer[enq_idx[j]].vld <= true;
-                    //TODO: finish it
+                if (real_enq_req[fa]) begin
+                    buffer[enq_idx[fa]].vld <= true;
+                    buffer[enq_idx[fa]].info <= i_enq_exeInfo[fa];
                 end
+                if (!i_stall) begin
+                    //select and issue(set issued)
+                    if (deq_find_ready[fa]==true) begin
+                        buffer[deq_idx[fa]].issued <= true;
+                    end
 
-                //deq
-                if (i_deq_vld[j] && buffer[i_feedback_idx[j]].vld) begin
-                    buffer[i_feedback_idx[j]].vld <= false;
+                    //deq
+                    if (i_issue_finished_vec[fa]) begin
+                        assert(buffer[i_feedback_idx[fa]].vld);
+                        buffer[i_feedback_idx[fa]].vld <= false;
+                    end
+                    //replay
+                    else if ((SINGLEEXE != 0) && i_issue_replay_vec[fa]) begin
+                        assert(buffer[i_feedback_idx[fa]].vld);
+                        assert(buffer[i_feedback_idx[fa]].src_spec_rdy == {`NUMSRCS_INT{1'b1}});
+                        buffer[deq_idx[fa]].issued <= false;
+                        buffer[i_feedback_idx[fa]].src_spec_rdy <= buffer[i_feedback_idx[fa]].src_rdy;
+                    end
                 end
-
-                //select and issue(set issued)
-                if (deq_find_ready[j]==true) begin
-                    buffer[deq_idx[j]].issued <= true;
-                end
-
-                //replay
-                if (i_replay_vld[j] && buffer[i_feedback_idx[j]].vld) begin
-                    buffer[deq_idx[j]].issued <= false;
-                    buffer[i_feedback_idx[j]].src_spec_rdy <= buffer[i_feedback_idx[j]].src_rdy;
-                end
+                assert(SINGLEEXE ? !(i_issue_replay_vec) : 1);
             end
             //spec wakeup
-            for(j=0;j<DEPTH;j=j+1) begin
-                for (k=0;k<`NUMSRCS_INT;k=k+1) begin
-                    for (p=0;p<wakeup_source_num;p=p+1) begin
-                        if ((buffer[j].rsIdx[k] == wakeup_rdIdx[p]) && wakeup_src_vld[p]) begin
-                            buffer[j].src_spec_rdy[k] <= true;
+            for(fa=0;fa<DEPTH;fa=fa+1) begin
+                for (fb=0;fb<`NUMSRCS_INT;fb=fb+1) begin
+                    for (fc=0;fc<wakeup_source_num;fc=fc+1) begin
+                        if ((buffer[fa].rsIdx[fb] == wakeup_rdIdx[fc]) && wakeup_src_vld[fc]) begin
+                            buffer[fa].src_spec_rdy[fb] <= true;
                         end
                     end
                 end
             end
             //wb wakeup
-            for(j=0;j<DEPTH;j=j+1) begin
-                for (k=0;k<`NUMSRCS_INT;k=k+1) begin
-                    for (p=0;p<wakeup_source_num;p=p+1) begin
-                        if ((buffer[j].rsIdx[k] == i_wb_rdIdx[p]) && i_wb_vld[p]) begin
-                            buffer[j].src_rdy[k] <= true;
+            for(fa=0;fa<DEPTH;fa=fa+1) begin
+                for (fb=0;fb<`NUMSRCS_INT;fb=fb+1) begin
+                    for (fc=0;fc<wakeup_source_num;fc=fc+1) begin
+                        if ((buffer[fa].rsIdx[fb] == i_wb_rdIdx[fc]) && i_wb_vld[fc]) begin
+                            buffer[fa].src_rdy[fb] <= true;
                         end
                     end
                 end
@@ -169,8 +189,8 @@ module issueQue #(
     //select: find ready entry and find free entry
     //TODO: now the issue scheduler is random-select
     //we need to replace this to age-select
-    wire[`WDEF(DEPTH)] free_entry_selected[INOUTPORT_NUM];
-    wire[`WDEF(DEPTH)] ready_entry_selected[INOUTPORT_NUM];
+    logic[`WDEF(DEPTH)] free_entry_selected[INOUTPORT_NUM];
+    logic[`WDEF(DEPTH)] ready_entry_selected[INOUTPORT_NUM];
     wire[`WDEF(DEPTH)] entry_ready;
 
     generate
@@ -181,68 +201,61 @@ module issueQue #(
 
     //select
     always_comb begin
-        for (j=0;j<INOUTPORT_NUM;j=j+1) begin
-            for (k=DEPTH-1;k>=0;k=k-1) begin
-                free_entry_selected[j][k] = false;
-                ready_entry_selected[j][k] = false;
-            end
+        int ca,cb;
+        for (cb=DEPTH-1;cb>=0;cb=cb-1) begin
+            free_entry_selected[0][cb] = false;
+            ready_entry_selected[0][cb] = false;
         end
-        for (j=0;j<INOUTPORT_NUM;j=j+1) begin
-            if (j==0) begin
-                deq_idx[j]=0;
-                deq_find_ready[j]=false;
-                enq_idx[j]=0;
-                enq_find_free[j]=false;
-                for (k=DEPTH-1;k>=0;k=k-1) begin
+        for (ca=0;ca<INOUTPORT_NUM;ca=ca+1) begin
+            enq_idx[ca]=0;
+            enq_find_free[ca]=false;
+            deq_idx[ca]=0;
+            deq_find_ready[ca]=false;
+
+            if (ca==0) begin
+                for (cb=DEPTH-1;cb>=0;cb=cb-1) begin
                     //select free entry
-                    if (!buffer[k].vld) begin
-                        free_entry_selected[j][k] = true;
-                        enq_idx[j] = k;
-                        enq_find_free[j] = true;
+                    if (!buffer[cb].vld && i_enq_req[ca]) begin
+                        free_entry_selected[ca][cb] = true;
+                        enq_idx[ca] = k;
+                        enq_find_free[ca] = true;
                     end
                     //select ready entry
-                    if (entry_ready[k]) begin
-                        ready_entry_selected[j][k] = true;
-                        deq_idx[j] = k;
-                        deq_find_ready[j] = true;
+                    if (entry_ready[cb]) begin
+                        ready_entry_selected[ca][cb] = true;
+                        deq_idx[ca] = cb;
+                        deq_find_ready[ca] = true;
                     end
                 end
             end
             else begin
-                deq_idx[j]=0;
-                deq_find_ready[j]=false;
-                enq_idx[j]=0;
-                enq_find_free[j]=false;
-                for (k=DEPTH-1;k>=0;k=k-1) begin
+                free_entry_selected[ca] = free_entry_selected[ca-1];
+                ready_entry_selected[ca] = ready_entry_selected[ca-1];
+                for (cb=DEPTH-1;cb>=0;cb=cb-1) begin
                     //select free entry
-                    if ((free_entry_selected[j-1][k] == false) && (!buffer[k].vld)) begin
-                        free_entry_selected[j][k] = true;
-                        enq_idx[j] = k;
-                        enq_find_free[j] = true;
+                    if ((free_entry_selected[ca-1][cb] == false) && (!buffer[cb].vld) && i_enq_req[ca]) begin
+                        free_entry_selected[ca][cb] = true;
+                        enq_idx[ca] = cb;
+                        enq_find_free[ca] = true;
                     end
                     //select ready entry
-                    if ((ready_entry_selected[j-1][k] == false) && entry_ready[k]) begin
-                        ready_entry_selected[j][k] = true;
-                        deq_idx[j] = k;
-                        deq_find_ready[j] = true;
+                    if ((ready_entry_selected[ca-1][cb] == false) && entry_ready[cb]) begin
+                        ready_entry_selected[ca][cb] = true;
+                        deq_idx[ca] = cb;
+                        deq_find_ready[ca] = true;
                     end
                 end
             end
         end
     end
 
-
-
-
-
     generate
         for (i=0;i<INOUTPORT_NUM;i=i+1) begin:gen_for
-            assign o_RSInfo_deq[i].micOp_type = buffer[saved_deq_idx[i]].micOp_type;
+            assign o_issue_exeInfo[i] = buffer[saved_deq_idx[i]].info;
         end
     endgenerate
 
-    `ORDER_CHECK(real_enq_req);
-    `ASSERT((|(i_deq_vld & i_replay_vld)) != true);
+    `ASSERT((|(i_issue_finished_vec & i_issue_replay_vec)) == 0);
     `ASSERT(wakeup_source_num <= WBPORT_NUM  );
 endmodule
 

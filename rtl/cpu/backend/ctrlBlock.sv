@@ -14,30 +14,43 @@ module ctrlBlock (
     input wire[`WDEF(`FETCH_WIDTH)] i_inst_vld,
     input fetchEntry_t i_inst[`FETCH_WIDTH],
 
-    // from/to exublock
+    // read immBuffer (clear when writeback)
+    input irobIdx_t i_immB_read_dqIdx[`IMMBUFFER_READPORT_NUM],
+    output imm_t o_immB_read_data[`IMMBUFFER_READPORT_NUM],
+    input wire[`WDEF(`IMMBUFFER_CLEARPORT_NUM)] i_immB_clear_vld,
+    input irobIdx_t i_immB_clear_dqIdx[`IMMBUFFER_CLEARPORT_NUM],
 
-    // exu read ftqOffset (exu read from rob)
-    input wire[`WDEF($clog2(`ROB_SIZE))] i_read_ftqOffset_idx[`MISC_NUM],
-    output ftqOffset_t o_read_ftqOffset_data[`MISC_NUM],
+    // read ftqOffset (exu read from rob)
+    input wire[`WDEF($clog2(`ROB_SIZE))] i_read_ftqOffset_idx[`BRU_NUM],
+    output ftqOffset_t o_read_ftqOffset_data[`BRU_NUM],
 
     // write back, from exu
     // common writeback
     input wire[`WDEF(`WBPORT_NUM)] i_wb_vld,
-    input commWBInfo_t i_wbInfo[`WBPORT_NUM],
+    input valwbInfo_t i_valwb_info[`WBPORT_NUM],
     // branch writeback (branch taken or mispred)
     input wire i_branchwb_vld,
-    input branchWBInfo_t i_branchwb_info,
+    input branchwbInfo_t i_branchwb_info,
     // except writeback
     input wire i_exceptwb_vld,
-    input exceptWBInfo_t i_exceptwb_info,
+    input exceptwbInfo_t i_exceptwb_info,
 
+    // to exe block
+    // to intBlock
+    input wire i_intBlock_stall,
+    output wire[`WDEF(`INTDQ_DISP_WID)] o_intDQ_deq_vld,
+    output intDQEntry_t o_intDQ_deq_info[`INTDQ_DISP_WID],
+
+    // TODO: to memBlock
+    //notify storeQue
     output wire o_commit_vld,
     output wire[`WDEF($clog2(`ROB_SIZE))] o_committed_rob_idx,
 
     // from/to decoupled frontend
+    // commit to ftq
     output wire o_branch_commit_vld,
     output ftqIdx_t o_committed_ftq_idx,
-
+    // read ftq startAddress from ftq
     output ftqIdx_t o_ftq_idx,
     input wire[`XDEF] i_ftq_startAddress,
 
@@ -153,7 +166,7 @@ module ctrlBlock (
     robIdx_t toDispatch_alloc_robIdx[`RENAME_WIDTH];
 
     wire toROB_disp_exceptwb_vld;
-    exceptWBInfo_t toROB_disp_exceptwb_info;
+    exceptwbInfo_t toROB_disp_exceptwb_info;
 
     dispatch u_dispatch(
         .clk                      ( clk                 ),
@@ -165,10 +178,10 @@ module ctrlBlock (
         .i_enq_vld                ( toDIspatch_vld          ),
         .i_enq_inst               ( toDIspatch_renameInfo   ),
 
-        .i_immB_read_dqIdx        (        ),
-        .o_immB_read_data         (         ),
-        .i_immB_clear_vld         ( 0         ),
-        .i_immB_clear_dqIdx       (       ),
+        .i_immB_read_dqIdx        ( i_immB_read_dqIdx       ),
+        .o_immB_read_data         ( o_immB_read_data        ),
+        .i_immB_clear_vld         ( i_immB_clear_vld         ),
+        .i_immB_clear_dqIdx       ( i_immB_clear_dqIdx      ),
 
         .i_can_insert_rob         ( toDispatch_can_insert   ),
         .o_insert_rob_vld         ( toROB_insert_vld        ),
@@ -181,9 +194,9 @@ module ctrlBlock (
         .o_exceptwb_vld           ( toROB_disp_exceptwb_vld         ),
         .o_exceptwb_info          ( toROB_disp_exceptwb_info         ),
         // to intBlock
-        .i_intBlock_stall         ( 0          ),
-        .o_intDQ_deq_vld          (          ),
-        .o_intDQ_deq_info         (          )
+        .i_intBlock_stall         ( i_intBlock_stall          ),
+        .o_intDQ_deq_vld          ( o_intDQ_deq_vld         ),
+        .o_intDQ_deq_info         ( o_intDQ_deq_info         )
     );
 
     ROB u_ROB(
@@ -205,7 +218,7 @@ module ctrlBlock (
         .o_read_ftqOffset_data ( o_read_ftqOffset_data ),
 
         .i_wb_vld              ( i_wb_vld             ),
-        .i_wbInfo              ( i_wbInfo             ),
+        .i_valwb_info              ( i_valwb_info             ),
         .i_branchwb_vld        ( i_branchwb_vld       ),
         .i_branchwb_info       ( i_branchwb_info      ),
         .i_exceptwb_vld        ( i_exceptwb_vld || toROB_disp_exceptwb_vld ),

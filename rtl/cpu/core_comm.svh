@@ -122,62 +122,43 @@ typedef struct {
 //  i0  | p0 | p1 | p2 | p3 | ..
 //  i1  | .. | p0 | p1 | p2 | p3
 
-
 typedef struct {
-    iprIdx_t rdIdx;
-    iprIdx_t rsIdx[`NUMSRCS_INT]; // reg src idx
-    irobIdx_t immB_idx; // the immbuffer idx (immOp-only)
-    brobIdx_t pcB_idx; // the pcbuffer idx (bru-only)
-    logic use_imm;
+    ftqIdx_t ftq_idx;
     robIdx_t rob_idx;
-    MicOp_t::_u micOp_type;
-} RSenqInfo_t;
-
-typedef struct {
-    iprIdx_t rdIdx;
-    iprIdx_t rsIdx[`NUMSRCS_INT]; // reg src idx
     irobIdx_t immB_idx; // the immbuffer idx (immOp-only)
-    brobIdx_t pcB_idx; // the pcbuffer idx (bru-only)
-    logic use_imm;
 
-    robIdx_t rob_idx;
-    MicOp_t::_u micOp_type;
-} RSdeqInfo_t;
-
-typedef struct {
-    logic vld; //unused in compressed RS
-    logic issued; // flag issued
-    logic spec_wakeup; // flag spec wakeup
-    logic[`WDEF(`NUMSRCS_INT)] src_rdy; // which src is ready
-    logic[`WDEF(`NUMSRCS_INT)] src_spec_rdy; // which src is speculative ready
-
+    logic[`WDEF(2)] issueQue_id;
     logic rd_wen;
     iprIdx_t rdIdx;
     iprIdx_t rsIdx[`NUMSRCS_INT]; // reg src idx
-    irobIdx_t immB_idx; // the immbuffer idx (immOp-only)
-    brobIdx_t pcB_idx; // the pcbuffer idx (bru-only)
-    logic use_imm; // if use imm, the rsIdx[1] will be replaced to immBuffer idx
-
-    robIdx_t rob_idx;
+    logic use_imm;
     MicOp_t::_u micOp_type;
-} RSEntry_t;
+} exeInfo_t;
+
+
+typedef struct {
+    robIdx_t rob_idx;
+    irobIdx_t irob_idx;
+    logic rd_wen;
+    iprIdx_t iprd_idx;
+    logic[`XDEF] srcs[`NUMSRCS_INT];
+
+    logic[`WDEF(2)] issueQue_id;
+    MicOp_t::_u micOp;
+} fuInfo_t;
 
 
 /******************** writeback define ********************/
 
 
 typedef struct {
+    robIdx_t rob_idx;
+    irobIdx_t irob_idx;
     logic rd_wen;
     iprIdx_t iprd_idx;
     logic[`XDEF] result;
-} valWBInfo_t;
+} valwbInfo_t;
 
-
-typedef struct {
-    robIdx_t rob_idx;
-    // used for debug
-    logic[`XDEF] result;
-} commWBInfo_t;// used for fu
 
 typedef struct {
     BranchType::_ branch_type;
@@ -192,7 +173,7 @@ typedef struct {
     logic[`XDEF] branch_pc;
     // branchInst's taken pc
     logic[`XDEF] branch_npc;
-} branchWBInfo_t;// writeback to rob and ftq
+} branchwbInfo_t;// writeback to rob and ftq
 
 
 
@@ -200,7 +181,7 @@ typedef struct {
     robIdx_t rob_idx;
     // for csr/load/store or other
     rv_trap_t::exception except_type;
-} exceptWBInfo_t;
+} exceptwbInfo_t;
 
 /******************** commit define ********************/
 

@@ -334,7 +334,7 @@ module decoder (
     wire[`WDEF(2)] issueQue_id =
     (isIntMath | isImmMath) ? `ALUIQ_ID :
     (isMul | isDiv) ? `MDUIQ_ID :
-    `MISCIQ_ID;
+    `BRUIQ_ID;
 
     //ALU
     MicOp_t::_alu aluop_type =

@@ -1,58 +1,39 @@
 
-`include "fu_define.svh"
-`include "decode_define.svh"
+`include "core_define.svh"
 
-//TODO:
-module alu #(
-    parameter int BYPASS_WID = 4
-)(
+module alu (
     input wire clk,
     input wire rst,
-    //ctrl info
-    input wire i_has_vld,
-    input fuInfo_t i_fuInfo,
+
     output wire o_fu_stall,
-    //data input
-    input wire[`XDEF] i_data[BYPASS_WID],
-    input wire[`WDEF($clog2(BYPASS_WID))] i_data_idx[`NUMSRCS_INT],//only need to save data_idx
+    //ctrl info
+    input fuInfo_t i_fuInfo,
+
+    // export bypass
+    output wire o_willwrite_vld,
+    output iprIdx_t o_willwrite_rdIdx,
+    output wire[`XDEF] o_willwrite_data,
 
     //wb, rd_idx will be used to fast bypass
     input wire i_wb_stall,
-    output reg o_complete,
-    output wbInfo_t o_wbInfo
+    output valwbInfo_t o_wbInfo
 );
-    reg saved_has_vld;
+
     fuInfo_t saved_fuInfo;
-    reg[`WDEF($clog2(BYPASS_WID))] saved_data_idx[`NUMSRCS_INT];
-    //single cycle execute
-    wire complete = saved_has_vld;
 
 
     always_ff @( posedge clk ) begin : blockName
         if (rst==true) begin
-            saved_has_vld <= false;
-            saved_robIdx <= 0;
-            save_rd_wen <= false;
+            saved_fuInfo.rd_wen <= 0;
         end
-        else if (i_has_vld && (!i_wb_stall)) begin
-            saved_has_vld <= true;
-            saved_data_idx <= i_data_idx;
+        else if (!i_wb_stall) begin
             saved_fuInfo <= i_fuInfo;
-        end
-        else if (complete) begin
-            saved_has_vld <= i_has_vld;
         end
     end
 
-    // assign o_complete = saved_has_vld;
-    // assign o_robIdx = saved_fuInfo.robIdx;
-    // assign o_wb_vld = saved_fuInfo.iprd_wen;
-    // assign o_iprd_idx = saved_fuInfo.iprd_idx;
 
-
-
-    wire[`XDEF] src0 = i_data[saved_data_idx[0]];
-    wire[`XDEF] src1 = i_data[saved_data_idx[1]];
+    wire[`XDEF] src0 = saved_fuInfo.srcs[0];
+    wire[`XDEF] src1 = saved_fuInfo.srcs[0];
 
     wire[5:0] shifter = src1[5:0];
 
@@ -98,25 +79,26 @@ module alu #(
     (saved_fuInfo.micOp == MicOp_t::sltu) ? slru :
     0;
 
+    valwbInfo_t wbInfo;
     always @(posedge clk) begin
         if (rst) begin
-            o_complete <= false;
+            wbInfo.rd_wen <= false;
         end
         else if (!i_wb_stall) begin
-            o_complete <= complete;
-            //output
-            o_wbInfo.robIdx <= saved_fuInfo.robIdx;
-            o_wbInfo.use_imm <= saved_fuInfo.use_imm;
-            o_wbInfo.immBIdx <= saved_fuInfo.immBIdx;
-            // o_wbInfo.is_branch <= false;// alu do not need
-            // o_wbInfo.brob_idx <= 0;// alu do not need
-            o_wbInfo.iprd_wen <= saved_fuInfo.iprd_wen;
-            o_wbInfo.iprd_idx <= saved_fuInfo.iprd_idx;
-            o_wbInfo.wb_data <= calc_data;
+            wbInfo.rob_idx <= saved_fuInfo.rob_idx;
+            wbInfo.irob_idx <= irob_idx;
+            wbInfo.rd_wen <= saved_fuInfo.rd_wen;
+            wbInfo.iprd_idx <= saved_fuInfo.iprd_idx;
+            wbInfo.result <= calc_data;
         end
     end
 
+    assign o_willwrite_vld = saved_fuInfo.rd_wen;
+    assign o_willwrite_rdIdx = saved_fuInfo.iprd_idx;
+    assign o_willwrite_data = calc_data;
+
     assign o_fu_stall = i_wb_stall;
+    assign o_wbInfo = wbInfo;
 
 
 
