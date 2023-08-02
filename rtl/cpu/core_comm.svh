@@ -169,9 +169,13 @@ typedef struct {
     logic has_mispred;
     // is branchInst actually taken ? (the jal inst must taken)
     logic branch_taken;
-    // branchInst's pc
-    logic[`XDEF] branch_pc;
+    // branchInst's not taken pc
+    logic[`XDEF] fallthruAddr;
     // branchInst's taken pc
+    logic[`XDEF] targetAddr;
+    // branchInst's nextpc
+    logic[`XDEF] branch_pc;
+    // branchInst's nextpc
     logic[`XDEF] branch_npc;
 } branchwbInfo_t;// writeback to rob and ftq
 

@@ -15,9 +15,9 @@ module BPU (
     input BPupdateInfo_t i_BPupdateInfo,
 
     // predict output -> ftq
+    input wire i_ftq_rdy,
     output wire o_pred_vld,
     output ftqInfo_t o_pred_ftqInfo
-
 );
     wire squash_dueToBackend = i_squash_vld;
     wire squash_vld;
@@ -67,7 +67,7 @@ module BPU (
                 s2_ftbPred_use <= 0;
                 s2_ftb_lookup_hit_rdy <= 0;
             end
-            else begin
+            else if (i_ftq_rdy) begin
                 s2_ftbPred_use <= s1_ftb_lookup_hit_rdy && s1_ftb_lookup_hit;
                 s2_ftb_lookup_hit <= s1_ftb_lookup_hit;
                 s2_ftb_lookup_hit_rdy <= s1_ftb_lookup_hit_rdy;
@@ -93,16 +93,19 @@ module BPU (
             if (squash_dueToBackend) begin
                 base_pc <= i_squashInfo.arch_pc;
             end
-            else if (s2_ftbPred_use) begin
+            else if (s2_ftbPred_use && i_ftq_rdy) begin
                 base_pc <= s2_predNPC;
             end
-            else if (!i_update_vld) begin
+            else if (!i_update_vld && i_ftq_rdy) begin
                 // donot pred when updating
                 base_pc <= base_pc + (`FTB_PREDICT_WIDTH);
             end
 
-            s1_base_pc <= base_pc;
-            s2_base_pc <= s1_base_pc;
+            if (i_ftq_rdy) begin
+                s1_base_pc <= base_pc;
+                s2_base_pc <= s1_base_pc;
+            end
+
         end
     end
 

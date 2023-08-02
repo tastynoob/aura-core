@@ -36,10 +36,16 @@ typedef struct packed{
 
 typedef struct packed {
     // ftb meta
+    logic carry;
     BranchType::_ branch_type;
     logic[`WDEF(2)] ftb_counter;
 } predMeta_t;
 
+
+typedef struct packed {
+    logic[`XDEF] startAddr;
+    ftbInfo_t ftb_update;
+} BPupdateInfo_t;
 
 typedef struct packed {
     logic[`XDEF] startAddr;
@@ -49,11 +55,24 @@ typedef struct packed {
 } ftqInfo_t;
 
 
+typedef struct {
+    logic[`XDEF] startAddr;
+    logic[`XDEF] endAddr;
+    // may be updated by backend
+    logic[`XDEF] branch_pc;
+    logic[`XDEF] fallthruAddr;
+    logic[`XDEF] targetAddr;
+    logic has_mispred;
+    logic taken;
+    predMeta_t meta;
+} ftqEntry_t;
+
+
+
 typedef struct packed {
     logic[`XDEF] startAddr;
-    ftbInfo_t ftb_update;
-} BPupdateInfo_t;
-
+    logic[`WDEF(`FTB_PREDICT_WIDTH)] fetchBlock_size;
+} ftq2icacheInfo_t;
 
 
 package ftbFuncs;

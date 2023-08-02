@@ -6,7 +6,6 @@ typedef struct {
     robIdx_t rob_idx;
     logic taken;
     logic mispred;
-    logic[`XDEF] pc;
     logic[`XDEF] npc;
 } branch_mispred_handle;
 
@@ -77,7 +76,7 @@ module ROB(
     output wire[`WDEF(`COMMIT_WIDTH)] o_rename_commit,
     output renameCommitInfo_t o_rename_commitInfo[`COMMIT_WIDTH],
 
-    // to decoupled frontend, notify which inst was committed
+    // to frontend, notify which inst was committed
     output wire o_branch_commit_vld,
     output ftqIdx_t o_committed_ftq_idx,// set the ftq commit_ptr to this(last committed ftqIdx)
 
@@ -237,7 +236,6 @@ module ROB(
                         rob_idx:i_branchwb_info.rob_idx,
                         taken:i_branchwb_info.branch_taken,
                         mispred:i_branchwb_info.has_mispred,
-                        pc:i_branchwb_info.branch_pc,
                         npc:i_branchwb_info.branch_npc
                     };
                 end
