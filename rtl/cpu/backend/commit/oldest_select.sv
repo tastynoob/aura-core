@@ -10,10 +10,10 @@ module oldest_select #(
     output robIdx_t o_oldest_rob_idx,
     output dtype o_oldest_data
 );
-    `TRACE_OFF
+    `SET_TRACE_OFF
     localparam int left_len = WIDTH/2 + ((WIDTH%2 == 1) ? 1 : 0);
     localparam int right_len = WIDTH/2;
-    `TRACE_ON
+    `SET_TRACE_ON
 
     generate
         if (WIDTH==1)begin:gen_if

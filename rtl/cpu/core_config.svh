@@ -97,7 +97,7 @@
 
 
 `define INIT_PC 64'h8000000000000000
-
+`define CACHELINE_SIZE 64
 
 
 

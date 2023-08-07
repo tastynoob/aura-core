@@ -33,39 +33,20 @@ typedef struct packed{
     ftbInfo_t info;
 } ftbEntry_t;
 
-
 typedef struct packed {
-    // ftb meta
-    logic carry;
-    BranchType::_ branch_type;
-    logic[`WDEF(2)] ftb_counter;
-} predMeta_t;
+    logic[`XDEF] startAddr;
+    logic[`WDEF(`FTB_FALLTHRU_WIDTH + 1)] endAddr;
+    logic[`XDEF] nextAddr;
+    logic hit_on_ftb;
+    // meta data
+    ftbInfo_t ftbInfo;
+} ftqInfo_t;
 
 
 typedef struct packed {
     logic[`XDEF] startAddr;
     ftbInfo_t ftb_update;
 } BPupdateInfo_t;
-
-typedef struct packed {
-    logic[`XDEF] startAddr;
-    logic[`XDEF] endAddr;
-    logic[`XDEF] nextAddr;
-    predMeta_t meta;
-} ftqInfo_t;
-
-
-typedef struct {
-    logic[`XDEF] startAddr;
-    logic[`XDEF] endAddr;
-    // may be updated by backend
-    logic[`XDEF] branch_pc;
-    logic[`XDEF] fallthruAddr;
-    logic[`XDEF] targetAddr;
-    logic has_mispred;
-    logic taken;
-    predMeta_t meta;
-} ftqEntry_t;
 
 
 
@@ -88,7 +69,6 @@ package ftbFuncs;
                 base_pc[`XLEN-1 : `FTB_TARGET_WIDTH+1];
         calcTargetAddr = {higher, ftbInfo.targetAddr, 1'b0};
     endfunction
-
 
     function automatic logic[`XDEF] calcNPC(logic[`XDEF] base_pc, logic taken ,ftbInfo_t ftbInfo);
         logic[`XDEF] fallthruAddr = calcFallthruAddr(base_pc, ftbInfo);

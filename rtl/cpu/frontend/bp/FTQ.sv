@@ -128,7 +128,7 @@ module FTQ (
 // commit ftq entry
 /****************************************************************************************************/
 
-    assign o_bpu_update = do_commit || (i_commit_vld && (i_commit_ftqIdx != commit_ptr_thre));
+    assign o_bpu_update = (do_commit || (i_commit_vld && (i_commit_ftqIdx != commit_ptr_thre))) && buffer[commit_ptr].has_mispred;
 
     assign o_BPUupdateInfo = '{
         startAddr : buffer[commit_ptr].startAddr,
@@ -141,7 +141,7 @@ module FTQ (
                 tarStat_t::UDF,
             targetAddr : buffer[commit_ptr].targetAddr[`FTB_TARGET_WIDTH:1],
             branch_type : buffer[commit_ptr].meta.branch_type,
-            counter : buffer[commit_ptr].meta.ftb_coumter
+            counter : buffer[commit_ptr].meta.ftb_coumter // TODO: bpu traing
         }
     };
 

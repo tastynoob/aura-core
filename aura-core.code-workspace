@@ -11,6 +11,10 @@
 		"verilog.formatting.veribleVerilogFormatter.path": "verible-verilog-format",
 		"verilog.formatting.veribleVerilogFormatter.arguments": "--indentation_spaces=4",
 		//verilog language server use verible
-		"verible.path": "/media/lurker/files/O3CPU/aura-core/vvls.sh"
+		"verible.path": "/media/lurker/files/O3CPU/aura-core/vvls.sh",
+		"files.associations": {
+			"typeindex": "cpp",
+			"typeinfo": "cpp"
+		}
 	}
 }

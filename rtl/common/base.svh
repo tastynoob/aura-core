@@ -16,7 +16,7 @@ typedef enum logic {
 // `define ORDER_CHECK(x) `ASSERT(continuous_one(``x``) == count_one(``x``))
 `define ORDER_CHECK(x)
 
-`define TRACE_OFF /*verilator tracing_off*/
-`define TRACE_ON /*verilator tracing_on*/
+`define SET_TRACE_OFF /*verilator tracing_off*/
+`define SET_TRACE_ON /*verilator tracing_on*/
 
 `endif

@@ -34,7 +34,6 @@ module FTB (
     output wire o_update_finished,
     input wire[`XDEF] i_update_pc,
     input ftbInfo_t i_update_ftbInfo
-
 );
 
 
