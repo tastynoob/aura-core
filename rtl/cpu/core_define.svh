@@ -173,7 +173,7 @@ typedef struct {
     logic[`XDEF] fallthruAddr;
     // branchInst's taken pc
     logic[`XDEF] targetAddr;
-    // branchInst's nextpc
+    // branchInst's pc
     logic[`XDEF] branch_pc;
     // branchInst's nextpc
     logic[`XDEF] branch_npc;

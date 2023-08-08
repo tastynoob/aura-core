@@ -7,22 +7,28 @@
 
 interface core2icache_if();
     logic req;//M->S
+    logic get2;//M->S
     logic gnt;//S->M
-    logic[`XDEF] addr;//M->S
-    logic[`WDEF(`CACHELINE_SIZE)] rdata;//S->M
+    logic[`BLKDEF] addr;//M->S
+    logic[`WDEF(`CACHELINE_SIZE*8)] line0;//S->M
+    logic[`WDEF(`CACHELINE_SIZE*8)] line1;//S->M
     logic rsp;//S->M
     modport m (
         output req,
         input gnt,
+        output get2,
         output addr,
-        input rdata,
+        input line0,
+        input line1,
         input rsp
     );
     modport s (
         input req,
         output gnt,
+        input get2,
         input addr,
-        output rdata,
+        output line0,
+        output line1,
         output rsp
     );
 endinterface

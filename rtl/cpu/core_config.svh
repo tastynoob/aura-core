@@ -97,10 +97,11 @@
 
 
 `define INIT_PC 64'h8000000000000000
-`define CACHELINE_SIZE 64
+`define CACHELINE_SIZE 32
 
-
-
+// cache region fast define
+`define BLKDEF `WDEF(`XLEN - $clog2(`CACHELINE_SIZE))
+`define BLK_RANGE `XLEN - 1 : $clog2(`CACHELINE_SIZE)
 
 
 

@@ -16,12 +16,12 @@ module fetch (
     // to backend
     input wire i_backend_rdy,
     output wire[`WDEF(`FETCH_WIDTH)] o_fetch_inst_vld,
-    output fetchEntry_t o_fetch_inst[`FETCH_WIDTH]
+    output fetchEntry_t o_fetch_inst[`FETCH_WIDTH],
 
 
 
     // to icache
-
+    core2icache_if.m if_core_fetch
 
 );
 
@@ -75,6 +75,16 @@ module fetch (
         .i_commit_vld           ( 0         ),
         .i_commit_ftqIdx        (        )
     );
+
+
+
+
+/****************************************************************************************************/
+// 3 stage icache
+/****************************************************************************************************/
+
+
+
 
 
 

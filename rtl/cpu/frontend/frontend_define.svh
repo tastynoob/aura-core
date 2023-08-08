@@ -16,7 +16,6 @@ endpackage
 
 
 // FTB
-
 typedef struct packed {
     logic carry;
     logic[`WDEF(`FTB_FALLTHRU_WIDTH)] fallthruAddr;
@@ -26,29 +25,28 @@ typedef struct packed {
     logic[`WDEF(2)] counter;
 } ftbInfo_t;
 
-
 typedef struct packed{
     logic[`WDEF(`FTB_TAG_WIDTH)] tag;
     logic vld;
     ftbInfo_t info;
 } ftbEntry_t;
 
-typedef struct packed {
+//ftq
+typedef struct {
     logic[`XDEF] startAddr;
-    logic[`WDEF(`FTB_FALLTHRU_WIDTH + 1)] endAddr;
-    logic[`XDEF] nextAddr;
-    logic hit_on_ftb;
+    logic[`XDEF] endAddr;
+    logic taken;
+    logic[`XDEF] targetAddr;
     // meta data
-    ftbInfo_t ftbInfo;
+    logic hit_on_ftb;
+    BranchType::_ branch_type;
+    logic[`WDEF(2)] ftb_counter;
 } ftqInfo_t;
-
 
 typedef struct packed {
     logic[`XDEF] startAddr;
     ftbInfo_t ftb_update;
 } BPupdateInfo_t;
-
-
 
 typedef struct packed {
     logic[`XDEF] startAddr;

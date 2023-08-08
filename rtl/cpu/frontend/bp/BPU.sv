@@ -118,13 +118,15 @@ module BPU (
 
     assign o_pred_vld = s2_ftb_lookup_hit_rdy;
 
-    assign o_pred_ftqInfo = = '{
+    assign o_pred_ftqInfo = '{
         startAddr : s2_base_pc,
         endAddr : s2_ftbPred_use ? ftbFuncs::calcFallthruAddr(s2_base_pc, s2_ftb_lookup_info) - 1 : s2_ftb_unhit_fallthruAddr - 1,
-        nextAddr : s2_ftbPred_use ? s2_predNPC : s2_ftb_unhit_fallthruAddr,
-        hit_on_ftb: s2_ftb_lookup_hit,
+        taken : s2_taken,
+        targetAddr : ftbFuncs::calcTargetAddr(s2_base_pc, s2_ftb_lookup_info),
         // ftb meta
-        ftbInfo: s2_ftb_lookup_info
+        hit_on_ftb : s2_ftb_lookup_hit,
+        branch_type : s2_ftb_lookup_info.branch_type,
+        ftb_counter : s2_ftb_lookup_info.counter
         // or more
     };
 
