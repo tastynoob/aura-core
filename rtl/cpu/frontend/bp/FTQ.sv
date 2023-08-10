@@ -10,14 +10,15 @@ typedef struct {
 typedef struct {
     logic mispred;
     logic taken;
-    logic[`XDEF] fallthruAddr;
+    ftqOffset_t fallthruOffset;// in backend: branch's offset + isRVC ? 2:4
     logic[`XDEF] targetAddr;
+    BranchType::_ branch_type;
+    //we need fallthruAddr to update ftb
 } ftqBranchInfo_t;// branch writeback
 
 typedef struct {
     // ftb meta
     logic hit_on_ftb;
-    BranchType::_ branch_type;
     logic[`WDEF(2)] ftb_counter;
 } ftqMetaInfo_t;
 
@@ -43,9 +44,15 @@ module FTQ (
     input wire i_icache_fetch_rdy,
     output ftq2icacheInfo_t o_icache_fetchInfo,
 
+    // from backend read
+    input ftqIdx_t i_read_ftqIdx[`BRU_NUM],
+    output wire[`XDEF] o_read_ftqStartAddr,
+    output wire[`XDEF] o_read_ftqNextAddr,
+
     // from backend writeback
     input wire[`WDEF(`BRU_NUM)] i_backend_branchwb_vld,
     input branchwbInfo_t i_backend_branchwbInfo[`BRU_NUM],
+
     // from backend commit
     input wire i_commit_vld,
     input ftqIdx_t i_commit_ftqIdx
@@ -60,7 +67,7 @@ module FTQ (
     reg[`SDEF(`FTQ_SIZE)] count;
 
     ftqFetchInfo_t buffer_fetchInfo[`FTQ_SIZE];
-    ftqFetchInfo_t buffer_branchInfo[`FTQ_SIZE];
+    ftqBranchInfo_t buffer_branchInfo[`FTQ_SIZE];
     ftqMetaInfo_t buffer_metaInfo[`FTQ_SIZE];
 
     wire notFull = count != `FTQ_SIZE;
@@ -68,9 +75,12 @@ module FTQ (
 
 /****************************************************************************************************/
 // do update for ptr
+// NOTE: we need to commit mispred ftq entry quickly
 /****************************************************************************************************/
+
     wire do_commit = (commit_ptr != commit_ptr_thre);
     wire do_fetch = (count != 0);
+    wire need_update_ftb = buffer_metaInfo[commit_ptr].hit_on_ftb || buffer_branchInfo[commit_ptr].mispred;
 
     always_ff @( posedge clk ) begin
         if (rst) begin
@@ -82,7 +92,7 @@ module FTQ (
         end
         else begin
             if (notFull) begin
-                count <= count + i_pred_req - (do_commit & i_bpu_update_finished);
+                count <= count + i_pred_req - do_commit && (need_update_ftb ? i_bpu_update_finished : 1);
             end
 
             if (i_pred_req && notFull) begin
@@ -94,11 +104,21 @@ module FTQ (
             end
 
             if (i_commit_vld) begin
-                commit_ptr_thre <= i_commit_ftqIdx;
+                // if buffer_branchInfo[i_commit_ftqIdx].mispred = true
+                // commit_ptr_thre <= i_commit_ftqIdx + 1
+                if (buffer_branchInfo[i_commit_ftqIdx].mispred) begin
+                    commit_ptr_thre <= (i_commit_ftqIdx == `FTQ_SIZE) ? 0 : i_commit_ftqIdx + 1;
+                end
+                else begin
+                    commit_ptr_thre <= i_commit_ftqIdx;
+                end
+
             end
             // do commit
+            // TODO: make commit and ftb commit separate
             if (commit_ptr != commit_ptr_thre) begin
                 if (i_bpu_update_finished) begin
+                    buffer_vld[commit_ptr] <= 0;
                     commit_ptr <= (commit_ptr == `FTQ_SIZE - 1) ? 0 : commit_ptr + 1;
                 end
             end
@@ -108,23 +128,29 @@ module FTQ (
 // BPU insert into FTQ
 /****************************************************************************************************/
 
-always_ff @( posedge clk ) begin
-    if (rst) begin
-    end
-    else begin
-        if (i_pred_req || notFull) begin
-            buffer_fetchInfo[pred_ptr] <= '{
-                // TODO:
-            };
+    always_ff @( posedge clk ) begin
+        if (rst) begin
+        end
+        else begin
+            if (i_pred_req || notFull) begin
+                buffer_vld[pred_ptr] <= 1;
+                buffer_fetchInfo[pred_ptr] <= '{
+                    startAddr : i_pred_ftqInfo.startAddr,
+                    endAddr   : i_pred_ftqInfo.endAddr,
+                    nextAddr  : i_pred_ftqInfo.taken ? i_pred_ftqInfo.targetAddr : i_pred_ftqInfo.endAddr+1
+                };
+
+                buffer_metaInfo[pred_ptr] <= '{
+                    hit_on_ftb  : i_pred_ftqInfo.hit_on_ftb,
+                    ftb_counter : i_pred_ftqInfo.ftb_counter
+                };
+            end
         end
     end
-end
-
-
 
 
 /****************************************************************************************************/
-// writeback from backend
+// writeback/read from backend
 /****************************************************************************************************/
 
     branchwbInfo_t branchwbInfo[`BRU_NUM];
@@ -135,25 +161,35 @@ end
     endgenerate
 
 
+    reg[`XDEF] read_ftqStartAddr[`BRU_NUM], read_ftqNextAddr[`BRU_NUM];
+    assign o_read_ftqStartAddr = read_ftqStartAddr;
+    assign o_read_ftqNextAddr = read_ftqNextAddr;
     always_ff @( posedge clk ) begin
         int fa, fb;
         if (rst) begin
 
         end
         else begin
+            // read
+            for(fa=0;fa<`BRU_NUM;fa=fa+1) begin
+                read_ftqStartAddr[fa] <= buffer_fetchInfo[i_read_ftqIdx].startAddr;
+                read_ftqNextAddr[fa] <= buffer_fetchInfo[i_read_ftqIdx].nextAddr;
+            end
+
             // write by backend
             for(fa=0;fa<`BRU_NUM;fa=fa+1) begin
                 if (i_backend_branchwb_vld[fa]) begin
                     buffer_branchInfo[branchwbInfo[fa].ftq_idx] <= '{
-                        mispred:0,
-                        taken:0,
-                        fallthruAddr:0,
-                        targetAddr:0
+                        mispred        : branchwbInfo[fa].has_mispred,
+                        taken          : branchwbInfo[fa].branch_taken,
+                        fallthruOffset : branchwbInfo[fa].fallthruOffset,
+                        targetAddr     : branchwbInfo[fa].targetAddr,
+                        branch_type    : branchwbInfo[fa].branch_type
                     };
                 end
             end
 
-            // check assert
+            // branch wb check assert
             for (fa=0;fa<`BRU_NUM;fa=fa+1) begin
                 for (fb=0; fb<`BRU_NUM; fb=fb+1) begin
                     if (fa == fb) begin
@@ -168,22 +204,38 @@ end
 
 
 /****************************************************************************************************/
-// commit ftq entry
+// commit and update ftq entry
 /****************************************************************************************************/
 
-    assign o_bpu_update = (do_commit || (i_commit_vld && (i_commit_ftqIdx != commit_ptr_thre))) && buffer[commit_ptr].has_mispred;
+    reg update_vld;
+    BPupdateInfo_t new_updateInfo;
+    wire[`XDEF] temp_fallthruAddr = buffer_fetchInfo[commit_ptr].startAddr + buffer_branchInfo[commit_ptr].fallthruOffset;
+    always_ff @( posedge clk ) begin
+        if (rst) begin
+            update_vld <= 0;
+        end
+        else begin
+            if (do_commit) begin
+                new_ftb <= '{
+                    startAddr : buffer_fetchInfo[commit_ptr].startAddr,
+                    // generate new ftb entry
+                    // TODO: optimize it
+                    ftb_update : '{
+                        carry        : temp_fallthruAddr[`FTB_FALLTHRU_WIDTH+1] == buffer_fetchInfo[commit_ptr].startAddr[`FTB_FALLTHRU_WIDTH+1],
+                        fallthruAddr : temp_fallthruAddr[`FTB_FALLTHRU_WIDTH:1],
+                        tarStat      : ftbFuncs::calcuTarStat(buffer_fetchInfo[commit_ptr].startAddr, buffer_branchInfo[commit_ptr].targetAddr),
+                        targetAddr   : buffer_branchInfo[commit_ptr].targetAddr[`FTB_TARGET_WIDTH:1],
+                        branch_type  : buffer_branchInfo[commit_ptr].branch_type,
+                        counter      : ftbFuncs::counterUpdate(buffer_metaInfo[commit_ptr].ftb_counter, buffer_branchInfo[commit_ptr].taken)
+                    }
+                };
+            end
+            update_vld <= do_commit && need_update_ftb;
+        end
+    end
 
-    assign o_BPUupdateInfo = '{
-        startAddr : buffer[commit_ptr].startAddr,
-        ftb_update : '{
-            carry : 0,
-            fallthruAddr : 0,
-            tarStat : 0,
-            targetAddr : 0,
-            branch_type : 0,
-            counter : 0
-        }
-    };
+    assign o_bpu_update = update_vld;
+    assign o_BPUupdateInfo = new_updateInfo;
 
 
 /****************************************************************************************************/

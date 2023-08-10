@@ -1,5 +1,5 @@
+`include "tilelink.svh"
 
-`define WDEF(x) ((``x``) == 0 ? 0 : ((``x``)-1)):0
 
 interface tilelink_if #(
     parameter int MASTERS = 2,
@@ -93,19 +93,7 @@ endinterface
 
 
 
-module tb();
 
-intf #(4) myi();
-mod m(myi);
-  // hello world
-int a = myi.WWW();
 
-endmodule
 
-module mod (
-    tilelink_if.m m
-);
- always begin
-    m.AputData(23);
- end
-endmodule
+

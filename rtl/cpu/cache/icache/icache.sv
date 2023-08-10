@@ -21,7 +21,6 @@ module icache #(
 
 // 3 stage icache simulate
     assign if_core_fetch.gnt = if_core_fetch.req;
-
     reg s1_req;
     reg s1_get2;
     reg[`BLKDEF] s1_addr;

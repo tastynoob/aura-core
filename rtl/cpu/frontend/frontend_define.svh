@@ -73,6 +73,19 @@ package ftbFuncs;
         logic[`XDEF] targetAddr = calcTargetAddr(base_pc, ftbInfo);
         calcNPC = taken ? targetAddr : fallthruAddr;
     endfunction
+
+    function automatic logic[`WDEF(2)] counterUpdate(logic[`WDEF(2)] source, logic taken);
+        logic[`WDEF(2)] counter_0 = (source==0) ? 0 : source - 1;
+        logic[`WDEF(2)] counter_1 = (source==3) ? 3 : source + 1;
+        counterUpdate = taken ? counter_1 : counter_0;
+    endfunction
+
+    function automatic tarStat_t::_ calcuTarStat(logic[`XDEF] start, logic[`XDEF] target);
+        calcuTarStat =
+        target[`FTB_TARGET_WIDTH+3:`FTB_TARGET_WIDTH+1] == start[`FTB_TARGET_WIDTH+3:`FTB_TARGET_WIDTH+1] ? tarStat_t::FIT :
+        target[`FTB_TARGET_WIDTH+3:`FTB_TARGET_WIDTH+1] > start[`FTB_TARGET_WIDTH+3:`FTB_TARGET_WIDTH+1] ? tarStat_t::OVF :
+        tarStat_t::UDF;
+    endfunction
 endpackage
 
 

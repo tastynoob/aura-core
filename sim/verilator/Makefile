@@ -9,7 +9,7 @@ CXX_FLAGS = -D VTOP=V$(TOP) -D Vname=\\\"$(TOP)\\\"
 
 CXX_SOURCES := $(shell find src -type f -name "*.cpp")
 CXX_INCLUDE_PATH := ../inc
-SV_INCLUDE_PATH := $(shell find ../rtl -type d)
+SV_INCLUDE_PATH := $(shell find ../../rtl -type d)
 SV_INCLUDE_PATH := $(addprefix -y ,$(SV_INCLUDE_PATH))
 
 

@@ -2,6 +2,13 @@
 
 
 
+
+// backend may read/write some info from frontend
+// one instruction pc used for branch and trap
+// branch writeback info: branch offset in ftq, branch target pc, branch mispred, branch taken
+
+
+
 module fetch (
     input wire clk,
     input wire rst,
@@ -11,14 +18,17 @@ module fetch (
 
 
     // from backend
-    input wire[`WDEF(`BRU_NUM)] i_ftq_startAddr_read_vld,
+    input ftqIdx_t i_read_ftqIdx[`BRU_NUM],
+    output wire[`XDEF] o_read_ftqStartAddr,
+    output wire[`XDEF] o_read_ftqNextAddr,
 
     // to backend
     input wire i_backend_rdy,
     output wire[`WDEF(`FETCH_WIDTH)] o_fetch_inst_vld,
     output fetchEntry_t o_fetch_inst[`FETCH_WIDTH],
 
-
+    input wire i_commit_vld,
+    input ftqIdx_t i_commit_ftqIdx,
 
     // to icache
     core2icache_if.m if_core_fetch
@@ -78,10 +88,44 @@ module fetch (
 
 
 
+    FTQ u_FTQ(
+        .clk                    ( clk                    ),
+        .rst                    ( rst                    ),
+
+        .i_squash_vld           ( i_squash_vld           ),
+        .i_squashInfo           ( i_squashInfo           ),
+
+        .i_pred_req             ( toFTQ_pred_vld             ),
+        .o_ftq_rdy              ( toBPU_ftq_rdy              ),
+        .i_pred_ftqInfo         ( toFTQ_pred_ftqInfo         ),
+
+        .o_bpu_update           ( toBPU_update_vld           ),
+        .i_bpu_update_finished  ( toFTQ_update_finished  ),
+        .o_BPUupdateInfo        ( toBPU_updateInfo        ),
+
+        .o_icache_fetch_req     (      ),
+        .i_icache_fetch_rdy     (      ),
+        .o_icache_fetchInfo     (      ),
+
+        .i_read_ftqIdx          (           ),
+        .o_read_ftqStartAddr    (     ),
+        .o_read_ftqNextAddr     (      ),
+
+        .i_backend_branchwb_vld (  ),
+        .i_backend_branchwbInfo (  ),
+
+        .i_commit_vld           (            ),
+        .i_commit_ftqIdx        (         )
+    );
+
+
+
 
 /****************************************************************************************************/
 // 3 stage icache
 /****************************************************************************************************/
+
+
 
 
 

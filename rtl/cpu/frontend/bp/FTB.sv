@@ -15,7 +15,6 @@ package FTB_status_t;
      } _;
 endpackage
 
-
 module FTB (
     input wire clk,
     input wire rst,

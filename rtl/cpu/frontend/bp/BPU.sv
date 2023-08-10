@@ -3,6 +3,10 @@
 
 // BPU -> FTQ -> backend
 
+// FTB only can predict short jump branch
+// we meed to implement BTB
+// TODO: remove counter from FTB, use the independent component to predict conditional branch
+
 module BPU (
     input wire clk,
     input wire rst,

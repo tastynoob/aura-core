@@ -68,22 +68,19 @@ module ROB(
     input wire i_exceptwb_vld,
     input exceptwbInfo_t i_exceptwb_info,
 
-    // we need to notify which store was committed
+    // we need to notify commit ptr
     output wire o_commit_vld,
-    output wire[`WDEF($clog2(`ROB_SIZE))] o_committed_rob_idx,
+    output wire[`WDEF($clog2(`ROB_SIZE))] o_commit_rob_idx,
+    output ftqIdx_t o_commit_ftq_idx,// set the ftq commit_ptr_thre to this
 
     // to rename
     output wire[`WDEF(`COMMIT_WIDTH)] o_rename_commit,
     output renameCommitInfo_t o_rename_commitInfo[`COMMIT_WIDTH],
 
-    // to frontend, notify which inst was committed
-    output wire o_branch_commit_vld,
-    output ftqIdx_t o_committed_ftq_idx,// set the ftq commit_ptr to this(last committed ftqIdx)
-
     // read by the last commited insts
     // rob read ftq_startAddress (rob read from ftq)
-    output ftqIdx_t o_ftq_idx,
-    input wire[`XDEF] i_ftq_startAddress,
+    output ftqIdx_t o_read_ftqIdx,
+    input wire[`XDEF] i_read_ftqStartAddr,
 
     // pipeline control
     output wire o_squash_vld,
@@ -102,10 +99,10 @@ module ROB(
     wire has_except;
     wire has_interrupt=0;//TODO:interrupt
 
-    // if has except, last_committed_inst = (excepted inst - 1)
-    ROBEntry_t last_committed_inst;
-    // if has except last_committed_rob_idx = (excepted inst - 1)
-    logic[`WDEF($clog2(`ROB_SIZE))] last_committed_rob_idx;
+    // if has except, prev_commit_inst = (excepted inst - 1)
+    ROBEntry_t prev_commit_inst;
+    // if has except prev_commit_rob_idx = (excepted inst - 1)
+    logic[`WDEF($clog2(`ROB_SIZE))] prev_commit_rob_idx;
 
     wire ptr_flipped[`RENAME_WIDTH];
     wire[`WDEF($clog2(`ROB_SIZE))] alloc_idx[`RENAME_WIDTH];
@@ -186,8 +183,7 @@ module ROB(
 /****************************************************************************************************/
 
 
-    assign o_branch_commit_vld = canCommit_vld[0];
-    assign o_committed_ftq_idx = last_committed_inst.ftq_idx;
+    assign o_commit_ftq_idx = prev_commit_inst.ftq_idx;
     // TODO: we may need to improve rename method
     // rename rob commit -> physical register used buffer
     assign o_rename_commit = canCommit_vld;
@@ -204,7 +200,7 @@ module ROB(
     endgenerate
 
     assign o_commit_vld = canCommit_vld[0];
-    assign o_committed_rob_idx = last_committed_rob_idx;
+    assign o_commit_rob_idx = prev_commit_rob_idx;
 
 
 
@@ -216,7 +212,7 @@ module ROB(
 // branch write back to rob and ftq at the same time
 // rob need to get the oldest mispred branch to squash
 // ftq has the same number of writeback as the number of bju
-// send the last committed ftqIdx to ftq to commit
+// send the last commit ftqIdx to ftq to commit
 // NOTE: if (mispred | except | normal | normal) we do except first
 // if (normal | except | mispred | normal) we do mispred first
 // if (normal | mispred | normal | normal) and has interrupt, we need assign mepc to mispre actuallt target
@@ -317,16 +313,16 @@ module ROB(
     `ASSERT ((temp_3 != temp_1) || ((temp_3 == 0) && (temp_1 == 0)));
 
     assign canCommit_vld = has_except ? temp_2 : temp_0;
-    assign o_ftq_idx = last_committed_inst.ftq_idx;
+    assign o_read_ftqIdx = prev_commit_inst.ftq_idx;
 
     always_comb begin
         int ca;
-        last_committed_inst = willCommit_data[0];
-        last_committed_rob_idx = willCommit_idx[0];
+        prev_commit_inst = willCommit_data[0];
+        prev_commit_rob_idx = willCommit_idx[0];
         for(ca=0;ca<`COMMIT_WIDTH;ca=ca+1) begin
             if(canCommit_vld[ca]) begin
-                last_committed_inst = willCommit_data[ca];
-                last_committed_rob_idx = willCommit_idx[ca];
+                prev_commit_inst = willCommit_data[ca];
+                prev_commit_rob_idx = willCommit_idx[ca];
             end
         end
     end
@@ -342,9 +338,9 @@ module ROB(
 /****************************************************************************************************/
 
     commit_status_t::_ status;
-    wire[`XDEF] last_committed_pc;
+    wire[`XDEF] last_commit_pc;
     wire[`XDEF] trap_ret_pc;
-    reg last_committed_isRVC;
+    reg last_commit_isRVC;
     ftqOffset_t ftqOffset;
     reg squash_vld;
     squashInfo_t squashInfo;
@@ -361,10 +357,10 @@ module ROB(
                 // s1: stall and read ftq;
                 commit_stall <= 1;
                 status <= commit_status_t::trapProcess;
-                // NOTE: if has except, last_committed_inst = (excepted inst - 1)
-                last_committed_isRVC <= last_committed_inst.isRVC;
+                // NOTE: if has except, prev_commit_inst = (excepted inst - 1)
+                last_commit_isRVC <= prev_commit_inst.isRVC;
                 // read from rob
-                ftqOffset <= ftqOffset_buffer[last_committed_rob_idx];
+                ftqOffset <= ftqOffset_buffer[prev_commit_rob_idx];
             end
             else if (status == commit_status_t::trapProcess) begin
                 // s2: compute the squashInfo
@@ -376,7 +372,7 @@ module ROB(
                 squashInfo.arch_pc <= has_interrupt ? i_csr_pack.tvec + (0) : i_csr_pack.tvec;
                 // TODO:
                 // if has interrupt, we must wait for a safe cycle
-                // if has trap: mepc = has_mispred ? bmhr.npc : i_ftq_startAddress + ftqOffset + isRVC ? 2:4
+                // if has trap: mepc = has_mispred ? bmhr.npc : i_read_ftqStartAddr + ftqOffset + isRVC ? 2:4
                 // if has interrupt and squash : wait for squash finish
                 // if has interrupt and rob is empty: mepc = last inst pc + ismv 2:4
             end
@@ -392,8 +388,8 @@ module ROB(
     assign o_squash_vld = squash_vld;
     assign o_squashInfo = squashInfo;
 
-    assign last_committed_pc = i_ftq_startAddress + ftqOffset;
-    assign trap_ret_pc = last_committed_pc + (last_committed_isRVC ? 2:4);
+    assign last_commit_pc = i_read_ftqStartAddr + ftqOffset;
+    assign trap_ret_pc = last_commit_pc + (last_commit_isRVC ? 2:4);
 
 
     // used for debug
