@@ -10,7 +10,7 @@
 
 /* FTB config */
 
-`define FTB_PREDICT_WIDTH 32 // byte
+
 `define FTB_TAG_WIDTH 11
 `define FTB_FALLTHRU_WIDTH 4 // (4+1) 64Byte
 `define FTB_TARGET_WIDTH 11 // (11+1)

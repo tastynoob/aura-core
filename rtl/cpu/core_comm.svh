@@ -1,10 +1,26 @@
 `ifndef __CORE_COMM_SVH__
 `define __CORE_COMM_SVH__
 
-`include "core_config.svh"
+`include "base.svh"
+
+`define FTB_PREDICT_WIDTH 16 // byte (up to 8 RVC inst)
+
+`define CACHELINE_SIZE 32
+`define XLEN 64
+`define XLEN_64
+`define INIT_PC 64'h8000000000000000
+
+`define CSRIDX_DEF `WDEF(12)
+`define PCDEF `WDEF(64)
+`define IMMDEF `WDEF(20)
+
+`define FTQ_SIZE 16
+`define IPHYREG_NUM 80
+`define IMMBUFFER_SIZE 40
+`define ROB_SIZE 128
 
 typedef logic[`WDEF($clog2(`FTQ_SIZE))] ftqIdx_t;
-typedef logic[`WDEF(`FETCHBLOCK_OFFSET_WIDTH)] ftqOffset_t;
+typedef logic[`WDEF($clog2(`FTB_PREDICT_WIDTH))] ftqOffset_t;
 typedef struct packed {
     logic flipped;
     logic [`WDEF($clog2(`ROB_SIZE))] idx;

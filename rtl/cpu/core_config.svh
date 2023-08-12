@@ -1,29 +1,16 @@
 `ifndef __CORE_CONFIG_SVH__
 `define __CORE_CONFIG_SVH__
-`include "base.svh"
 
-`define XLEN 64
-`define XLEN_64
+`include "core_comm.svh"
 
 
-// branch predictor
-// the fetch block max size is 64
-
-`define FETCHBLOCK_MAX_INST 64 // byte
-// actually pc = fetch start pc + (offset<<1)
-`define FETCHBLOCK_OFFSET_WIDTH ($clog2(`FETCHBLOCK_MAX_INST))
-
-
-// fetch
-`define FTQ_SIZE 16
-`define FETCH_WIDTH 4
+`define FETCH_WIDTH `FTB_PREDICT_WIDTH/2
 
 // decode rename
 `define DECODE_WIDTH 4
 `define RENAME_WIDTH `DECODE_WIDTH
 
 // dispatch
-`define IMMBUFFER_SIZE 40
 `define BRANCHBUFFER_SIZE 30
 `define INTDQ_DISP_WID 4
 `define MEMDQ_DISP_WID 4
@@ -70,7 +57,19 @@
 
 // commit
 `define COMMIT_WIDTH 4
-`define ROB_SIZE 128
+
+
+//int physical register num
+
+
+//the int Inst needs at least 2 srcs
+`define NUMSRCS_INT 2
+
+// cache region fast define
+`define BLKDEF `WDEF(`XLEN - $clog2(`CACHELINE_SIZE))
+`define BLK_RANGE `XLEN - 1 : $clog2(`CACHELINE_SIZE)
+
+
 
 
 //int logic register index def
@@ -83,28 +82,6 @@
 `define IDEF `WDEF(32)
 //commpressed instruction fast define
 `define CIDEF `WDEF(16)
-
-`define CSRIDX_DEF `WDEF(12)
-`define PCDEF `WDEF(64)
-`define IMMDEF `WDEF(20)
-
-//int physical register num
-`define IPHYREG_NUM 80
-`define ROB_SIZE 128
-
-//the int Inst needs at least 2 srcs
-`define NUMSRCS_INT 2
-
-
-`define INIT_PC 64'h8000000000000000
-`define CACHELINE_SIZE 32
-
-// cache region fast define
-`define BLKDEF `WDEF(`XLEN - $clog2(`CACHELINE_SIZE))
-`define BLK_RANGE `XLEN - 1 : $clog2(`CACHELINE_SIZE)
-
-
-
 
 
 

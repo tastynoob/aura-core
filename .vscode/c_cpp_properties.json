@@ -3,8 +3,9 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/test/**",
-                "/usr/local/share/verilator/include"
+                "${workspaceFolder}/sim/**",
+                "/usr/local/share/verilator/include",
+                "/usr/local/share/verilator/include/vltstd"
             ],
             "defines": [
                 "USE_TRACE",

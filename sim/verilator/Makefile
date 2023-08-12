@@ -10,7 +10,7 @@ CXX_FLAGS = -D VTOP=V$(TOP) -D Vname=\\\"$(TOP)\\\"
 CXX_SOURCES := $(shell find src -type f -name "*.cpp")
 CXX_INCLUDE_PATH := ../inc
 SV_INCLUDE_PATH := $(shell find ../../rtl -type d)
-SV_INCLUDE_PATH := $(addprefix -y ,$(SV_INCLUDE_PATH))
+SV_INCLUDE_PATH_PARAM := $(addprefix -y ,$(SV_INCLUDE_PATH))
 
 
 CXX_FLAGS += -I $(CXX_INCLUDE_PATH)
@@ -25,13 +25,13 @@ endif
 
 CXX_FLAGS := --CFLAGS "$(CXX_FLAGS)"
 
-aura:
+aura: 
 	@echo "**********verilator generating**********"
 	verilator \
 	--cc tb/$(TOP).sv --top-module $(TOP) --exe \
 	$(CXX_SOURCES) \
 	$(CXX_FLAGS) \
-	$(SV_INCLUDE_PATH) \
+	$(SV_INCLUDE_PATH_PARAM) \
 	$(ADDITIONAL_PARAM) \
 	$(DEFINES) \
 	$(WARNING_OFF) \
@@ -53,12 +53,6 @@ aura:
 	else \
 		echo "**********make build successfully**********"; \
 	fi
-
-run:
-	./build/aura +verilator+seed+$(seed) +verilator+rand+reset+2
-
-wave:
-	gtkwave wave.vcd
 
 clean:
 	rm -r build

@@ -31,6 +31,12 @@ interface core2icache_if();
         output line1,
         output rsp
     );
+
+
+    function logic handshaked();
+        handshaked = req && gnt;
+    endfunction
+
 endinterface
 
 

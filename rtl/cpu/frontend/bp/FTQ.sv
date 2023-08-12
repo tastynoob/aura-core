@@ -28,7 +28,7 @@ module FTQ (
     input wire clk,
     input wire rst,
     input wire i_squash_vld,
-    input wire i_squashInfo,
+    input squashInfo_t i_squashInfo,
 
     // from BPU
     input wire i_pred_req,
@@ -41,13 +41,14 @@ module FTQ (
 
     // to icache
     output wire o_icache_fetch_req,
+    output ftqIdx_t o_icache_fetch_ftqIdx,
     input wire i_icache_fetch_rdy,
     output ftq2icacheInfo_t o_icache_fetchInfo,
 
     // from backend read
     input ftqIdx_t i_read_ftqIdx[`BRU_NUM],
-    output wire[`XDEF] o_read_ftqStartAddr,
-    output wire[`XDEF] o_read_ftqNextAddr,
+    output wire[`XDEF] o_read_ftqStartAddr[`BRU_NUM],
+    output wire[`XDEF] o_read_ftqNextAddr[`BRU_NUM],
 
     // from backend writeback
     input wire[`WDEF(`BRU_NUM)] i_backend_branchwb_vld,
@@ -79,7 +80,7 @@ module FTQ (
 /****************************************************************************************************/
 
     wire do_commit = (commit_ptr != commit_ptr_thre);
-    wire do_fetch = (count != 0);
+    wire do_fetch = (count != 0) && (fetch_ptr != pred_ptr);
     wire need_update_ftb = buffer_metaInfo[commit_ptr].hit_on_ftb || buffer_branchInfo[commit_ptr].mispred;
 
     always_ff @( posedge clk ) begin
@@ -92,14 +93,14 @@ module FTQ (
         end
         else begin
             if (notFull) begin
-                count <= count + i_pred_req - do_commit && (need_update_ftb ? i_bpu_update_finished : 1);
+                count <= count + i_pred_req - (do_commit & (need_update_ftb ? i_bpu_update_finished : 1));
             end
 
             if (i_pred_req && notFull) begin
                 pred_ptr <= (pred_ptr == `FTQ_SIZE - 1) ? 0 : pred_ptr + 1;
             end
 
-            if (i_icache_fetch_rdy) begin
+            if (do_fetch && i_icache_fetch_rdy) begin
                 fetch_ptr <= (fetch_ptr == `FTQ_SIZE - 1) ? 0 : fetch_ptr + 1;
             end
 
@@ -118,7 +119,6 @@ module FTQ (
             // TODO: make commit and ftb commit separate
             if (commit_ptr != commit_ptr_thre) begin
                 if (i_bpu_update_finished) begin
-                    buffer_vld[commit_ptr] <= 0;
                     commit_ptr <= (commit_ptr == `FTQ_SIZE - 1) ? 0 : commit_ptr + 1;
                 end
             end
@@ -132,8 +132,7 @@ module FTQ (
         if (rst) begin
         end
         else begin
-            if (i_pred_req || notFull) begin
-                buffer_vld[pred_ptr] <= 1;
+            if (i_pred_req && notFull) begin
                 buffer_fetchInfo[pred_ptr] <= '{
                     startAddr : i_pred_ftqInfo.startAddr,
                     endAddr   : i_pred_ftqInfo.endAddr,
@@ -172,8 +171,8 @@ module FTQ (
         else begin
             // read
             for(fa=0;fa<`BRU_NUM;fa=fa+1) begin
-                read_ftqStartAddr[fa] <= buffer_fetchInfo[i_read_ftqIdx].startAddr;
-                read_ftqNextAddr[fa] <= buffer_fetchInfo[i_read_ftqIdx].nextAddr;
+                read_ftqStartAddr[fa] <= buffer_fetchInfo[i_read_ftqIdx[fa]].startAddr;
+                read_ftqNextAddr[fa] <= buffer_fetchInfo[i_read_ftqIdx[fa]].nextAddr;
             end
 
             // write by backend
@@ -183,7 +182,7 @@ module FTQ (
                         mispred        : branchwbInfo[fa].has_mispred,
                         taken          : branchwbInfo[fa].branch_taken,
                         fallthruOffset : branchwbInfo[fa].fallthruOffset,
-                        targetAddr     : branchwbInfo[fa].targetAddr,
+                        targetAddr     : branchwbInfo[fa].target_pc,
                         branch_type    : branchwbInfo[fa].branch_type
                     };
                 end
@@ -216,7 +215,7 @@ module FTQ (
         end
         else begin
             if (do_commit) begin
-                new_ftb <= '{
+                new_updateInfo <= '{
                     startAddr : buffer_fetchInfo[commit_ptr].startAddr,
                     // generate new ftb entry
                     // TODO: optimize it
@@ -243,13 +242,14 @@ module FTQ (
 /****************************************************************************************************/
 
     assign o_icache_fetch_req = do_fetch;
-
+    assign o_icache_fetch_ftqIdx = fetch_ptr;
     assign o_icache_fetchInfo = '{
         startAddr : buffer_fetchInfo[fetch_ptr].startAddr,
-        fetchBlock_size : buffer_fetchInfo[fetch_ptr].endAddr - buffer[fetch_ptr].startAddr
+        fetchBlock_size : buffer_fetchInfo[fetch_ptr].endAddr - buffer_fetchInfo[fetch_ptr].startAddr
     };
-    `ASSERT(do_fetch ? (buffer[fetch_ptr].endAddr > buffer[fetch_ptr].startAddr) : 1);
-    `ASSERT(do_fetch ? (buffer[fetch_ptr].endAddr - buffer[fetch_ptr].startAddr <= 64) : 1);
+
+    `ASSERT(do_fetch ? (buffer_fetchInfo[fetch_ptr].endAddr > buffer_fetchInfo[fetch_ptr].startAddr) : 1);
+    `ASSERT(do_fetch ? (buffer_fetchInfo[fetch_ptr].endAddr - buffer_fetchInfo[fetch_ptr].startAddr <= 64) : 1);
 
 
 endmodule

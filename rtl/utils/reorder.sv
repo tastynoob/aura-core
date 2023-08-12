@@ -25,7 +25,7 @@ module reorder #(
     )
     u_count_one(
         .i_a   ( i_data_vld ),
-        .o_sum ( count_vld )
+        .o_sum ( count_vld  )
     );
     assign o_data_vld = count_vld == 0 ? 0 : ((1<<count_vld) - 1);
     generate
@@ -47,7 +47,6 @@ module reorder #(
                 end
         end
     endgenerate
-
 
 
 endmodule

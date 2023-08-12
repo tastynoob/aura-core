@@ -1,7 +1,7 @@
 `ifndef __CORE_DEFINE_SVH__
 `define __CORE_DEFINE_SVH__
 
-`include "core_comm.svh"
+`include "core_config.svh"
 `include "decode_define.svh"
 
 /******************** branchPredictor define ********************/
