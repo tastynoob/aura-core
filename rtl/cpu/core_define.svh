@@ -125,7 +125,7 @@ typedef struct {
 typedef struct {
     ftqIdx_t ftq_idx;
     robIdx_t rob_idx;
-    irobIdx_t immB_idx; // the immbuffer idx (immOp-only)
+    irobIdx_t irob_idx; // the immbuffer idx (immOp-only)
 
     logic[`WDEF(2)] issueQue_id;
     logic rd_wen;
@@ -137,6 +137,7 @@ typedef struct {
 
 
 typedef struct {
+    ftqIdx_t ftq_idx;
     robIdx_t rob_idx;
     irobIdx_t irob_idx;
     logic rd_wen;

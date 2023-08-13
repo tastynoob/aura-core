@@ -13,7 +13,7 @@ typedef enum logic {
 `define SDEF(x) $clog2(``x``):0
 
 `define ASSERT(x) always_ff @(posedge clk) assert((``x``) || rst)
-// `define ORDER_CHECK(x) `ASSERT(continuous_one(``x``) == count_one(``x``))
+`define ORDER_CHECK(x) `ASSERT(funcs::continuous_one(``x``) == funcs::count_one(``x``))
 `define ORDER_CHECK(x)
 
 `define SET_TRACE_OFF /*verilator tracing_off*/

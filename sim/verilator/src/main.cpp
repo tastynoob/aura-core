@@ -16,24 +16,24 @@ int main(int argc, char **argv)
     for (int i=0;i<argc;i++) {
         std::cout << argv[i] << " ";
     }
-
+    std::cout << std::endl;
     cmdline::parser parser;
     parser.add<std::string>("exec-file", 'f', "the riscv executable binary file path", false);
     parser.add<std::string>("end", 'e', "end simulation by specific conditions\n"
                                         "       e.g\n"
-                                        "           -e i100 t25\n"
+                                        "           -e i100t25\n"
                                         "       end simulation at 100th instruction or 25th tick",
                             false);
     parser.add<uint32_t>("seed", 's', "the seed of x-assign random init", false);
 #ifdef USE_TRACE
     parser.add<std::string>("trace", 0, "enable trace by specific conditions\n"
                                         "       e.g\n"
-                                        "           --trace i100 t25\n"
+                                        "           --trace i100t25\n"
                                         "       enable trace starting at 100th instruction or 25th tick",
                             false);
 #endif
     parser.parse_check(argc, argv);
-
+        std::cout << parser.get<std::string>("end") << std::endl;
     if (parser.exist("exec-file"))
     {
         std::string workload_path = parser.get<std::string>("exec-file");

@@ -64,7 +64,7 @@ module cache_sram #(
         .i_addr         ( access_addr[`INDEX_RANGE]         ),
         .i_read_en      ( sram_read_req      ),
         .i_write_en_vec ( i_write_req ? i_write_way_vec : 0 ),
-        .o_lookup_data    ( read_data    ),
+        .o_read_data    ( read_data    ),
         .i_write_data   ( write_data   )
     );
 

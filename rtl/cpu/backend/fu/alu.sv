@@ -7,6 +7,7 @@ module alu (
 
     output wire o_fu_stall,
     //ctrl info
+    input wire i_vld,
     input fuInfo_t i_fuInfo,
 
     // export bypass
@@ -16,17 +17,20 @@ module alu (
 
     //wb, rd_idx will be used to fast bypass
     input wire i_wb_stall,
+    output wire o_wb_vld,
     output valwbInfo_t o_wbInfo
 );
 
+    reg saved_vld;
     fuInfo_t saved_fuInfo;
-
 
     always_ff @( posedge clk ) begin : blockName
         if (rst==true) begin
+            saved_vld <= 0;
             saved_fuInfo.rd_wen <= 0;
         end
         else if (!i_wb_stall) begin
+            saved_vld <= i_vld;
             saved_fuInfo <= i_fuInfo;
         end
     end
@@ -79,9 +83,11 @@ module alu (
     (saved_fuInfo.micOp == MicOp_t::sltu) ? slru :
     0;
 
+    reg wb_vld;
     valwbInfo_t wbInfo;
-    always @(posedge clk) begin
+    always_ff @(posedge clk) begin
         if (rst) begin
+            wb_vld <= 0;
             wbInfo.rd_wen <= false;
         end
         else if (!i_wb_stall) begin
@@ -98,6 +104,7 @@ module alu (
     assign o_willwrite_data = calc_data;
 
     assign o_fu_stall = i_wb_stall;
+    assign o_wb_vld = wb_vld;
     assign o_wbInfo = wbInfo;
 
 

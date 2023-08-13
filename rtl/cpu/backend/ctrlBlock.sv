@@ -41,18 +41,14 @@ module ctrlBlock (
     output wire[`WDEF(`INTDQ_DISP_WID)] o_intDQ_deq_vld,
     output intDQEntry_t o_intDQ_deq_info[`INTDQ_DISP_WID],
 
-    // TODO: to memBlock
-    //notify storeQue
+    // notify ftq and storeQue
     output wire o_commit_vld,
-    output wire[`WDEF($clog2(`ROB_SIZE))] o_committed_rob_idx,
+    output wire[`WDEF($clog2(`ROB_SIZE))] o_commit_rob_idx,
+    output ftqIdx_t o_commit_ftq_idx,
 
-    // from/to decoupled frontend
-    // commit to ftq
-    output wire o_branch_commit_vld,
-    output ftqIdx_t o_committed_ftq_idx,
     // read ftq startAddress from ftq
-    output ftqIdx_t o_ftq_idx,
-    input wire[`XDEF] i_ftq_startAddress,
+    output ftqIdx_t o_read_ftqIdx,
+    input wire[`XDEF] i_read_ftqStartAddr,
 
     output wire o_squash_vld,
     output squashInfo_t o_squashInfo
@@ -225,16 +221,14 @@ module ctrlBlock (
         .i_exceptwb_info       ( i_exceptwb_vld ? i_exceptwb_info : toROB_disp_exceptwb_info ),
 
         .o_commit_vld          ( o_commit_vld         ),
-        .o_committed_rob_idx   ( o_committed_rob_idx  ),
+        .o_commit_rob_idx       ( o_commit_rob_idx  ),
+        .o_commit_ftq_idx      ( o_commit_ftq_idx  ),
 
         .o_rename_commit       ( toRename_commit      ),
         .o_rename_commitInfo   ( toRename_commitInfo  ),
 
-        .o_branch_commit_vld   ( o_branch_commit_vld  ),
-        .o_committed_ftq_idx   ( o_committed_ftq_idx  ),
-
-        .o_ftq_idx             ( o_ftq_idx             ),
-        .i_ftq_startAddress    ( i_ftq_startAddress   ),
+        .o_read_ftqIdx             ( o_read_ftqIdx             ),
+        .i_read_ftqStartAddr    ( i_read_ftqStartAddr   ),
 
         .o_squash_vld          ( o_squash_vld         ),
         .o_squashInfo          ( o_squashInfo         )

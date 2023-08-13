@@ -46,13 +46,13 @@ module issueQue #(
     input i_stall,
 
     //enq
-    output wire[`WDEF(INOUTPORT_NUM)] o_can_enq,
+    output wire o_can_enq,
     input wire[`WDEF(INOUTPORT_NUM)] i_enq_req,
     input exeInfo_t i_enq_exeInfo[INOUTPORT_NUM],
 
     //output INOUTPORT_NUM entrys with the highest priority which is ready
     output wire[`WDEF(INOUTPORT_NUM)] o_can_issue,//find can issued entry
-    output wire[`WDEF($clog2(DEPTH))] o_issue_idx,
+    output wire[`WDEF($clog2(DEPTH))] o_issue_idx[INOUTPORT_NUM],
     output exeInfo_t o_issue_exeInfo[INOUTPORT_NUM],
 
     // clear entry's vld bit (issue successed)
@@ -90,7 +90,7 @@ module issueQue #(
 
     assign o_can_issue = saved_deq_find_ready;
     assign o_issue_idx = saved_deq_idx;
-    assign o_can_enq = enq_find_free;
+    assign o_can_enq = &enq_find_free;
 
     wire[`WDEF(INOUTPORT_NUM)] real_enq_req = enq_find_free & i_enq_req;
 
@@ -103,7 +103,7 @@ module issueQue #(
             if (INTERNAL_WAKEUP==1 && i < INOUTPORT_NUM) begin : gen_internal_wakeup
                 //internal wakeup source
                 assign wakeup_src_vld[i] = deq_find_ready[i] & buffer[deq_idx[i]].info.rd_wen;
-                assign wakeup_rdIdx[i] = buffer[deq_idx[i]].rdIdx;
+                assign wakeup_rdIdx[i] = buffer[deq_idx[i]].info.rdIdx;
             end
             else begin: gen_external_wakeup
                 assign temp_idx = i - (INTERNAL_WAKEUP == 1 ? INOUTPORT_NUM : 0);
@@ -115,7 +115,7 @@ module issueQue #(
         //export internal wakeup signal
         for (i=0;i<INOUTPORT_NUM;i=i+1) begin:gen_for
             assign o_export_wakeup_vld[i] = deq_find_ready[i] & buffer[deq_idx[i]].info.rd_wen;
-            assign o_export_wakeup_rdIdx[i] = buffer[deq_idx[i]].rdIdx;
+            assign o_export_wakeup_rdIdx[i] = buffer[deq_idx[i]].info.rdIdx;
         end
     endgenerate
 
@@ -167,7 +167,7 @@ module issueQue #(
             for(fa=0;fa<DEPTH;fa=fa+1) begin
                 for (fb=0;fb<`NUMSRCS_INT;fb=fb+1) begin
                     for (fc=0;fc<wakeup_source_num;fc=fc+1) begin
-                        if ((buffer[fa].rsIdx[fb] == wakeup_rdIdx[fc]) && wakeup_src_vld[fc]) begin
+                        if ((buffer[fa].info.rsIdx[fb] == wakeup_rdIdx[fc]) && wakeup_src_vld[fc]) begin
                             buffer[fa].src_spec_rdy[fb] <= true;
                         end
                     end
@@ -177,7 +177,7 @@ module issueQue #(
             for(fa=0;fa<DEPTH;fa=fa+1) begin
                 for (fb=0;fb<`NUMSRCS_INT;fb=fb+1) begin
                     for (fc=0;fc<wakeup_source_num;fc=fc+1) begin
-                        if ((buffer[fa].rsIdx[fb] == i_wb_rdIdx[fc]) && i_wb_vld[fc]) begin
+                        if ((buffer[fa].info.rsIdx[fb] == i_wb_rdIdx[fc]) && i_wb_vld[fc]) begin
                             buffer[fa].src_rdy[fb] <= true;
                         end
                     end

@@ -1,9 +1,6 @@
 `include "core_define.svh"
 
 
-
-
-
 module bypass_sel #(
     parameter int WIDTH = 4
 )(
