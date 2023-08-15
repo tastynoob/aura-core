@@ -15,10 +15,10 @@ module ctrlBlock (
     input fetchEntry_t i_inst[`FETCH_WIDTH],
 
     // read immBuffer (clear when writeback)
-    input irobIdx_t i_immB_read_dqIdx[`IMMBUFFER_READPORT_NUM],
-    output imm_t o_immB_read_data[`IMMBUFFER_READPORT_NUM],
-    input wire[`WDEF(`IMMBUFFER_CLEARPORT_NUM)] i_immB_clear_vld,
-    input irobIdx_t i_immB_clear_dqIdx[`IMMBUFFER_CLEARPORT_NUM],
+    input irobIdx_t i_read_irob_idx[`IMMBUFFER_READPORT_NUM],
+    output imm_t i_read_irob_data[`IMMBUFFER_READPORT_NUM],
+    input wire[`WDEF(`IMMBUFFER_CLEARPORT_NUM)] i_clear_irob_vld,
+    input irobIdx_t i_clear_irob_idx[`IMMBUFFER_CLEARPORT_NUM],
 
     // read ftqOffset (exu read from rob)
     input wire[`WDEF($clog2(`ROB_SIZE))] i_read_ftqOffset_idx[`BRU_NUM],
@@ -36,6 +36,10 @@ module ctrlBlock (
     input exceptwbInfo_t i_exceptwb_info,
 
     // to exe block
+    // mark regfile status to not ready
+    output wire[`WDEF(`RENAME_WIDTH)] o_disp_mark_regfile_vld,
+    output iprIdx_t o_disp_mark_regfile_iprIdx[`RENAME_WIDTH],
+
     // to intBlock
     input wire i_intBlock_stall,
     output wire[`WDEF(`INTDQ_DISP_WID)] o_intDQ_deq_vld,
@@ -71,18 +75,18 @@ module ctrlBlock (
         .dtype       ( fetchEntry_t       ),
         .INPORT_NUM  ( `FETCH_WIDTH  ),
         .OUTPORT_NUM ( `DECODE_WIDTH ),
-        .DEPTH       ( 8       ),
+        .DEPTH       ( 24       ),
         .USE_INIT    ( 0    )
     )
     fetch_inst_buffer(
-        .clk         ( clk  ),
-        .rst         ( rst  ),
-        .i_flush     ( o_squash_vld   ),
+        .clk        ( clk  ),
+        .rst        ( rst  ),
+        .i_flush    ( o_squash_vld   ),
 
         .o_can_enq  ( can_insert_instBuffer ),
-        .i_enq_vld   ( can_insert_instBuffer ),
-        .i_enq_req   ( i_inst_vld  ),
-        .i_enq_data  ( i_inst   ),
+        .i_enq_vld  ( can_insert_instBuffer ),
+        .i_enq_req  ( i_inst_vld  ),
+        .i_enq_data ( i_inst   ),
 
         .o_can_deq  ( toDecode_inst_vld  ),
         .i_deq_req  ( toInstBuffer_deq_req  ),
@@ -174,10 +178,10 @@ module ctrlBlock (
         .i_enq_vld                ( toDIspatch_vld          ),
         .i_enq_inst               ( toDIspatch_renameInfo   ),
 
-        .i_immB_read_dqIdx        ( i_immB_read_dqIdx       ),
-        .o_immB_read_data         ( o_immB_read_data        ),
-        .i_immB_clear_vld         ( i_immB_clear_vld         ),
-        .i_immB_clear_dqIdx       ( i_immB_clear_dqIdx      ),
+        .i_read_irob_idx          ( i_read_irob_idx       ),
+        .i_read_irob_data         ( i_read_irob_data        ),
+        .i_clear_irob_vld         ( i_clear_irob_vld         ),
+        .i_clear_irob_idx         ( i_clear_irob_idx      ),
 
         .i_can_insert_rob         ( toDispatch_can_insert   ),
         .o_insert_rob_vld         ( toROB_insert_vld        ),
@@ -195,9 +199,16 @@ module ctrlBlock (
         .o_intDQ_deq_info         ( o_intDQ_deq_info         )
     );
 
+    generate
+        for(i=0;i<`RENAME_WIDTH;i=i+1) begin : gen_for
+            assign o_disp_mark_regfile_vld[i] = toDispatch_can_insert && toROB_insert_vld && toROB_insert_req[i];
+            assign o_disp_mark_regfile_iprIdx[i] = toROB_new_entry[i].iprd_idx;
+        end
+    endgenerate
+
     ROB u_ROB(
-        .clk                   (clk                   ),
-        .rst                   (rst                   ),
+        .clk                   ( clk                   ),
+        .rst                   ( rst                   ),
 
         .i_csr_pack            (            ),
         .o_csr_pack            (            ),
@@ -205,6 +216,7 @@ module ctrlBlock (
         .o_can_enq             ( toDispatch_can_insert             ),
         .i_enq_vld             ( toROB_insert_vld             ),
         .i_enq_req             ( toROB_insert_req             ),
+
         .i_insert_rob_ismv     ( toROB_insert_ismv     ),
         .i_new_entry           ( toROB_new_entry           ),
         .i_new_entry_ftqOffset ( toROB_new_enrty_ftqOffset ),
@@ -221,14 +233,14 @@ module ctrlBlock (
         .i_exceptwb_info       ( i_exceptwb_vld ? i_exceptwb_info : toROB_disp_exceptwb_info ),
 
         .o_commit_vld          ( o_commit_vld         ),
-        .o_commit_rob_idx       ( o_commit_rob_idx  ),
+        .o_commit_rob_idx      ( o_commit_rob_idx  ),
         .o_commit_ftq_idx      ( o_commit_ftq_idx  ),
 
         .o_rename_commit       ( toRename_commit      ),
         .o_rename_commitInfo   ( toRename_commitInfo  ),
 
-        .o_read_ftqIdx             ( o_read_ftqIdx             ),
-        .i_read_ftqStartAddr    ( i_read_ftqStartAddr   ),
+        .o_read_ftqIdx         ( o_read_ftqIdx             ),
+        .i_read_ftqStartAddr   ( i_read_ftqStartAddr   ),
 
         .o_squash_vld          ( o_squash_vld         ),
         .o_squashInfo          ( o_squashInfo         )

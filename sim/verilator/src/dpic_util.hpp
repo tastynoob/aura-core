@@ -4,5 +4,5 @@
 
 
 
-
-extern std::ifstream *workload_fs;
+extern uint64_t workload_size = 0;
+extern char *workload_binary = nullptr;

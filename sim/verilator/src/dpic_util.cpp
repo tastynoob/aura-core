@@ -2,19 +2,17 @@
 #include "dpic_util.hpp"
 
 
-
-std::ifstream *workload_fs;
-
+uint64_t workload_size;
+char *workload_binary;
 
 extern "C" bool check_flag(uint32_t flag) {
     return true;
 }
 
 extern "C" char read_rom(uint64_t addr) {
-    if (workload_fs) {
+    if (addr < workload_size) {
         char a;
-        workload_fs->seekg(addr);
-        workload_fs->read(&a,1);
+        a = workload_binary[addr];
         return a;
     }
     return 0;

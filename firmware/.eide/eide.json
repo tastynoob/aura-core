@@ -22,7 +22,7 @@
       "excludeList": [],
       "toolchain": "RISCV_GCC",
       "compileConfig": {
-        "linkerScriptPath": ".\\lib\\bsp\\link.lds",
+        "linkerScriptPath": ".\\lib\\link.lds",
         "options": "null"
       },
       "uploader": "Custom",

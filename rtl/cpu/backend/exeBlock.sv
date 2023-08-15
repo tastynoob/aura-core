@@ -24,7 +24,51 @@ module exeBlock(
     output wire o_exceptwb_vld,
     output exceptwbInfo_t o_exceptwb_info
 );
-    genvar i;
+
+
+
+
+
+
+    intBlock
+    #(
+        .INPUT_NUM       ( 4       ),
+        .EXTERNAL_WAKEUP ( 2 ),
+        .FU_NUM          ( 6          )
+    )
+    u_intBlock(
+        .clk                 ( clk                 ),
+        .rst                 ( rst                 ),
+        .i_squash_vld        ( i_squash_vld        ),
+        .i_squashInfo        ( i_squashInfo        ),
+        .i_disp_vld          ( i_disp_vld          ),
+        .o_can_disp          ( o_can_disp          ),
+        .i_disp_info         ( i_disp_info         ),
+        .o_iprs_idx          ( o_iprs_idx          ),
+        .i_iprs_ready        ( i_iprs_ready        ),
+        .i_iprs_data         ( i_iprs_data         ),
+        .o_immB_idx          ( o_immB_idx          ),
+        .i_imm_data          ( i_imm_data          ),
+        .o_read_ftqIdx       ( o_read_ftqIdx       ),
+        .i_read_ftqStartAddr ( i_read_ftqStartAddr ),
+        .o_read_ftqIdx       ( o_read_ftqIdx       ),
+        .i_read_ftqStartAddr ( i_read_ftqStartAddr ),
+        .i_wb_stall          ( i_wb_stall          ),
+        .o_wb_vld            ( o_wb_vld            ),
+        .o_valwb_info        ( o_valwb_info        ),
+        .o_branchWB_vld      ( o_branchWB_vld      ),
+        .o_branchWB_info     ( o_branchWB_info     ),
+        .i_exceptwb_vld      ( i_exceptwb_vld      ),
+        .i_exceptwb_info     ( i_exceptwb_info     ),
+        .i_ext_wake_vec      ( i_ext_wake_vec      ),
+        .i_ext_wake_prdIdx   ( i_ext_wake_prdIdx   ),
+        .i_ext_wake_data     ( i_ext_wake_data     )
+    );
+
+
+
+
+
 
 
 

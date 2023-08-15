@@ -20,10 +20,10 @@ module dispatch (
     input renameInfo_t i_enq_inst[`RENAME_WIDTH],
 
     // read immBuffer (clear when writeback)
-    input irobIdx_t i_immB_read_dqIdx[`IMMBUFFER_READPORT_NUM],
-    output imm_t o_immB_read_data[`IMMBUFFER_READPORT_NUM],
-    input wire[`WDEF(`IMMBUFFER_CLEARPORT_NUM)] i_immB_clear_vld,
-    input irobIdx_t i_immB_clear_dqIdx[`IMMBUFFER_CLEARPORT_NUM],
+    input irobIdx_t i_read_irob_idx[`IMMBUFFER_READPORT_NUM],
+    output imm_t i_read_irob_data[`IMMBUFFER_READPORT_NUM],
+    input wire[`WDEF(`IMMBUFFER_CLEARPORT_NUM)] i_clear_irob_vld,
+    input irobIdx_t i_clear_irob_idx[`IMMBUFFER_CLEARPORT_NUM],
 
     // from/to rob
     input wire i_can_insert_rob,
@@ -151,7 +151,7 @@ module dispatch (
 
 
 /****************************************************************************************************/
-// int block
+// int dispQue
 /****************************************************************************************************/
 
     wire[`WDEF(`INTDQ_DISP_WID)] intDQ_deq_feedback;
@@ -180,7 +180,7 @@ module dispatch (
 
 
 /****************************************************************************************************/
-// mem block
+// mem dispQue
 /****************************************************************************************************/
 
 
@@ -210,11 +210,11 @@ module dispatch (
         .i_enq_data     ( imm_vec       ),
         .o_alloc_id     ( irob_alloc_idx   ),
 
-        .i_read_dqIdx   ( i_immB_read_dqIdx     ),
-        .o_read_data    ( o_immB_read_data      ),
+        .i_read_dqIdx   ( i_read_irob_idx     ),
+        .o_read_data    ( i_read_irob_data      ),
 
-        .i_clear_vld    ( i_immB_clear_vld      ),
-        .i_clear_dqIdx  ( i_immB_clear_dqIdx    )
+        .i_clear_vld    ( i_clear_irob_vld      ),
+        .i_clear_dqIdx  ( i_clear_irob_idx    )
     );
 
 endmodule

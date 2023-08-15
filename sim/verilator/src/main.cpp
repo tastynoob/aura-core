@@ -37,7 +37,17 @@ int main(int argc, char **argv)
     if (parser.exist("exec-file"))
     {
         std::string workload_path = parser.get<std::string>("exec-file");
-        workload_fs = new std::ifstream(workload_path, std::ios::in | std::ios::binary);
+        std::ifstream workload_fs(workload_path, std::ios::in | std::ios::binary);
+        if (workload_fs.is_open()) {
+            workload_fs.seekg(0, workload_fs.end);
+            uint64_t filesize = workload_fs.tellg();
+            workload_binary = new char[filesize];
+            workload_fs.read(workload_binary, filesize);
+            workload_fs.close();
+        }
+        else {
+            throw "can't open file: " + workload_path + "\n";
+        }
     }
 
     int verilated_seed = time(0);

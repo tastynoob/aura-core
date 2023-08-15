@@ -13,12 +13,13 @@
 // alu -> lsu
 // alu -> mdu
 // mdu -> alu
+// 1x(alu/scu) + 1xalu + 2x(alu/bru) + 2xmdu
 
 
 `define ISSUE_WIDTH `DISP_TO_INT_BLOCK_PORTNUM
 
 
-// 1x(alu/scu) + 1xalu + 2x(alu/bru) + 2xmdu
+
 module intBlock #(
     parameter int INPUT_NUM = `ISSUE_WIDTH,
     parameter int EXTERNAL_WAKEUP = 2,// external wake up sources
@@ -28,14 +29,15 @@ module intBlock #(
     input wire rst,
 
     input wire i_squash_vld,
+    input squashInfo_t i_squashInfo,
     // from dispatch
     input wire[`WDEF(INPUT_NUM)] i_disp_vld,
     output wire[`WDEF(INPUT_NUM)] o_can_disp,
     input intDQEntry_t i_disp_info[INPUT_NUM],
     // regfile read
-    output iprIdx_t o_iprs_idx[ALU_NUM * 2][`NUMSRCS_INT],// read regfile
-    input wire[`WDEF(ALU_NUM * 2)] i_iprs_ready[`NUMSRCS_INT],// ready or not
-    input wire[`XDEF] i_iprs_data[ALU_NUM * 2][`NUMSRCS_INT],
+    output iprIdx_t o_iprs_idx[FU_NUM * 2][`NUMSRCS_INT],// read regfile
+    input wire[`WDEF(FU_NUM * 2)] i_iprs_ready[`NUMSRCS_INT],// ready or not
+    input wire[`XDEF] i_iprs_data[FU_NUM * 2][`NUMSRCS_INT],
     // immBuffer read
     output irobIdx_t o_immB_idx[`ALU_NUM],
     input wire[`IMMDEF] i_imm_data[`ALU_NUM],
@@ -64,16 +66,17 @@ module intBlock #(
 
 );
     genvar i;
+    wire[`WDEF(FU_NUM)] wb_vld;
     valwbInfo_t wbInfo[FU_NUM];
     assign o_valwb_info = wbInfo;
 
     wire IQ0_ready, IQ1_ready = 0;
 
-    wire[`WDEF(`ISSUE_WIDTH)] select_alu, select_bru;
-    wire[`WDEF(`ISSUE_WIDTH)] select_toIQ0, select_toIQ1;
+    wire[`WDEF(INPUT_NUM)] select_alu, select_bru;
+    wire[`WDEF(INPUT_NUM)] select_toIQ0, select_toIQ1;
 
     generate
-        for(i=0;i<`ISSUE_WIDTH;i=i+1) begin : gen_for
+        for(i=0;i<INPUT_NUM;i=i+1) begin : gen_for
             assign select_alu[i] = i_disp_vld[i] && (i_disp_info[i].issueQue_id == `ALUIQ_ID);
             assign select_bru[i] = i_disp_vld[i] && (i_disp_info[i].issueQue_id == `BRUIQ_ID);
 
@@ -121,11 +124,15 @@ module intBlock #(
     wire[`WDEF(FU_NUM)] fu_regfile_stall = 0;//dont care
 
 
+    wire[`WDEF(FU_NUM)] internal_bypass_wb_vld;
+    iprIdx_t internal_bypass_iprdIdx[FU_NUM];
+    wire[`XDEF] internal_bypass_data[FU_NUM];
+
 /****************************************************************************************************/
 // IQ0: 1x(alu+scu) + 1x(alu)
 /****************************************************************************************************/
-    wire[`WDEF(`ISSUE_WIDTH)] IQ0_has_selected;
-    intDQEntry_t IQ0_selected_info[`ISSUE_WIDTH];
+    wire[`WDEF(INPUT_NUM)] IQ0_has_selected;
+    intDQEntry_t IQ0_selected_info[INPUT_NUM];
     reorder
     #(
         .dtype ( intDQEntry_t ),
@@ -185,6 +192,9 @@ module intBlock #(
     assign o_iprs_idx[0] = IQ0_inst_info[0].rsIdx;
     assign o_iprs_idx[1] = IQ0_inst_info[1].rsIdx;
 
+    assign o_immB_idx[0] = IQ0_inst_info[0].irob_idx;
+    assign o_immB_idx[1] = IQ0_inst_info[1].irob_idx;
+
 /****************************************************************************************************/
 // alu0
 /****************************************************************************************************/
@@ -193,9 +203,9 @@ module intBlock #(
     // there are 2 stage to process
     // s0: send request to regfile
     // s1: read data and check bypass, check inst can issue and deq from issueQue
-
+    wire alu0_stall;
     reg[`WDEF(2)] s1_IQ0_inst_vld;
-    iprIdx_t s1_IQ0_iprs_idx[2][`NUM_SRCS];
+    iprIdx_t s1_IQ0_iprs_idx[2][`NUMSRCS_INT];
     exeInfo_t s1_IQ0_inst_info[2];
     always_ff @( posedge clk ) begin
         if (rst) begin
@@ -256,16 +266,16 @@ module intBlock #(
         .clk               ( clk               ),
         .rst               ( rst               ),
 
-        .o_fu_stall        ( o_fu_stall        ),
+        .o_fu_stall        ( alu0_stall        ),
         .i_vld             ( s1_IQ0_inst_vld ),
         .i_fuInfo          ( alu0_info          ),
 
-        .o_willwrite_vld   (  ),
-        .o_willwrite_rdIdx (  ),
-        .o_willwrite_data  (   ),
+        .o_willwrite_vld   ( internal_bypass_wb_vld[0] ),
+        .o_willwrite_rdIdx ( internal_bypass_iprdIdx[0] ),
+        .o_willwrite_data  ( internal_bypass_data[0]  ),
 
         .i_wb_stall        ( i_wb_stall[0]     ),
-        .o_wb_vld          (                   ),
+        .o_wb_vld          ( wb_vld[0]                  ),
         .o_wbInfo          ( wbInfo[0]         )
     );
 
@@ -314,6 +324,34 @@ module intBlock #(
 /****************************************************************************************************/
 // IQ2: 2x(mdu)
 /****************************************************************************************************/
+
+
+
+
+
+
+
+
+
+
+
+
+    generate
+        for(i=0; i<FU_NUM + EXTERNAL_WAKEUP; i=i+1) begin : gen_for
+            if (i < 1) begin : gen_if
+                assign global_writeback_vld[i] = internal_bypass_wb_vld[i];
+                assign global_writeback_iprdIdx[i] = internal_bypass_iprdIdx[i];
+                assign global_writeback_data[i] = internal_bypass_data[i];
+            end
+            else begin : gen_else
+                assign global_writeback_vld[i] = 0;
+                assign global_writeback_iprdIdx[i] = 0;
+                assign global_writeback_data[i] = 0;
+            end
+
+        end
+    endgenerate
+
 
 
 
