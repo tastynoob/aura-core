@@ -4,6 +4,7 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/sim/**",
+                "${workspaceFolder}/build",
                 "/usr/local/share/verilator/include",
                 "/usr/local/share/verilator/include/vltstd"
             ],

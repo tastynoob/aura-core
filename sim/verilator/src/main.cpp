@@ -39,11 +39,16 @@ int main(int argc, char **argv)
         std::string workload_path = parser.get<std::string>("exec-file");
         std::ifstream workload_fs(workload_path, std::ios::in | std::ios::binary);
         if (workload_fs.is_open()) {
+            std::cout<<"load binary file to rom"<<std::endl;
             workload_fs.seekg(0, workload_fs.end);
             uint64_t filesize = workload_fs.tellg();
+            workload_fs.seekg(0,workload_fs.beg);
             workload_binary = new char[filesize];
             workload_fs.read(workload_binary, filesize);
             workload_fs.close();
+            workload_size = filesize;
+            std::cout<<"execute binary file size: "<<filesize<<std::endl;
+            std::cout<<"load successed"<<std::endl;
         }
         else {
             throw "can't open file: " + workload_path + "\n";
@@ -65,6 +70,9 @@ int main(int argc, char **argv)
     verilated_argv[2] = "+verilator+rand+reset+2";
     Verilated::commandArgs(verilated_argc, verilated_argv);
     Verilated::traceEverOn(true);
+    Verilated::addExitCb([](void*){
+        std::cout << "Exiting tick at: "<<main_time<<std::endl;
+    },nullptr);
     top = new VTOP(Vname);
 
 #ifdef USE_TRACE

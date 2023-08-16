@@ -59,11 +59,23 @@ module decode (
         else if (!i_stall) begin
             decinfo_vld <= i_inst_vld;
             for(fa=0;fa<`DECODE_WIDTH;fa=fa+1) begin
-                decinfo[fa] <= temp[fa];
-                decinfo[fa].ftq_idx <= i_inst[fa].ftq_idx;
-                decinfo[fa].ftqOffset <= i_inst[fa].ftqOffset;
-                decinfo[fa].has_except <= unKnown_inst || i_inst[fa].has_except;
-                decinfo[fa].except <= unKnown_inst ? rv_trap_t::instIllegal : i_inst[fa].except;
+                decinfo[fa] <= '{
+                    ftq_idx : i_inst[fa].ftq_idx,
+                    ftqOffset : i_inst[fa].ftqOffset,
+                    has_except :unKnown_inst[fa] || i_inst[fa].has_except,
+                    except : i_inst[fa].has_except ? i_inst[fa].except : rv_trap_t::instIllegal,
+                    isRVC : temp[fa].isRVC,
+                    ismv : temp[fa].ismv,
+                    imm20 : temp[fa].imm20,
+                    need_serialize : temp[fa].need_serialize,
+                    rd_wen : temp[fa].rd_wen,
+                    ilrd_idx : temp[fa].ilrd_idx,
+                    ilrs_idx : temp[fa].ilrs_idx,
+                    use_imm : temp[fa].use_imm,
+                    dispQue_id : temp[fa].dispQue_id,
+                    issueQue_id : temp[fa].issueQue_id,
+                    micOp_type : temp[fa].micOp_type
+                };
             end
         end
     end

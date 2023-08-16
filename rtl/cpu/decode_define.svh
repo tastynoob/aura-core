@@ -96,7 +96,7 @@ endpackage
 
 package MicOp_t;
 `define MICOP_WIDTH 5
-    const int none = 0;
+    const logic[`WDEF(`MICOP_WIDTH)] none = 0;
     typedef enum logic[`WDEF(`MICOP_WIDTH)] {
         //arithmetic
         lui = 5'b01_000,

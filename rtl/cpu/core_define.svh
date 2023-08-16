@@ -15,7 +15,7 @@ package BranchType;
 endpackage
 
 
-typedef struct {
+typedef struct packed{
     logic[`IDEF] inst;
     ftqIdx_t ftq_idx;
     ftqOffset_t ftqOffset;

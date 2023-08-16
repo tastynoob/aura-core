@@ -7,7 +7,7 @@ module aura_backend (
     input wire clk,
     input wire rst,
 
-    output o_squash_vld,
+    output wire o_squash_vld,
     output squashInfo_t o_squashInfo,
 
     // branch writeback
@@ -15,9 +15,9 @@ module aura_backend (
     output branchwbInfo_t o_branchwbInfo[`BRU_NUM],
 
     // read ftq startAddress from ftq
-    output ftqIdx_t o_read_ftqIdx,
-    input wire[`XDEF] i_read_ftqStartAddr,
-    input wire [`XDEF] i_read_ftqNextAddr,
+    output ftqIdx_t o_read_ftqIdx[`BRU_NUM],
+    input wire[`XDEF] i_read_ftqStartAddr[`BRU_NUM],
+    input wire [`XDEF] i_read_ftqNextAddr[`BRU_NUM],
 
     // from fetch
     output wire o_stall,
@@ -41,20 +41,20 @@ module aura_backend (
 
         .i_read_irob_idx       (      ),
         .i_read_irob_data      (       ),
-        .i_clear_irob_vld      (       ),
+        .i_clear_irob_vld      ( 0      ),
         .i_clear_irob_idx      (     ),
 
         .i_read_ftqOffset_idx  (   ),
         .o_read_ftqOffset_data (  ),
 
-        .i_wb_vld              (               ),
+        .i_wb_vld              ( 0              ),
         .i_valwb_info          (           ),
-        .i_branchwb_vld        (         ),
+        .i_branchwb_vld        ( 0        ),
         .i_branchwb_info       (        ),
-        .i_exceptwb_vld        (         ),
+        .i_exceptwb_vld        ( 0        ),
         .i_exceptwb_info       (        ),
 
-        .i_intBlock_stall      (       ),
+        .i_intBlock_stall      ( 1      ),
         .o_intDQ_deq_vld       (        ),
         .o_intDQ_deq_info      (       ),
 
@@ -70,6 +70,9 @@ module aura_backend (
     );
 
 
+    assign o_branchwb_vld = 0;
+    assign o_commit_vld = 0;
+    assign o_squash_vld = 0;
 
 
 

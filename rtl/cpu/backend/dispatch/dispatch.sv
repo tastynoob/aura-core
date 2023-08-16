@@ -157,10 +157,10 @@ module dispatch (
     wire[`WDEF(`INTDQ_DISP_WID)] intDQ_deq_feedback;
     dispQue
     #(
-        .DEPTH       ( 16       ),
-        .INPORT_NUM  ( `RENAME_WIDTH  ),
+        .DEPTH       ( 16              ),
+        .INPORT_NUM  ( `RENAME_WIDTH   ),
         .OUTPORT_NUM ( `INTDQ_DISP_WID ),
-        .dtype       ( intDQEntry_t       )
+        .dtype       ( intDQEntry_t    )
     )
     u_int_dispQue(
         .clk        ( clk        ),

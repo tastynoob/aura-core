@@ -30,13 +30,14 @@ module icache #(
     always_ff @( posedge clk ) begin
         int fa;
         if (rst) begin
+            s1_req <= 0;
             if_core_fetch.rsp <= 0;
         end
         else begin
             // s1: read sram
             s1_req <= if_core_fetch.req;
             s1_get2 <= if_core_fetch.get2;
-            s1_addr <= if_core_fetch.addr & (if_core_fetch.addr - 1);
+            s1_addr <= if_core_fetch.addr & 32'hfffff;
 
             if_core_fetch.rsp <= s1_req;
         end
@@ -46,8 +47,14 @@ generate
     // s2: select
     for(i = 0; i < `CACHELINE_SIZE; i=i+1) begin:gen_for
         always_ff @( posedge clk ) begin
-            if_core_fetch.line0[i*8+7 : i*8] <= read_rom((s1_addr<<$clog2(`CACHELINE_SIZE)) + i);
-            if_core_fetch.line1[i*8+7 : i*8] <= read_rom(((s1_addr+1)<<$clog2(`CACHELINE_SIZE)) + i);
+            if (s1_req) begin
+                if_core_fetch.line0[i*8+7 : i*8] <= read_rom((s1_addr<<$clog2(`CACHELINE_SIZE)) + i);
+                if_core_fetch.line1[i*8+7 : i*8] <= read_rom(((s1_addr+1)<<$clog2(`CACHELINE_SIZE)) + i);
+            end
+            else begin
+                if_core_fetch.line0[i*8+7 : i*8] <= 0;
+                if_core_fetch.line1[i*8+7 : i*8] <= 0;
+            end
         end
     end
 endgenerate

@@ -18,7 +18,7 @@ package funcs;
         int c = 0;
         for (int i = 0; i < 32; i = i + 1) begin
             if (a[i] == 0) begin
-                return i + 1;
+                return i;
             end
         end
         return 32;

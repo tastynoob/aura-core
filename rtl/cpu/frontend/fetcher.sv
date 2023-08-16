@@ -110,14 +110,13 @@ module fetcher (
     assign if_core_fetch.get2 = toIcache_info.startAddr[$clog2(`CACHELINE_SIZE)-1 : 0] >= `CACHELINE_SIZE/2;
     assign if_core_fetch.addr = toIcache_info.startAddr[`BLK_RANGE];
 
-
     reg s1_fetch_vld;
     ftqIdx_t s1_ftqIdx;
     reg[`XDEF] s1_startAddr;
     reg[`WDEF($clog2(`FTB_PREDICT_WIDTH))] s1_fetchblock_size;
 
     ftqIdx_t s2_ftqIdx;
-    reg[`WDEF($clog2(`FTB_PREDICT_WIDTH))] s2_start_shift;
+    reg[`WDEF($clog2(`CACHELINE_SIZE))] s2_start_shift;
     reg[`WDEF($clog2(`FTB_PREDICT_WIDTH))] s2_end_offset;
 
     wire[`WDEF(`FTB_PREDICT_WIDTH/2)] fetched_inst_OH, reordered_inst_OH;// which region is a valid inst
@@ -125,7 +124,7 @@ module fetcher (
     wire[`WDEF(`FTB_PREDICT_WIDTH/2)] fetched_32i_OH;// which region is a 32bit inst
     wire[`IDEF] fetched_insts[`FTB_PREDICT_WIDTH/2], reordered_insts[`FTB_PREDICT_WIDTH/2];
     ftqOffset_t reordered_ftqOffset[`FTB_PREDICT_WIDTH/2];
-    wire[`WDEF(`CACHELINE_SIZE*8*2)] icacheline_merge = ({if_core_fetch.line1, if_core_fetch.line0} >> s2_start_shift);
+    wire[`WDEF(`CACHELINE_SIZE*8*2)] icacheline_merge = ({if_core_fetch.line1, if_core_fetch.line0} >> (s2_start_shift*8));
 
     // generate new fetch entry
     reg[`WDEF(`FTB_PREDICT_WIDTH/2)] new_inst_vld;
@@ -133,6 +132,7 @@ module fetcher (
     always_ff @( posedge clk ) begin
         int fa;
         if (rst) begin
+            new_inst_vld <= 0;
             s1_fetch_vld <= 0;
             stall_dueto_pcUnaligned <= 0;
         end
@@ -148,18 +148,18 @@ module fetcher (
             // s2: icache output 2 cachelines
             if (s1_fetch_vld && if_core_fetch.gnt) begin
                 s2_ftqIdx <= s1_ftqIdx;
-                s2_start_shift <= s1_startAddr[$clog2(`FTB_PREDICT_WIDTH)-1:0];
+                s2_start_shift <= s1_startAddr[$clog2(`CACHELINE_SIZE)-1:0];
                 s2_end_offset <= s1_fetchblock_size;
             end
             // s3: cacheline shift and align, generate new fetchEntry
-            new_inst_vld <= (if_core_fetch.rsp ? reordered_inst_OH : 0) || stall_dueto_pcUnaligned;
+            new_inst_vld <= stall_dueto_pcUnaligned ? 1 : (if_core_fetch.rsp ? reordered_inst_OH : 0);
             for (fa = 0; fa < `FETCH_WIDTH; fa=fa+1) begin
                 new_inst[fa] <= '{
                     inst        : reordered_insts[fa],
                     ftq_idx     : s2_ftqIdx,
                     ftqOffset   : reordered_ftqOffset[fa],
                     has_except  : stall_dueto_pcUnaligned,
-                    except      : stall_dueto_pcUnaligned ? rv_trap_t::pcUnaligned : 0
+                    except      : rv_trap_t::pcUnaligned
                 };
             end
         end

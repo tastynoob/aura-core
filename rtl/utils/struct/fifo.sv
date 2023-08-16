@@ -62,10 +62,11 @@ module fifo #(
     );
 
     dtype buffer[DEPTH];
-    reg[`SDEF(DEPTH)] enq_ptr[INPORT_NUM], deq_ptr[OUTPORT_NUM], count;
-    reg[`SDEF(DEPTH)] arch_count, arch_deq_ptr;
+    reg[`WDEF($clog2(DEPTH))] enq_ptr[INPORT_NUM], deq_ptr[OUTPORT_NUM];
+    reg[`WDEF($clog2(DEPTH))] arch_deq_ptr;
+    reg[`SDEF(DEPTH)] count, arch_count;
 
-    if (USE_RENAME !=0) begin : gen_if
+    if (USE_RENAME) begin : gen_if
         // DESIGN:
         // commit ont inst with rd
         // the arch_deq_ptr increment by 1
@@ -107,7 +108,6 @@ module fifo #(
             else begin
                 count <= 0;
             end
-
             for (fa = 0; fa < INPORT_NUM; fa = fa + 1) begin
                 enq_ptr[fa] <= fa;
             end
@@ -117,7 +117,7 @@ module fifo #(
         end
         else if ((USE_RENAME != 0) && i_resteer_vld) begin
             count <= arch_count;
-            for (fa = 0; fa < INPORT_NUM; fa = fa + 1) begin
+            for (fa = 0; fa < OUTPORT_NUM; fa = fa + 1) begin
                 deq_ptr[fa] <= arch_deq_ptr + fa;
             end
         end
@@ -132,7 +132,7 @@ module fifo #(
             end
             // deq
             for (fa = 0; fa < OUTPORT_NUM; fa = fa + 1) begin
-                deq_ptr[fa] <= (deq_ptr[fa] + deq_num) < DEPTH ? (deq_ptr[fa] + deq_num) : (deq_ptr[fa] + deq_num - DEPTH);
+                deq_ptr[fa] <= ((deq_ptr[fa] + deq_num) < DEPTH) ? (deq_ptr[fa] + deq_num) : (deq_ptr[fa] + deq_num - DEPTH);
             end
             count <= count + real_enq_num - deq_num;
         end
@@ -144,8 +144,8 @@ module fifo #(
 
     generate
         for (i = 0; i < OUTPORT_NUM; i = i + 1) begin : gen_output
-            assign o_can_deq[i] = (i+1) <= existing;
-            assign o_deq_data[i]  = buffer[deq_ptr[i]];
+            assign o_can_deq[i] = ((i+1) <= existing);
+            assign o_deq_data[i] = buffer[deq_ptr[i]];
         end
     endgenerate
 
