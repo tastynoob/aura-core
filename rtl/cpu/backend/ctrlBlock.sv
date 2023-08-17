@@ -37,8 +37,8 @@ module ctrlBlock (
 
     // to exe block
     // mark regfile status to not ready
-    output wire[`WDEF(`RENAME_WIDTH)] o_disp_mark_regfile_vld,
-    output iprIdx_t o_disp_mark_regfile_iprIdx[`RENAME_WIDTH],
+    output wire[`WDEF(`RENAME_WIDTH)] o_disp_mark_notready_vld,
+    output iprIdx_t o_disp_mark_notready_iprIdx[`RENAME_WIDTH],
 
     // to intBlock
     input wire i_intBlock_stall,
@@ -201,8 +201,8 @@ module ctrlBlock (
 
     generate
         for(i=0;i<`RENAME_WIDTH;i=i+1) begin : gen_for
-            assign o_disp_mark_regfile_vld[i] = toDispatch_can_insert && toROB_insert_vld && toROB_insert_req[i];
-            assign o_disp_mark_regfile_iprIdx[i] = toROB_new_entry[i].iprd_idx;
+            assign o_disp_mark_notready_vld[i] = toDispatch_can_insert && toROB_insert_vld && toROB_insert_req[i];
+            assign o_disp_mark_notready_iprIdx[i] = toROB_new_entry[i].iprd_idx;
         end
     endgenerate
 

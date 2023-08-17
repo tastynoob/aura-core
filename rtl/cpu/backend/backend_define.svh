@@ -65,18 +65,20 @@ typedef struct {
 } intDQEntry_t;// to exeIntBlock
 
 
-typedef struct {
-    ftqIdx_t ftq_idx;
-    robIdx_t rob_idx;
-    irobIdx_t irob_idx; // the immbuffer idx (immOp-only)
+typedef intDQEntry_t exeInfo_t;
 
-    logic[`WDEF(2)] issueQue_id;
-    logic rd_wen;
-    iprIdx_t rdIdx;
-    iprIdx_t rsIdx[`NUMSRCS_INT]; // reg src idx
-    logic use_imm;
-    MicOp_t::_u micOp_type;
-} exeInfo_t;
+// typedef struct {
+//     ftqIdx_t ftq_idx;
+//     robIdx_t rob_idx;
+//     irobIdx_t irob_idx; // the immbuffer idx (immOp-only)
+
+//     logic rd_wen;
+//     iprIdx_t rdIdx;
+//     iprIdx_t rsIdx[`NUMSRCS_INT]; // reg src idx
+//     logic use_imm;
+//     logic[`WDEF(2)] issueQue_id;
+//     MicOp_t::_u micOp_type;
+// } exeInfo_t;
 
 
 typedef struct {

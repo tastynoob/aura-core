@@ -41,7 +41,7 @@ module alu (
 
     wire[5:0] shifter = src1[5:0];
 
-    wire[`XDEF] lui = {{32{1'b1}},src1[19:0],{12{0}}};
+    wire[`XDEF] lui = {{32{1'b1}},src1[19:0],12'd0};
     wire[`XDEF] add = src0 + src1;
     wire[`XDEF] sub = src0 - src1;
     wire[`XDEF] addw = {{32{add[31]}},add[31:0]};
@@ -58,7 +58,7 @@ module alu (
     wire[`XDEF] _and = src0 & src1;
     // signed
     // src0 < src1 (src0 - src1 < 0)
-    wire[`XDEF] slt = {{63{0}},sub[63]};
+    wire[`XDEF] slt = {63'd0,sub[63]};
     // unsigned
     // src0 > src1 : fasle : src0 - src1 > 0
     wire[`XDEF] sltu = src0 < src1;
@@ -80,7 +80,7 @@ module alu (
     (saved_fuInfo.micOp == MicOp_t::_or) ? _or :
     (saved_fuInfo.micOp == MicOp_t::_and) ? _and :
     (saved_fuInfo.micOp == MicOp_t::slt) ? slt :
-    (saved_fuInfo.micOp == MicOp_t::sltu) ? slru :
+    (saved_fuInfo.micOp == MicOp_t::sltu) ? sltu :
     0;
 
     reg wb_vld;
@@ -92,7 +92,7 @@ module alu (
         end
         else if (!i_wb_stall) begin
             wbInfo.rob_idx <= saved_fuInfo.rob_idx;
-            wbInfo.irob_idx <= irob_idx;
+            wbInfo.irob_idx <= saved_fuInfo.irob_idx;
             wbInfo.rd_wen <= saved_fuInfo.rd_wen;
             wbInfo.iprd_idx <= saved_fuInfo.iprd_idx;
             wbInfo.result <= calc_data;

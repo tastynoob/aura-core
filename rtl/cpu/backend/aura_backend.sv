@@ -28,8 +28,18 @@ module aura_backend (
     output ftqIdx_t o_commit_ftqIdx
 );
 
+    wire squash_vld;
+    squashInfo_t squashInfo;
+
     irobIdx_t toCtrl_read_irob_idx[`IMMBUFFER_READPORT_NUM];
     imm_t toCtrl_read_irob_data[`IMMBUFFER_READPORT_NUM];
+
+    wire[`WDEF(`RENAME_WIDTH)] toExe_mark_notready_vld;
+    iprIdx_t toExe_mark_notready_iprIdx[`RENAME_WIDTH];
+
+    wire toCtrl_intBlock_stall;
+    wire[`WDEF(`INTDQ_DISP_WID)] toExe_intDQ_deq_vld;
+    intDQEntry_t toExe_intDQ_deq_info[`INTDQ_DISP_WID];
 
     ctrlBlock u_ctrlBlock(
         .clk                   ( clk                   ),
@@ -54,9 +64,12 @@ module aura_backend (
         .i_exceptwb_vld        ( 0        ),
         .i_exceptwb_info       (        ),
 
-        .i_intBlock_stall      ( 1      ),
-        .o_intDQ_deq_vld       (        ),
-        .o_intDQ_deq_info      (       ),
+        .o_disp_mark_notready_vld    ( toExe_mark_notready_vld ),
+        .o_disp_mark_notready_iprIdx ( toExe_mark_notready_iprIdx ),
+
+        .i_intBlock_stall      ( toCtrl_intBlock_stall      ),
+        .o_intDQ_deq_vld       ( toExe_intDQ_deq_vld       ),
+        .o_intDQ_deq_info      ( toExe_intDQ_deq_info      ),
 
         .o_commit_vld          (           ),
         .o_commit_rob_idx      (       ),
@@ -65,19 +78,35 @@ module aura_backend (
         .o_read_ftqIdx         (          ),
         .i_read_ftqStartAddr   (    ),
 
-        .o_squash_vld          (           ),
-        .o_squashInfo          (           )
+        .o_squash_vld          ( squash_vld          ),
+        .o_squashInfo          ( squashInfo          )
     );
 
 
     assign o_branchwb_vld = 0;
     assign o_commit_vld = 0;
-    assign o_squash_vld = 0;
+    assign o_squash_vld = 0;// squash_vld;
+    // assign o_squashInfo = squashInfo;
 
 
+    exeBlock u_exeBlock(
+        .clk                         ( clk                         ),
+        .rst                         ( rst                         ),
 
+        .i_disp_mark_notready_vld    ( toExe_mark_notready_vld    ),
+        .i_disp_mark_notready_iprIdx ( toExe_mark_notready_iprIdx ),
 
+        .o_intBlock_stall            ( toCtrl_intBlock_stall      ),
+        .i_intDQ_deq_vld             ( toExe_intDQ_deq_vld        ),
+        .i_intDQ_deq_info            ( toExe_intDQ_deq_info       ),
 
+        .o_wb_vld                    (                     ),
+        .o_wbInfo                    (                     ),
+        .o_branchwb_vld              (               ),
+        .o_branchwb_info             (              ),
+        .o_exceptwb_vld              (               ),
+        .o_exceptwb_info             (              )
+    );
 
 
 

@@ -28,9 +28,6 @@
 `define BRANCHBUFFER_WBPORT_NUM 1
 `define BRANCHBUFFER_COMMIT_WID 4
 
-`define DISP_TO_INT_BLOCK_PORTNUM 4
-`define DISP_TO_MEM_BLOCK_PORTNUM 4
-
 //used for dispatch into dispQue
 `define INTBLOCK_ID 0
 `define MEMBLOCK_ID 1

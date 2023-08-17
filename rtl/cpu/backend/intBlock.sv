@@ -16,7 +16,7 @@
 // 1x(alu/scu) + 1xalu + 2x(alu/bru) + 2xmdu
 
 
-`define ISSUE_WIDTH `DISP_TO_INT_BLOCK_PORTNUM
+`define ISSUE_WIDTH `INTDQ_DISP_WID
 
 
 
@@ -44,11 +44,8 @@ module intBlock #(
 
     // read ftq_startAddress (to ftq)
     output ftqIdx_t o_read_ftqIdx[`BRU_NUM],
-    output wire[`XDEF] i_read_ftqStartAddr[`BRU_NUM],
-
-    // read ftqOffset (to ROB)
-    output ftqIdx_t o_read_ftqIdx[`BRU_NUM],
-    output wire[`XDEF] i_read_ftqStartAddr[`BRU_NUM],
+    input wire[`XDEF] i_read_ftqStartAddr[`BRU_NUM],
+    input wire[`XDEF] i_read_ftqNextAddr[`BRU_NUM],
 
     // writeback
     input wire[`WDEF(FU_NUM)] i_wb_stall,
@@ -157,12 +154,12 @@ module intBlock #(
     #(
         .DEPTH              ( 16    ),
         .INOUTPORT_NUM      ( 2     ),
-        .EXTERNAL_WAKEUPNUM ( 2     ),
+        .EXTERNAL_WAKEUPNUM ( 0     ),
         .WBPORT_NUM         ( 6     ),
         .INTERNAL_WAKEUP    ( 1     ),
         .SINGLEEXE          ( 1     )
     )
-    u_issueQue_singleExe0(
+    u_issueQue_0(
         .clk                   ( clk                   ),
         .rst                   ( rst                   ),
         .i_stall               ( ),
@@ -170,6 +167,7 @@ module intBlock #(
         .o_can_enq             ( IQ0_ready ),
         .i_enq_req             ( IQ0_has_selected[1:0] ),
         .i_enq_exeInfo         ( {IQ0_selected_info[0], IQ0_selected_info[1]} ),
+        .i_enq_iprs_rdy        ( ),
 
         .o_can_issue           ( IQ0_inst_vld   ),
         .o_issue_idx           ( IQ0_inst_iqIdx ),
@@ -189,11 +187,17 @@ module intBlock #(
         .i_wb_rdIdx            (    )
     );
 
-    assign o_iprs_idx[0] = IQ0_inst_info[0].rsIdx;
-    assign o_iprs_idx[1] = IQ0_inst_info[1].rsIdx;
+    generate
+        for(i=0;i<`NUMSRCS_INT;i=i+1) begin : gen_for
+            assign o_iprs_idx[0][i] = IQ0_inst_info[0].iprs_idx[i];
+            assign o_iprs_idx[1][i] = IQ0_inst_info[1].iprs_idx[i];
 
-    assign o_immB_idx[0] = IQ0_inst_info[0].irob_idx;
-    assign o_immB_idx[1] = IQ0_inst_info[1].irob_idx;
+            assign o_immB_idx[0][i] = IQ0_inst_info[0].irob_idx[i];
+            assign o_immB_idx[1][i] = IQ0_inst_info[1].irob_idx[i];
+        end
+    endgenerate
+
+
 
 /****************************************************************************************************/
 // alu0
@@ -208,13 +212,16 @@ module intBlock #(
     iprIdx_t s1_IQ0_iprs_idx[2][`NUMSRCS_INT];
     exeInfo_t s1_IQ0_inst_info[2];
     always_ff @( posedge clk ) begin
+        integer fa;
         if (rst) begin
             s1_IQ0_inst_vld <= 0;
         end
         else begin
             s1_IQ0_inst_vld <= IQ0_inst_vld;
-            s1_IQ0_iprs_idx[0] <= IQ0_inst_info[0].rsIdx;
-            s1_IQ0_iprs_idx[1] <= IQ0_inst_info[1].rsIdx;
+            for (fa=0;fa<`NUMSRCS_INT;fa=fa+1) begin
+                s1_IQ0_iprs_idx[0][fa] <= IQ0_inst_info[0].iprs_idx[fa];
+                s1_IQ0_iprs_idx[1][fa] <= IQ0_inst_info[1].iprs_idx[fa];
+            end
             s1_IQ0_inst_info <= IQ0_inst_info;
         end
     end
@@ -230,7 +237,7 @@ module intBlock #(
         .i_src_vld     ( global_writeback_vld     ),
         .i_src_idx     ( global_writeback_iprdIdx     ),
         .i_src_data    ( global_writeback_data    ),
-        .i_target_idx  ( IQ0_inst_info[0].rsIdx[0]  ),
+        .i_target_idx  ( IQ0_inst_info[0].iprs_idx[0]  ),
         .o_target_vld  ( alu0_bypass_vld[0]  ),
         .o_target_data ( alu0_bypass_data[0] )
     );
@@ -242,7 +249,7 @@ module intBlock #(
         .i_src_vld     ( global_writeback_vld      ),
         .i_src_idx     ( global_writeback_iprdIdx  ),
         .i_src_data    ( global_writeback_data     ),
-        .i_target_idx  ( IQ0_inst_info[0].rsIdx[1] ),
+        .i_target_idx  ( IQ0_inst_info[0].iprs_idx[1] ),
         .o_target_vld  ( alu0_bypass_vld[1]        ),
         .o_target_data ( alu0_bypass_data[1]       )
     );
@@ -252,7 +259,7 @@ module intBlock #(
         rob_idx : s1_IQ0_inst_info[0].rob_idx,
         irob_idx : s1_IQ0_inst_info[0].irob_idx,
         rd_wen : s1_IQ0_inst_info[0].rd_wen,
-        iprd_idx : s1_IQ0_inst_info[0].rdIdx,
+        iprd_idx : s1_IQ0_inst_info[0].iprd_idx,
         srcs : {
             alu0_bypass_vld[0] ? alu0_bypass_data[0] : i_iprs_data[0][0],
             s1_IQ0_inst_info[0].use_imm ? i_imm_data[0] : (alu0_bypass_vld[1] ? alu0_bypass_data[1] : i_iprs_data[0][1])
@@ -288,7 +295,7 @@ module intBlock #(
         rob_idx : s1_IQ0_inst_info[1].rob_idx,
         irob_idx : s1_IQ0_inst_info[1].irob_idx,
         rd_wen : s1_IQ0_inst_info[1].rd_wen,
-        iprd_idx : s1_IQ0_inst_info[1].rdIdx,
+        iprd_idx : s1_IQ0_inst_info[1].iprd_idx,
         srcs : {0,0},
         issueQue_id : s1_IQ0_inst_info[1].issueQue_id,
         micOp : s1_IQ0_inst_info[1].micOp_type
@@ -299,7 +306,7 @@ module intBlock #(
         .clk               ( clk               ),
         .rst               ( rst               ),
 
-        .o_fu_stall        ( o_fu_stall        ),
+        .o_fu_stall        (         ),
         .i_vld             (),
         .i_fuInfo          ( alu0_info          ),
 
