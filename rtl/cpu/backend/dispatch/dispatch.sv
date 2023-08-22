@@ -1,5 +1,5 @@
 `include "core_define.svh"
-
+`include "funcs.svh"
 
 //if one inst is mv
 //should not dispatch to

@@ -38,6 +38,7 @@ module decode (
 
     wire[`WDEF(`DECODE_WIDTH)] unKnown_inst;
     decInfo_t temp[`DECODE_WIDTH];
+    wire[`WDEF(`DECODE_WIDTH)] temp_val;
     generate
         for(i=0;i<`DECODE_WIDTH;i=i+1) begin: gen_decode
             decoder u_decoder(
@@ -45,9 +46,10 @@ module decode (
                 .o_unkown_inst    ( unKnown_inst[i]),
                 .o_decinfo        ( temp[i]     )
             );
-
+            assign temp_val[i] = i_inst[i].has_except;
         end
     endgenerate
+
 
     reg[`WDEF(`RENAME_WIDTH)] decinfo_vld;
     decInfo_t decinfo[`DECODE_WIDTH];
@@ -60,21 +62,21 @@ module decode (
             decinfo_vld <= i_inst_vld;
             for(fa=0;fa<`DECODE_WIDTH;fa=fa+1) begin
                 decinfo[fa] <= '{
-                    ftq_idx : i_inst[fa].ftq_idx,
-                    ftqOffset : i_inst[fa].ftqOffset,
-                    has_except :unKnown_inst[fa] || i_inst[fa].has_except,
-                    except : i_inst[fa].has_except ? i_inst[fa].except : rv_trap_t::instIllegal,
-                    isRVC : temp[fa].isRVC,
-                    ismv : temp[fa].ismv,
-                    imm20 : temp[fa].imm20,
+                    ftq_idx     : i_inst[fa].ftq_idx,
+                    ftqOffset   : i_inst[fa].ftqOffset,
+                    has_except  : (unKnown_inst[fa] || temp_val[fa]),
+                    except      : i_inst[fa].has_except ? i_inst[fa].except : rv_trap_t::instIllegal,
+                    isRVC       : temp[fa].isRVC,
+                    ismv        : temp[fa].ismv,
+                    imm20       : temp[fa].imm20,
                     need_serialize : temp[fa].need_serialize,
-                    rd_wen : temp[fa].rd_wen,
-                    ilrd_idx : temp[fa].ilrd_idx,
-                    ilrs_idx : temp[fa].ilrs_idx,
-                    use_imm : temp[fa].use_imm,
-                    dispQue_id : temp[fa].dispQue_id,
+                    rd_wen      : temp[fa].rd_wen,
+                    ilrd_idx    : temp[fa].ilrd_idx,
+                    ilrs_idx    : temp[fa].ilrs_idx,
+                    use_imm     : temp[fa].use_imm,
+                    dispQue_id  : temp[fa].dispQue_id,
                     issueQue_id : temp[fa].issueQue_id,
-                    micOp_type : temp[fa].micOp_type
+                    micOp_type  : temp[fa].micOp_type
                 };
             end
         end
