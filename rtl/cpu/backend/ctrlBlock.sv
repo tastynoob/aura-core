@@ -16,7 +16,7 @@ module ctrlBlock (
 
     // read immBuffer (clear when writeback)
     input irobIdx_t i_read_irob_idx[`IMMBUFFER_READPORT_NUM],
-    output imm_t i_read_irob_data[`IMMBUFFER_READPORT_NUM],
+    output imm_t o_read_irob_data[`IMMBUFFER_READPORT_NUM],
     input wire[`WDEF(`IMMBUFFER_CLEARPORT_NUM)] i_clear_irob_vld,
     input irobIdx_t i_clear_irob_idx[`IMMBUFFER_CLEARPORT_NUM],
 
@@ -180,7 +180,7 @@ module ctrlBlock (
         .i_enq_inst               ( toDIspatch_renameInfo   ),
 
         .i_read_irob_idx          ( i_read_irob_idx       ),
-        .i_read_irob_data         ( i_read_irob_data        ),
+        .o_read_irob_data         ( o_read_irob_data        ),
         .i_clear_irob_vld         ( i_clear_irob_vld         ),
         .i_clear_irob_idx         ( i_clear_irob_idx      ),
 

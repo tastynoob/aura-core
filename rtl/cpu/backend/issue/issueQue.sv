@@ -165,7 +165,7 @@ module issueQue #(
                         buffer[i_feedback_idx[fa]].src_spec_rdy <= buffer[i_feedback_idx[fa]].src_rdy;
                     end
                 end
-                assert(SINGLEEXE ? !(i_issue_replay_vec) : 1);
+                assert(SINGLEEXE ? !(|i_issue_replay_vec) : 1);
             end
         end
 
@@ -257,7 +257,7 @@ module issueQue #(
         end
     endgenerate
 
-    `ASSERT((|(i_issue_finished_vec & i_issue_replay_vec)) == 0);
+    `ASSERT((i_issue_finished_vec & i_issue_replay_vec) == 0);
     `ASSERT(wakeup_source_num <= WBPORT_NUM  );
 endmodule
 

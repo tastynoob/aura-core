@@ -17,7 +17,7 @@ module misc_u #(
     input wire[`WDEF($clog2(BYPASS_WID))] i_data_idx[`NUMSRCS_INT],//only need to save data_idx
 
     //imm
-    input wire[`IMMDEF] i_imm,
+    input imm_t i_imm,
     //pc (branch/auipc only)
     input wire[`XDEF] i_pc,
     //predTakenpc(branch only)

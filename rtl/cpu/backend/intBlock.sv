@@ -33,16 +33,16 @@ module intBlock #(
     input squashInfo_t i_squashInfo,
     // from dispatch
     output wire[`WDEF(INPUT_NUM)] o_disp_vld,
-    input wire[`WDEF(INPUT_NUM)] i_dsip_req,
+    input wire[`WDEF(INPUT_NUM)] i_disp_req,
     input intDQEntry_t i_disp_info[INPUT_NUM],
     input wire[`WDEF(`NUMSRCS_INT)] i_enq_iprs_rdy[INPUT_NUM],
     // regfile read
     output iprIdx_t o_iprs_idx[FU_NUM][`NUMSRCS_INT],// read regfile
-    input wire[`WDEF(FU_NUM)] i_iprs_ready[`NUMSRCS_INT],// ready or not
+    input wire[`WDEF(`NUMSRCS_INT)] i_iprs_ready[FU_NUM],// ready or not
     input wire[`XDEF] i_iprs_data[FU_NUM][`NUMSRCS_INT],
     // immBuffer read
     output irobIdx_t o_immB_idx[`ALU_NUM],
-    input wire[`IMMDEF] i_imm_data[`ALU_NUM],
+    input imm_t i_imm_data[`ALU_NUM],
 
     // read ftq_startAddress (to ftq)
     output ftqIdx_t o_read_ftqIdx[`BRU_NUM],
@@ -53,10 +53,10 @@ module intBlock #(
     input wire[`WDEF(FU_NUM)] i_wb_stall,
     output wire[`WDEF(FU_NUM)] o_wb_vld,
     output valwbInfo_t o_valwb_info[FU_NUM],
-    output wire o_branchWB_vld,
-    output branchwbInfo_t o_branchWB_info,
-    output wire i_exceptwb_vld,
-    output exceptwbInfo_t i_exceptwb_info,
+    output wire[`WDEF(`BRU_NUM)] o_branchWB_vld,
+    output branchwbInfo_t o_branchWB_info[`WDEF(`BRU_NUM)],
+    output wire o_exceptwb_vld,
+    output exceptwbInfo_t o_exceptwb_info,
 
     // external wake up (may be speculative)
     input wire[`WDEF(EXTERNAL_WAKEUP)] i_ext_wake_vec,
@@ -70,7 +70,6 @@ module intBlock #(
     genvar i;
     wire[`WDEF(FU_NUM)] wb_vld;
     valwbInfo_t wbInfo[FU_NUM];
-    assign o_valwb_info = wbInfo;
 
     wire IQ0_ready, IQ1_ready = 1;
 
@@ -79,8 +78,8 @@ module intBlock #(
 
     generate
         for(i=0;i<INPUT_NUM;i=i+1) begin : gen_for
-            assign select_alu[i] = i_dsip_req[i] && (i_disp_info[i].issueQue_id == `ALUIQ_ID);
-            assign select_bru[i] = i_dsip_req[i] && (i_disp_info[i].issueQue_id == `BRUIQ_ID);
+            assign select_alu[i] = i_disp_req[i] && (i_disp_info[i].issueQue_id == `ALUIQ_ID);
+            assign select_bru[i] = i_disp_req[i] && (i_disp_info[i].issueQue_id == `BRUIQ_ID);
 
             if (i < 2) begin : gen_if
                 assign select_toIQ0[i] = IQ0_ready && select_alu[i];
@@ -146,7 +145,7 @@ module intBlock #(
 /****************************************************************************************************/
     wire[`WDEF(INPUT_NUM)] IQ0_has_selected;
     intDQEntry_t IQ0_selected_info[INPUT_NUM];
-    wire[`WDEF(`NUMSRCS_INT)] IQ0_iprs_rdy[INPUT_NUM];
+    wire[`WDEF(`NUMSRCS_INT)] IQ0_enq_iprs_rdy[INPUT_NUM];
     reorder
     #(
         .dtype ( intDQEntry_t ),
@@ -166,7 +165,7 @@ module intBlock #(
     u_reorder_1(
         .i_data_vld      ( select_toIQ0   ),
         .i_datas         ( i_enq_iprs_rdy ),
-        .o_reorder_datas ( IQ0_iprs_rdy   )
+        .o_reorder_datas ( IQ0_enq_iprs_rdy   )
     );
 
     wire[`WDEF(2)] IQ0_inst_vld;
@@ -198,7 +197,7 @@ module intBlock #(
         .o_can_enq             ( IQ0_ready ),
         .i_enq_req             ( IQ0_has_selected[1:0] ),
         .i_enq_exeInfo         ( {IQ0_selected_info[0], IQ0_selected_info[1]} ),
-        .i_enq_iprs_rdy        ( {IQ0_iprs_rdy[0], IQ0_iprs_rdy[1]} ),
+        .i_enq_iprs_rdy        ( {IQ0_enq_iprs_rdy[0], IQ0_enq_iprs_rdy[1]} ),
 
         .o_can_issue           ( IQ0_inst_vld   ),
         .o_issue_idx           ( IQ0_inst_iqIdx ),
@@ -266,8 +265,8 @@ module intBlock #(
         end
     end
 
-    assign IQ0_issue_finished[0] = s1_IQ0_inst_vld && ((alu0_iprs_rdy | alu0_bypass_vld | {s1_IQ0_inst_info[0].use_imm, 1'b1}) == 2'b11);
-    assign IQ0_issue_failed[0] = s1_IQ0_inst_vld && (!IQ0_issue_finished[0]);
+    assign IQ0_issue_finished[0] = s1_IQ0_inst_vld[0] && ((alu0_iprs_rdy | alu0_bypass_vld | {s1_IQ0_inst_info[0].use_imm, 1'b1}) == 2'b11);
+    assign IQ0_issue_failed[0] = s1_IQ0_inst_vld[0] && (!IQ0_issue_finished[0]);
 
     bypass_sel
     #(
@@ -333,6 +332,9 @@ module intBlock #(
 // alu1
 /****************************************************************************************************/
 
+    assign IQ0_issue_finished[1] = 0;
+    assign IQ0_issue_failed[1] = 0;
+
     fuInfo_t alu1_info = '{
         ftq_idx : s1_IQ0_inst_info[1].ftq_idx,
         rob_idx : s1_IQ0_inst_info[1].rob_idx,
@@ -350,7 +352,7 @@ module intBlock #(
         .rst               ( rst               ),
 
         .o_fu_stall        (         ),
-        .i_vld             (),
+        .i_vld             (0),
         .i_fuInfo          ( alu1_info          ),
 
         .o_willwrite_vld   ( internal_bypass_wb_vld[1] ),
@@ -362,7 +364,7 @@ module intBlock #(
         .o_wbInfo          ( wbInfo[1]         )
     );
 
-
+    assign wb_vld[FU_NUM-1:2] = 0;
 
 /****************************************************************************************************/
 // IQ1: 2x(alu+bru)
@@ -385,7 +387,11 @@ module intBlock #(
 /****************************************************************************************************/
 // others
 /****************************************************************************************************/
+    assign o_valwb_info = wbInfo;
+    assign o_wb_vld = wb_vld;
 
+    assign o_branchWB_vld = 0;
+    assign o_exceptwb_vld = 0;
 
 
     reg[`WDEF(FU_NUM)] pat1_wb_vld;
@@ -414,8 +420,7 @@ module intBlock #(
     generate
         for(i=0; i<FU_NUM * 3 + EXTERNAL_WRITEBACK * 2; i=i+1) begin : gen_for
             if (i < FU_NUM) begin : gen_if
-                // back to back bypass
-                assign global_bypass_vld[i] = internal_bypass_wb_vld[i];
+                assign global_bypass_vld[i] = internal_bypass_wb_vld[i] && (i < 1);
                 assign global_bypass_rdIdx[i] = internal_bypass_iprdIdx[i];
                 assign global_bypass_data[i] = internal_bypass_data[i];
             end
@@ -444,9 +449,10 @@ module intBlock #(
                 assign global_bypass_data[i] = pat1_extwb_data[i - FU_NUM*3 + EXTERNAL_WRITEBACK];
             end
         end
+
         for (i=0;i<FU_NUM + EXTERNAL_WRITEBACK;i=i+1) begin : gen_for
             if (i < FU_NUM) begin : gen_if
-                assign global_wb_vld[i] = wb_vld[i];
+                assign global_wb_vld[i] = wb_vld[i] && (i < 1);
                 assign global_wb_rdIdx[i] = wbInfo[i].iprd_idx;
             end
             else begin: gen_else

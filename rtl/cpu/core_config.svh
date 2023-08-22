@@ -20,13 +20,6 @@
 `define IMMBUFFER_CLEARPORT_NUM 4
 `define IMMBUFFER_COMMIT_WID 4
 
-// branchBuffer read port
-// misc need 1 port
-// commit need 2 port
-`define BRANCHBUFFER_READPORT_NUM 3
-`define BRANCHBUFFER_CLEARPORT_NUM 1
-`define BRANCHBUFFER_WBPORT_NUM 1
-`define BRANCHBUFFER_COMMIT_WID 4
 
 //used for dispatch into dispQue
 `define INTBLOCK_ID 0

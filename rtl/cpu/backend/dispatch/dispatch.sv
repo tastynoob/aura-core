@@ -21,7 +21,7 @@ module dispatch (
 
     // read immBuffer (clear when writeback)
     input irobIdx_t i_read_irob_idx[`IMMBUFFER_READPORT_NUM],
-    output imm_t i_read_irob_data[`IMMBUFFER_READPORT_NUM],
+    output imm_t o_read_irob_data[`IMMBUFFER_READPORT_NUM],
     input wire[`WDEF(`IMMBUFFER_CLEARPORT_NUM)] i_clear_irob_vld,
     input irobIdx_t i_clear_irob_idx[`IMMBUFFER_CLEARPORT_NUM],
 
@@ -55,7 +55,7 @@ module dispatch (
     //alloc immBubbfer id
     wire[`WDEF(`RENAME_WIDTH)] use_imm_vec;
     irobIdx_t irob_alloc_idx[`RENAME_WIDTH];// alloced immBuffer id
-    wire[`IMMDEF] imm_vec[`RENAME_WIDTH];
+    imm_t imm_vec[`RENAME_WIDTH];
 
     wire can_insert_intDQ;
     wire can_insert_memDQ = 1;
@@ -209,7 +209,7 @@ module dispatch (
         .o_alloc_id     ( irob_alloc_idx   ),
 
         .i_read_dqIdx   ( i_read_irob_idx     ),
-        .o_read_data    ( i_read_irob_data      ),
+        .o_read_data    ( o_read_irob_data      ),
 
         .i_clear_vld    ( i_clear_irob_vld      ),
         .i_clear_dqIdx  ( i_clear_irob_idx    )

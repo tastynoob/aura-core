@@ -16,8 +16,8 @@ module regfile #(
     input wire[`WDEF(`RENAME_WIDTH)] i_notready_mark,
     input iprIdx_t i_notready_iprIdx[`RENAME_WIDTH],
     // dispatch to issueQue read src is or not ready
-    input iprIdx_t i_dsip_check_iprsIdx[`RENAME_WIDTH * `NUMSRCS_INT],
-    output wire[`WDEF(`RENAME_WIDTH * `NUMSRCS_INT)] o_disp_check_iprs_vld,
+    input iprIdx_t i_disp_check_iprsIdx[`RENAME_WIDTH * `NUMSRCS_INT],
+    output wire[`WDEF(`NUMSRCS_INT)] o_disp_check_iprs_vld[`RENAME_WIDTH],
 
     input wire[`WDEF($clog2(SIZE))] i_read_idx[READPORT_NUM],
     output wire[`WDEF(READPORT_NUM)] o_data_rdy,
@@ -70,7 +70,7 @@ module regfile #(
             end
 
             for (i=0;i<`RENAME_WIDTH * `NUMSRCS_INT;i=i+1) begin:gen_for
-                assign o_disp_check_iprs_vld[i] = (i_dsip_check_iprsIdx[i] == 0) ? 1 : rdy_bit_bypass[i_dsip_check_iprsIdx[i]];
+                assign o_disp_check_iprs_vld[i/2][i%2] = (i_disp_check_iprsIdx[i] == 0) ? 1 : rdy_bit_bypass[i_disp_check_iprsIdx[i]];
             end
         end
         else begin : gen_no_zero

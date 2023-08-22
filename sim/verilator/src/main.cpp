@@ -32,8 +32,10 @@ int main(int argc, char **argv)
                                         "       enable trace starting at 100th instruction or 25th tick",
                             false);
 #endif
+
     parser.parse_check(argc, argv);
-        std::cout << parser.get<std::string>("end") << std::endl;
+
+
     if (parser.exist("exec-file"))
     {
         std::string workload_path = parser.get<std::string>("exec-file");
@@ -61,6 +63,15 @@ int main(int argc, char **argv)
         verilated_seed = parser.get<int>("seed");
     }
 
+    if (parser.exist("end")) {
+        std::string cmd = parser.get<std::string>("end");
+        uint64_t i,t;
+        int count = sscanf(cmd.c_str(),"t%lu",&t);
+        if (count) {
+            max_simTime = t;
+        }
+    }
+
     int verilated_argc = 3;
     char const *verilated_argv[3];
     sprintf(buffer, "+verilator+seed+%d", verilated_seed);
@@ -79,21 +90,27 @@ int main(int argc, char **argv)
     VerilatedVcdC *tfp = new VerilatedVcdC();
     top->trace(tfp, 0);
     tfp->open("wave.vcd");
+    printf("Start trace at: %d\n", 0);
 #endif
+
+    std::cout<<"**** MAX EMULATION TICK: " << max_simTime << " ****\n";
+    std::cout<<"**** REAL EMULATION ****\n";
 
     {
         top->clk = 0;
         top->rst = 1;
         top->eval();
 #ifdef USE_TRACE
-        tfp->dump(main_time++);
+        tfp->dump(main_time);
 #endif
+        main_time++;
         top->clk = 1;
         top->rst = 1;
         top->eval();
 #ifdef USE_TRACE
-        tfp->dump(main_time++);
+        tfp->dump(main_time);
 #endif
+        main_time++;
         top->rst = 0;
     }
 
@@ -116,5 +133,7 @@ int main(int argc, char **argv)
 #endif
 
     delete top;
+
+    std::cout<<"**** END EMULATION TICK: "<< main_time << " ****\n";
     return 0;
 }
