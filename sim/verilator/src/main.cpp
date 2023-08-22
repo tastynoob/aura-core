@@ -13,7 +13,8 @@ char buffer[100];
 
 int main(int argc, char **argv)
 {
-    for (int i=0;i<argc;i++) {
+    for (int i = 0; i < argc; i++)
+    {
         std::cout << argv[i] << " ";
     }
     std::cout << std::endl;
@@ -35,39 +36,44 @@ int main(int argc, char **argv)
 
     parser.parse_check(argc, argv);
 
-
     if (parser.exist("exec-file"))
     {
         std::string workload_path = parser.get<std::string>("exec-file");
         std::ifstream workload_fs(workload_path, std::ios::in | std::ios::binary);
-        if (workload_fs.is_open()) {
-            std::cout<<"load binary file to rom"<<std::endl;
+        if (workload_fs.is_open())
+        {
+            std::cout << "load binary file to rom" << std::endl;
             workload_fs.seekg(0, workload_fs.end);
             uint64_t filesize = workload_fs.tellg();
-            workload_fs.seekg(0,workload_fs.beg);
+            workload_fs.seekg(0, workload_fs.beg);
             workload_binary = new char[filesize];
             workload_fs.read(workload_binary, filesize);
             workload_fs.close();
             workload_size = filesize;
-            std::cout<<"execute binary file size: "<<filesize<<std::endl;
-            std::cout<<"load successed"<<std::endl;
+            std::cout << "execute binary file size: " << filesize << std::endl;
+            std::cout << "load successed" << std::endl;
         }
-        else {
+        else
+        {
             throw "can't open file: " + workload_path + "\n";
         }
     }
 
-    int verilated_seed = time(0);
+    int verilated_seed = time(0) % 1000;
     if (parser.exist("seed"))
     {
         verilated_seed = parser.get<int>("seed");
     }
 
-    if (parser.exist("end")) {
+    std::cout << "verilated random seed: " << verilated_seed << std::endl;
+
+    if (parser.exist("end"))
+    {
         std::string cmd = parser.get<std::string>("end");
-        uint64_t i,t;
-        int count = sscanf(cmd.c_str(),"t%lu",&t);
-        if (count) {
+        uint64_t i, t;
+        int count = sscanf(cmd.c_str(), "t%lu", &t);
+        if (count)
+        {
             max_simTime = t;
         }
     }
@@ -81,9 +87,9 @@ int main(int argc, char **argv)
     verilated_argv[2] = "+verilator+rand+reset+2";
     Verilated::commandArgs(verilated_argc, verilated_argv);
     Verilated::traceEverOn(true);
-    Verilated::addExitCb([](void*){
-        std::cout << "Exiting tick at: "<<main_time<<std::endl;
-    },nullptr);
+    Verilated::addExitCb([](void *)
+                         { std::cout << "Exiting tick at: " << main_time << std::endl; },
+                         nullptr);
     top = new VTOP(Vname);
 
 #ifdef USE_TRACE
@@ -93,8 +99,8 @@ int main(int argc, char **argv)
     printf("Start trace at: %d\n", 0);
 #endif
 
-    std::cout<<"**** MAX EMULATION TICK: " << max_simTime << " ****\n";
-    std::cout<<"**** REAL EMULATION ****\n";
+    std::cout << "**** MAX EMULATION TICK: " << max_simTime << " ****\n";
+    std::cout << "**** REAL EMULATION ****\n";
 
     {
         top->clk = 0;
@@ -134,6 +140,6 @@ int main(int argc, char **argv)
 
     delete top;
 
-    std::cout<<"**** END EMULATION TICK: "<< main_time << " ****\n";
+    std::cout << "**** END EMULATION TICK: " << main_time << " ****\n";
     return 0;
 }
