@@ -62,7 +62,7 @@ int main(int argc, char **argv)
     int verilated_seed = time(0) % 1000;
     if (parser.exist("seed"))
     {
-        verilated_seed = parser.get<int>("seed");
+        verilated_seed = parser.get<uint32_t>("seed");
     }
 
     std::cout << "verilated random seed: " << verilated_seed << std::endl;
