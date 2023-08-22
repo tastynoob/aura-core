@@ -41,8 +41,8 @@ module dispatch (
     // TODO: we need to set the busytable
 
     // to int block
-    input wire i_intBlock_stall,
-    output wire[`WDEF(`INTDQ_DISP_WID)] o_intDQ_deq_vld,
+    input wire[`WDEF(`INTDQ_DISP_WID)] i_intDQ_deq_vld,
+    output wire[`WDEF(`INTDQ_DISP_WID)] o_intDQ_deq_req,
     output intDQEntry_t o_intDQ_deq_info[`INTDQ_DISP_WID]
 
     // to mem block
@@ -154,7 +154,6 @@ module dispatch (
 // int dispQue
 /****************************************************************************************************/
 
-    wire[`WDEF(`INTDQ_DISP_WID)] intDQ_deq_feedback;
     dispQue
     #(
         .DEPTH       ( 16              ),
@@ -172,11 +171,10 @@ module dispatch (
         .i_enq_req  ( insert_intDQ_vld    ),
         .i_enq_data ( new_intDQEntry      ),
 
-        .o_can_deq  ( intDQ_deq_feedback  ),
-        .i_deq_req  ( i_intBlock_stall ? 0 : intDQ_deq_feedback  ),
+        .o_can_deq  ( o_intDQ_deq_req  ),
+        .i_deq_req  ( i_intDQ_deq_vld  ),
         .o_deq_data ( o_intDQ_deq_info )
     );
-    assign o_intDQ_deq_vld = intDQ_deq_feedback;
 
 
 /****************************************************************************************************/

@@ -22,6 +22,7 @@
 
 module intBlock #(
     parameter int INPUT_NUM = `ISSUE_WIDTH,
+    parameter int EXTERNAL_WRITEBACK = 2,// 2 ldu
     parameter int EXTERNAL_WAKEUP = 2,// external wake up sources
     parameter int FU_NUM = 6
 )(
@@ -31,13 +32,14 @@ module intBlock #(
     input wire i_squash_vld,
     input squashInfo_t i_squashInfo,
     // from dispatch
-    input wire[`WDEF(INPUT_NUM)] i_disp_vld,
-    output wire[`WDEF(INPUT_NUM)] o_can_disp,
+    output wire[`WDEF(INPUT_NUM)] o_disp_vld,
+    input wire[`WDEF(INPUT_NUM)] i_dsip_req,
     input intDQEntry_t i_disp_info[INPUT_NUM],
+    input wire[`WDEF(`NUMSRCS_INT)] i_enq_iprs_rdy[INPUT_NUM],
     // regfile read
-    output iprIdx_t o_iprs_idx[FU_NUM * 2][`NUMSRCS_INT],// read regfile
-    input wire[`WDEF(FU_NUM * 2)] i_iprs_ready[`NUMSRCS_INT],// ready or not
-    input wire[`XDEF] i_iprs_data[FU_NUM * 2][`NUMSRCS_INT],
+    output iprIdx_t o_iprs_idx[FU_NUM][`NUMSRCS_INT],// read regfile
+    input wire[`WDEF(FU_NUM)] i_iprs_ready[`NUMSRCS_INT],// ready or not
+    input wire[`XDEF] i_iprs_data[FU_NUM][`NUMSRCS_INT],
     // immBuffer read
     output irobIdx_t o_immB_idx[`ALU_NUM],
     input wire[`IMMDEF] i_imm_data[`ALU_NUM],
@@ -56,26 +58,29 @@ module intBlock #(
     output wire i_exceptwb_vld,
     output exceptwbInfo_t i_exceptwb_info,
 
-    // external wake up
+    // external wake up (may be speculative)
     input wire[`WDEF(EXTERNAL_WAKEUP)] i_ext_wake_vec,
-    input iprIdx_t i_ext_wake_prdIdx[EXTERNAL_WAKEUP],
-    input wire[`XDEF] i_ext_wake_data[EXTERNAL_WAKEUP]
+    input iprIdx_t i_ext_wake_rdIdx[EXTERNAL_WAKEUP],
 
+    // external writeback
+    input wire[`WDEF(EXTERNAL_WRITEBACK)] i_ext_wb_vec,
+    input iprIdx_t i_ext_wb_rdIdx[EXTERNAL_WRITEBACK],
+    input wire[`XDEF] i_ext_wb_data[EXTERNAL_WRITEBACK]
 );
     genvar i;
     wire[`WDEF(FU_NUM)] wb_vld;
     valwbInfo_t wbInfo[FU_NUM];
     assign o_valwb_info = wbInfo;
 
-    wire IQ0_ready, IQ1_ready = 0;
+    wire IQ0_ready, IQ1_ready = 1;
 
     wire[`WDEF(INPUT_NUM)] select_alu, select_bru;
     wire[`WDEF(INPUT_NUM)] select_toIQ0, select_toIQ1;
 
     generate
         for(i=0;i<INPUT_NUM;i=i+1) begin : gen_for
-            assign select_alu[i] = i_disp_vld[i] && (i_disp_info[i].issueQue_id == `ALUIQ_ID);
-            assign select_bru[i] = i_disp_vld[i] && (i_disp_info[i].issueQue_id == `BRUIQ_ID);
+            assign select_alu[i] = i_dsip_req[i] && (i_disp_info[i].issueQue_id == `ALUIQ_ID);
+            assign select_bru[i] = i_dsip_req[i] && (i_disp_info[i].issueQue_id == `BRUIQ_ID);
 
             if (i < 2) begin : gen_if
                 assign select_toIQ0[i] = IQ0_ready && select_alu[i];
@@ -83,27 +88,27 @@ module intBlock #(
             end
             else begin : gen_else
                 // IQ0 current has selected
-                wire[`SDEF(i)] IQ0_has_selected;
+                wire[`SDEF(i)] IQ0_has_selected_num;
                 count_one
                 #(
                     .WIDTH ( i )
                 )
                 u_count_one_0(
                     .i_a   ( select_toIQ0[i-1:0]   ),
-                    .o_sum ( IQ0_has_selected )
+                    .o_sum ( IQ0_has_selected_num )
                 );
                 // IQ1 current has selected
-                wire[`WDEF($clog2(i))] IQ1_has_selected;
+                wire[`WDEF($clog2(i))] IQ1_has_selected_num;
                 count_one
                 #(
                     .WIDTH ( i )
                 )
                 u_count_one_1(
                     .i_a   ( select_toIQ1[i-1:0]   ),
-                    .o_sum ( IQ1_has_selected )
+                    .o_sum ( IQ1_has_selected_num )
                 );
-                assign select_toIQ0[i] = IQ0_ready && (IQ0_has_selected < 2 ? select_alu[i] : 0);
-                assign select_toIQ1[i] = IQ1_ready && (IQ1_has_selected < 2 ? select_bru[i] || (select_alu[i] && select_toIQ0[i]) : 0);
+                assign select_toIQ0[i] = IQ0_ready && (IQ0_has_selected_num < 2 ? select_alu[i] : 0);
+                assign select_toIQ1[i] = IQ1_ready && (IQ1_has_selected_num < 2 ? select_bru[i] || (select_alu[i] && select_toIQ0[i]) : 0);
             end
         end
     endgenerate
@@ -111,16 +116,27 @@ module intBlock #(
     `ASSERT((select_toIQ0 & select_toIQ1) == 0);
     `ORDER_CHECK((select_toIQ0 | select_toIQ1));
 
-    assign o_can_disp = select_toIQ0 | select_toIQ1;
+    assign o_disp_vld = select_toIQ0 | select_toIQ1;
 
-    wire[`WDEF(FU_NUM + EXTERNAL_WAKEUP)] global_writeback_vld;
-    iprIdx_t global_writeback_iprdIdx[FU_NUM + EXTERNAL_WAKEUP];
-    wire[`XDEF] global_writeback_data[FU_NUM + EXTERNAL_WAKEUP];
+    // FU_NUM*3 : will writeback + writeback bypass + writeback read regfile bypass
+    // EXTERNAL_WAKEUP*2 : writeback bypass + writeback read regfile bypass
+    wire[`WDEF(FU_NUM * 3 + EXTERNAL_WRITEBACK * 2)] global_bypass_vld;
+    iprIdx_t global_bypass_rdIdx[FU_NUM * 3 + EXTERNAL_WRITEBACK * 2];
+    wire[`XDEF] global_bypass_data[FU_NUM * 3 + EXTERNAL_WRITEBACK * 2];
+
+    // global writeback (used for wakeup)
+    wire[`WDEF(FU_NUM + EXTERNAL_WRITEBACK)] global_wb_vld;
+    iprIdx_t global_wb_rdIdx[FU_NUM + EXTERNAL_WRITEBACK];
+
+    // global wakeup (may be speculative)
+    wire[`WDEF(FU_NUM + EXTERNAL_WAKEUP)] global_wake_vld;
+    iprIdx_t global_wake_rdIdx[FU_NUM + EXTERNAL_WAKEUP];
+
 
     wire[`WDEF(FU_NUM)] fu_writeback_stall = i_wb_stall;
     wire[`WDEF(FU_NUM)] fu_regfile_stall = 0;//dont care
 
-
+    // internal back to back bypass
     wire[`WDEF(FU_NUM)] internal_bypass_wb_vld;
     iprIdx_t internal_bypass_iprdIdx[FU_NUM];
     wire[`XDEF] internal_bypass_data[FU_NUM];
@@ -130,18 +146,28 @@ module intBlock #(
 /****************************************************************************************************/
     wire[`WDEF(INPUT_NUM)] IQ0_has_selected;
     intDQEntry_t IQ0_selected_info[INPUT_NUM];
+    wire[`WDEF(`NUMSRCS_INT)] IQ0_iprs_rdy[INPUT_NUM];
     reorder
     #(
         .dtype ( intDQEntry_t ),
         .NUM   ( 4   )
     )
-    u_reorder(
+    u_reorder_0(
         .i_data_vld      ( select_toIQ0      ),
-        .i_datas         ( i_disp_info         ),
-        .o_data_vld      ( IQ0_has_selected      ),
+        .i_datas         ( i_disp_info       ),
+        .o_data_vld      ( IQ0_has_selected  ),
         .o_reorder_datas ( IQ0_selected_info )
     );
-
+    reorder
+    #(
+        .dtype ( logic[`WDEF(`NUMSRCS_INT)] ),
+        .NUM   ( 4   )
+    )
+    u_reorder_1(
+        .i_data_vld      ( select_toIQ0   ),
+        .i_datas         ( i_enq_iprs_rdy ),
+        .o_reorder_datas ( IQ0_iprs_rdy   )
+    );
 
     wire[`WDEF(2)] IQ0_inst_vld;
     wire[`WDEF($clog2(16))] IQ0_inst_iqIdx[2];
@@ -150,24 +176,29 @@ module intBlock #(
     wire[`WDEF(2)] IQ0_issue_finished;
     wire[`WDEF(2)] IQ0_issue_failed;
     wire[`WDEF($clog2(16))] IQ0_issue_iqIdx[2];
+
+    // IQ0 external wakeup from IQ1(2xalu+2xbru)
+    wire[`WDEF(2)] IQ0_ext_wake_vld = i_ext_wake_vec;
+    iprIdx_t IQ0_ext_wake_rdIdx[2] = i_ext_wake_rdIdx;
+
     issueQue
     #(
         .DEPTH              ( 16    ),
         .INOUTPORT_NUM      ( 2     ),
-        .EXTERNAL_WAKEUPNUM ( 0     ),
-        .WBPORT_NUM         ( 6     ),
+        .EXTERNAL_WAKEUPNUM ( 2     ),
+        .WBPORT_NUM         ( FU_NUM + EXTERNAL_WRITEBACK     ),
         .INTERNAL_WAKEUP    ( 1     ),
         .SINGLEEXE          ( 1     )
     )
     u_issueQue_0(
-        .clk                   ( clk                   ),
-        .rst                   ( rst                   ),
+        .clk                   ( clk ),
+        .rst                   ( rst ),
         .i_stall               ( ),
 
         .o_can_enq             ( IQ0_ready ),
         .i_enq_req             ( IQ0_has_selected[1:0] ),
         .i_enq_exeInfo         ( {IQ0_selected_info[0], IQ0_selected_info[1]} ),
-        .i_enq_iprs_rdy        ( ),
+        .i_enq_iprs_rdy        ( {IQ0_iprs_rdy[0], IQ0_iprs_rdy[1]} ),
 
         .o_can_issue           ( IQ0_inst_vld   ),
         .o_issue_idx           ( IQ0_inst_iqIdx ),
@@ -178,14 +209,18 @@ module intBlock #(
         .i_feedback_idx        ( IQ0_issue_iqIdx    ),
 
         .o_export_wakeup_vld   (    ),
-        .o_export_wakeup_rdIdx (  ),
+        .o_export_wakeup_rdIdx (    ),
 
-        .i_ext_wakeup_vld      ( 0      ),
-        .i_ext_wakeup_rdIdx    (     ),
+        .i_ext_wakeup_vld      ( IQ0_ext_wake_vld  ),
+        .i_ext_wakeup_rdIdx    ( IQ0_ext_wake_rdIdx   ),
 
-        .i_wb_vld              ( 0              ),
-        .i_wb_rdIdx            (    )
+        .i_wb_vld              ( global_wb_vld   ),
+        .i_wb_rdIdx            ( global_wb_rdIdx   )
     );
+
+
+    wire[`WDEF(`NUMSRCS_INT)] alu0_iprs_rdy;
+    wire[`XDEF] alu0_iprs_data[`NUMSRCS_INT];
 
     generate
         for(i=0;i<`NUMSRCS_INT;i=i+1) begin : gen_for
@@ -194,10 +229,11 @@ module intBlock #(
 
             assign o_immB_idx[0][i] = IQ0_inst_info[0].irob_idx[i];
             assign o_immB_idx[1][i] = IQ0_inst_info[1].irob_idx[i];
+
+            assign alu0_iprs_rdy[i] = i_iprs_ready[0][i];
+            assign alu0_iprs_data[i] = i_iprs_data[0][i];
         end
     endgenerate
-
-
 
 /****************************************************************************************************/
 // alu0
@@ -211,12 +247,16 @@ module intBlock #(
     reg[`WDEF(2)] s1_IQ0_inst_vld;
     iprIdx_t s1_IQ0_iprs_idx[2][`NUMSRCS_INT];
     exeInfo_t s1_IQ0_inst_info[2];
+    wire[`WDEF(`NUMSRCS_INT)] alu0_bypass_vld;
+    wire[`XDEF] alu0_bypass_data[`NUMSRCS_INT];
     always_ff @( posedge clk ) begin
-        integer fa;
+        int fa;
         if (rst) begin
             s1_IQ0_inst_vld <= 0;
         end
         else begin
+            // s0: read regfile
+            // s1: bypass
             s1_IQ0_inst_vld <= IQ0_inst_vld;
             for (fa=0;fa<`NUMSRCS_INT;fa=fa+1) begin
                 s1_IQ0_iprs_idx[0][fa] <= IQ0_inst_info[0].iprs_idx[fa];
@@ -226,29 +266,32 @@ module intBlock #(
         end
     end
 
-    wire alu0_bypass_vld[2];
-    wire[`XDEF] alu0_bypass_data[2];
+    assign IQ0_issue_finished[0] = s1_IQ0_inst_vld && ((alu0_iprs_rdy | alu0_bypass_vld | {s1_IQ0_inst_info[0].use_imm, 1'b1}) == 2'b11);
+    assign IQ0_issue_failed[0] = s1_IQ0_inst_vld && (!IQ0_issue_finished[0]);
 
     bypass_sel
     #(
-        .WIDTH ( FU_NUM + EXTERNAL_WAKEUP )
+        // why need to multiply by two
+        // one from will writeback bypass
+        // one from writeback take a pat
+        .WIDTH ( FU_NUM*3 + EXTERNAL_WRITEBACK*2 )
     )
     u_bypass_sel_0_src0(
-        .i_src_vld     ( global_writeback_vld     ),
-        .i_src_idx     ( global_writeback_iprdIdx     ),
-        .i_src_data    ( global_writeback_data    ),
+        .i_src_vld     ( global_bypass_vld     ),
+        .i_src_idx     ( global_bypass_rdIdx     ),
+        .i_src_data    ( global_bypass_data    ),
         .i_target_idx  ( IQ0_inst_info[0].iprs_idx[0]  ),
         .o_target_vld  ( alu0_bypass_vld[0]  ),
         .o_target_data ( alu0_bypass_data[0] )
     );
     bypass_sel
     #(
-        .WIDTH ( FU_NUM + EXTERNAL_WAKEUP )
+        .WIDTH ( FU_NUM*3 + EXTERNAL_WRITEBACK*2 )
     )
     u_bypass_sel_0_src1(
-        .i_src_vld     ( global_writeback_vld      ),
-        .i_src_idx     ( global_writeback_iprdIdx  ),
-        .i_src_data    ( global_writeback_data     ),
+        .i_src_vld     ( global_bypass_vld      ),
+        .i_src_idx     ( global_bypass_rdIdx  ),
+        .i_src_data    ( global_bypass_data     ),
         .i_target_idx  ( IQ0_inst_info[0].iprs_idx[1] ),
         .o_target_vld  ( alu0_bypass_vld[1]        ),
         .o_target_data ( alu0_bypass_data[1]       )
@@ -270,19 +313,19 @@ module intBlock #(
 
     //fu0
     alu u_alu_0(
-        .clk               ( clk               ),
-        .rst               ( rst               ),
+        .clk               ( clk                ),
+        .rst               ( rst                ),
 
-        .o_fu_stall        ( alu0_stall        ),
-        .i_vld             ( s1_IQ0_inst_vld ),
+        .o_fu_stall        ( alu0_stall         ),
+        .i_vld             ( s1_IQ0_inst_vld[0] ),
         .i_fuInfo          ( alu0_info          ),
 
-        .o_willwrite_vld   ( internal_bypass_wb_vld[0] ),
+        .o_willwrite_vld   ( internal_bypass_wb_vld[0]  ),
         .o_willwrite_rdIdx ( internal_bypass_iprdIdx[0] ),
-        .o_willwrite_data  ( internal_bypass_data[0]  ),
+        .o_willwrite_data  ( internal_bypass_data[0]    ),
 
         .i_wb_stall        ( i_wb_stall[0]     ),
-        .o_wb_vld          ( wb_vld[0]                  ),
+        .o_wb_vld          ( wb_vld[0]         ),
         .o_wbInfo          ( wbInfo[0]         )
     );
 
@@ -308,14 +351,14 @@ module intBlock #(
 
         .o_fu_stall        (         ),
         .i_vld             (),
-        .i_fuInfo          ( alu0_info          ),
+        .i_fuInfo          ( alu1_info          ),
 
-        .o_willwrite_vld   ( ),
-        .o_willwrite_rdIdx (  ),
-        .o_willwrite_data  (   ),
+        .o_willwrite_vld   ( internal_bypass_wb_vld[1] ),
+        .o_willwrite_rdIdx ( internal_bypass_iprdIdx[1] ),
+        .o_willwrite_data  ( internal_bypass_data[1]  ),
 
         .i_wb_stall        ( i_wb_stall[1]     ),
-        .o_wb_vld          (                   ),
+        .o_wb_vld          ( wb_vld[1]         ),
         .o_wbInfo          ( wbInfo[1]         )
     );
 
@@ -339,23 +382,87 @@ module intBlock #(
 
 
 
+/****************************************************************************************************/
+// others
+/****************************************************************************************************/
 
 
 
+    reg[`WDEF(FU_NUM)] pat1_wb_vld;
+    iprIdx_t pat1_wb_iprdIdx[FU_NUM];
+    reg[`XDEF] pat1_wb_data[FU_NUM];
+    reg[`WDEF(EXTERNAL_WRITEBACK)] pat1_extwb_vld;
+    iprIdx_t pat1_extwb_iprdIdx[EXTERNAL_WRITEBACK];
+    reg[`XDEF] pat1_extwb_data[EXTERNAL_WRITEBACK];
+    always_ff @( posedge clk ) begin
+        int fa;
+        if (rst) begin
+            pat1_wb_vld <= 0;
+        end
+        else begin
+            pat1_wb_vld <= wb_vld;
+            for (fa=0;fa<FU_NUM;fa=fa+1) begin
+                pat1_wb_iprdIdx[fa] <= wbInfo[fa].iprd_idx;
+                pat1_wb_data[fa] <= wbInfo[fa].result;
+            end
+            pat1_extwb_vld <= i_ext_wb_vec;
+            pat1_extwb_iprdIdx <= i_ext_wb_rdIdx;
+            pat1_extwb_data <= i_ext_wb_data;
+        end
+    end
 
     generate
-        for(i=0; i<FU_NUM + EXTERNAL_WAKEUP; i=i+1) begin : gen_for
-            if (i < 1) begin : gen_if
-                assign global_writeback_vld[i] = internal_bypass_wb_vld[i];
-                assign global_writeback_iprdIdx[i] = internal_bypass_iprdIdx[i];
-                assign global_writeback_data[i] = internal_bypass_data[i];
+        for(i=0; i<FU_NUM * 3 + EXTERNAL_WRITEBACK * 2; i=i+1) begin : gen_for
+            if (i < FU_NUM) begin : gen_if
+                // back to back bypass
+                assign global_bypass_vld[i] = internal_bypass_wb_vld[i];
+                assign global_bypass_rdIdx[i] = internal_bypass_iprdIdx[i];
+                assign global_bypass_data[i] = internal_bypass_data[i];
             end
-            else begin : gen_else
-                assign global_writeback_vld[i] = 0;
-                assign global_writeback_iprdIdx[i] = 0;
-                assign global_writeback_data[i] = 0;
+            else if (i < FU_NUM*2) begin : gen_elif
+                // internal wb to s1 bypass
+                assign global_bypass_vld[i] = 0;// wb_vld[i - FU_NUM];
+                assign global_bypass_rdIdx[i] = wbInfo[i - FU_NUM].iprd_idx;
+                assign global_bypass_data[i] = wbInfo[i - FU_NUM].result;
             end
-
+            else if (i < FU_NUM*3) begin : gen_elif
+                // internal wb to s0 bypass
+                assign global_bypass_vld[i] = 0;// pat1_wb_vld[i - FU_NUM*2];
+                assign global_bypass_rdIdx[i] = pat1_wb_iprdIdx[i - FU_NUM*2];
+                assign global_bypass_data[i] = pat1_wb_data[i - FU_NUM*2];
+            end
+            else if (i < FU_NUM*3 + EXTERNAL_WRITEBACK) begin : gen_elif
+                // external wb to s1 bypass
+                assign global_bypass_vld[i] = 0;// i_ext_wb_vec[i - FU_NUM*3];
+                assign global_bypass_rdIdx[i] = i_ext_wb_rdIdx[i - FU_NUM*3];
+                assign global_bypass_data[i] = i_ext_wb_data[i - FU_NUM*3];
+            end
+            else if (i < FU_NUM*3 + EXTERNAL_WRITEBACK*2) begin : gen_elif
+                // external wb to s0 bypass
+                assign global_bypass_vld[i] = 0;// pat1_extwb_vld[i - FU_NUM*3 + EXTERNAL_WRITEBACK];
+                assign global_bypass_rdIdx[i] = pat1_extwb_iprdIdx[i - FU_NUM*3 + EXTERNAL_WRITEBACK];
+                assign global_bypass_data[i] = pat1_extwb_data[i - FU_NUM*3 + EXTERNAL_WRITEBACK];
+            end
+        end
+        for (i=0;i<FU_NUM + EXTERNAL_WRITEBACK;i=i+1) begin : gen_for
+            if (i < FU_NUM) begin : gen_if
+                assign global_wb_vld[i] = wb_vld[i];
+                assign global_wb_rdIdx[i] = wbInfo[i].iprd_idx;
+            end
+            else begin: gen_else
+                assign global_wb_vld[i] = i_ext_wb_vec[i - FU_NUM];
+                assign global_wb_rdIdx[i] = i_ext_wb_rdIdx[i - FU_NUM];
+            end
+        end
+        for (i=0;i<FU_NUM + EXTERNAL_WAKEUP;i=i+1) begin : gen_for
+            if (i < FU_NUM) begin : gen_if
+                assign global_wake_vld[i] = 0;
+                assign global_wake_rdIdx[i] = 0;
+            end
+            else begin: gen_else
+                assign global_wake_vld[i] = i_ext_wake_vec[i - FU_NUM];
+                assign global_wake_rdIdx[i] = i_ext_wake_rdIdx[i - FU_NUM];
+            end
         end
     endgenerate
 

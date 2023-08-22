@@ -23,8 +23,8 @@ ENTRY(_start)
 
 MEMORY
 {
-  flash (wxa!ri) : ORIGIN = 0x800000000000000, LENGTH = 64k
-  ram (wxa!ri) :   ORIGIN = 0x200000000000000, LENGTH = 64k
+  flash (wxa!ri) : ORIGIN = 0x000000000000000, LENGTH = 64k
+  ram (wxa!ri) :   ORIGIN = 0x000000000000000, LENGTH = 64k
 }
 
 

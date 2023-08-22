@@ -79,6 +79,7 @@ module ROB(
 
     // read by the last commited insts
     // rob read ftq_startAddress (rob read from ftq)
+    output wire o_read_ftq_Vld,
     output ftqIdx_t o_read_ftqIdx,
     input wire[`XDEF] i_read_ftqStartAddr,
 
@@ -384,6 +385,8 @@ module ROB(
             end
         end
     end
+
+    assign o_read_ftq_Vld = (has_except || has_interrupt);
 
     assign o_squash_vld = squash_vld;
     assign o_squashInfo = squashInfo;

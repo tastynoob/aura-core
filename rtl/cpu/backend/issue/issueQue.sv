@@ -67,7 +67,7 @@ module issueQue #(
     output wire[`WDEF(INOUTPORT_NUM)] o_export_wakeup_vld,
     output iprIdx_t o_export_wakeup_rdIdx[INOUTPORT_NUM],
 
-    //external wakeup source (speculative arousal)
+    //external wakeup source (speculative wakeup)
     input wire[`WDEF(EXTERNAL_WAKEUPNUM)] i_ext_wakeup_vld,
     input iprIdx_t i_ext_wakeup_rdIdx[EXTERNAL_WAKEUPNUM],
 
@@ -217,7 +217,7 @@ module issueQue #(
             if (ca==0) begin
                 for (cb=DEPTH-1;cb>=0;cb=cb-1) begin
                     //select free entry
-                    if (!buffer[cb].vld && i_enq_req[ca]) begin
+                    if (!buffer[cb].vld) begin
                         free_entry_selected[ca][cb] = true;
                         enq_idx[ca] = cb;
                         enq_find_free[ca] = true;
@@ -235,7 +235,7 @@ module issueQue #(
                 ready_entry_selected[ca] = ready_entry_selected[ca-1];
                 for (cb=DEPTH-1;cb>=0;cb=cb-1) begin
                     //select free entry
-                    if ((free_entry_selected[ca-1][cb] == false) && (!buffer[cb].vld) && i_enq_req[ca]) begin
+                    if ((free_entry_selected[ca-1][cb] == false) && (!buffer[cb].vld)) begin
                         free_entry_selected[ca][cb] = true;
                         enq_idx[ca] = cb;
                         enq_find_free[ca] = true;

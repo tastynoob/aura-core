@@ -41,8 +41,8 @@ module ctrlBlock (
     output iprIdx_t o_disp_mark_notready_iprIdx[`RENAME_WIDTH],
 
     // to intBlock
-    input wire i_intBlock_stall,
-    output wire[`WDEF(`INTDQ_DISP_WID)] o_intDQ_deq_vld,
+    input wire[`WDEF(`INTDQ_DISP_WID)] i_intDQ_deq_vld,
+    output wire[`WDEF(`INTDQ_DISP_WID)] o_intDQ_deq_req,
     output intDQEntry_t o_intDQ_deq_info[`INTDQ_DISP_WID],
 
     // notify ftq and storeQue
@@ -51,6 +51,7 @@ module ctrlBlock (
     output ftqIdx_t o_commit_ftq_idx,
 
     // read ftq startAddress from ftq
+    output wire o_read_ftq_Vld,
     output ftqIdx_t o_read_ftqIdx,
     input wire[`XDEF] i_read_ftqStartAddr,
 
@@ -194,8 +195,8 @@ module ctrlBlock (
         .o_exceptwb_vld           ( toROB_disp_exceptwb_vld         ),
         .o_exceptwb_info          ( toROB_disp_exceptwb_info         ),
         // to intBlock
-        .i_intBlock_stall         ( i_intBlock_stall          ),
-        .o_intDQ_deq_vld          ( o_intDQ_deq_vld         ),
+        .i_intDQ_deq_vld          ( i_intDQ_deq_vld          ),
+        .o_intDQ_deq_req          ( o_intDQ_deq_req         ),
         .o_intDQ_deq_info         ( o_intDQ_deq_info         )
     );
 
@@ -239,6 +240,7 @@ module ctrlBlock (
         .o_rename_commit       ( toRename_commit      ),
         .o_rename_commitInfo   ( toRename_commitInfo  ),
 
+        .o_read_ftq_Vld        ( o_read_ftq_Vld ),
         .o_read_ftqIdx         ( o_read_ftqIdx             ),
         .i_read_ftqStartAddr   ( i_read_ftqStartAddr   ),
 
