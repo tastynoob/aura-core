@@ -172,9 +172,9 @@ module ctrlBlock (
     dispatch u_dispatch(
         .clk                      ( clk                 ),
         .rst                      ( rst || o_squash_vld ),
+        .i_squash_vld             ( o_squash_vld    ),
 
         .o_stall                  ( toRename_stall  ),
-        .i_squash_vld             ( o_squash_vld    ),
 
         .i_enq_vld                ( toDIspatch_vld          ),
         .i_enq_inst               ( toDIspatch_renameInfo   ),

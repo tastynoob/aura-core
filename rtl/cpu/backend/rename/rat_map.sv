@@ -25,7 +25,7 @@ module rat_map #(
     input lrIdx_t i_lrd_idx[WIDTH],
     input prIdx_t i_alloc_prd_idx[WIDTH],
     output prIdx_t o_renamed_prd_idx[WIDTH],
-    output prIdx_t o_prevRenamed_prd_idx[WIDTH],// used for commit release
+    output prIdx_t o_prevRenamed_prd_idx[WIDTH],// used for commit release, not used
 
     // rename src
     input lrIdx_t i_lrs_idx[WIDTH][NUMSRCS],

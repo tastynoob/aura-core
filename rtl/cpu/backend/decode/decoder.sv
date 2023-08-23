@@ -282,14 +282,15 @@ module decoder (
     wire[19:0] inst_opimm_imm = (inst_SLLI | inst_SLLIW | inst_SRLI | inst_SRLIW | inst_SRAI | inst_SRAIW) ?
                                 inst_shift_type_imm : inst_i_type_imm;
 
-    imm_t imm =
-    inst_LUI | inst_AUIPC ? inst_u_type_imm   :
-    isCondBranch ? inst_b_type_imm            :
-    isStore ? inst_s_type_imm             :
-    isLoad | inst_JALR ? inst_i_type_imm              :
-    isImmMath ? inst_opimm_imm              :
-    inst_JAL ? inst_j_type_imm :
-    isCSR ? inst_csr_type_imm :
+    imm_t imm;
+    assign imm =
+    (inst_LUI | inst_AUIPC)     ? inst_u_type_imm   :
+    isCondBranch                ? inst_b_type_imm   :
+    isStore                     ? inst_s_type_imm   :
+    (isLoad | inst_JALR)        ? inst_i_type_imm   :
+    isImmMath                   ? inst_opimm_imm    :
+    inst_JAL                    ? inst_j_type_imm   :
+    isCSR                       ? inst_csr_type_imm :
     0;
 
     wire isnop = (isIntMath) && (ilrd_idx == 0);

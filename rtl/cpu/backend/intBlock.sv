@@ -17,7 +17,7 @@
 
 
 `define ISSUE_WIDTH `INTDQ_DISP_WID
-
+`define IQ0_SIZE 16
 
 
 module intBlock #(
@@ -83,7 +83,7 @@ module intBlock #(
 
             if (i < 2) begin : gen_if
                 assign select_toIQ0[i] = IQ0_ready && select_alu[i];
-                assign select_toIQ1[i] = IQ1_ready && (select_bru[i] || (select_alu[i] && select_toIQ0[i]));
+                assign select_toIQ1[i] = IQ1_ready && (select_bru[i] || (select_alu[i] && (!select_toIQ0[i])));
             end
             else begin : gen_else
                 // IQ0 current has selected
@@ -107,7 +107,7 @@ module intBlock #(
                     .o_sum ( IQ1_has_selected_num )
                 );
                 assign select_toIQ0[i] = IQ0_ready && (IQ0_has_selected_num < 2 ? select_alu[i] : 0);
-                assign select_toIQ1[i] = IQ1_ready && (IQ1_has_selected_num < 2 ? select_bru[i] || (select_alu[i] && select_toIQ0[i]) : 0);
+                assign select_toIQ1[i] = IQ1_ready && (IQ1_has_selected_num < 2 ? select_bru[i] || (select_alu[i] && (!select_toIQ0[i])) : 0);
             end
         end
     endgenerate
@@ -169,7 +169,7 @@ module intBlock #(
     );
 
     wire[`WDEF(2)] IQ0_inst_vld;
-    wire[`WDEF($clog2(16))] IQ0_inst_iqIdx[2];
+    wire[`WDEF($clog2(`IQ0_SIZE))] IQ0_inst_iqIdx[2];
     exeInfo_t IQ0_inst_info[2];
 
     wire[`WDEF(2)] IQ0_issue_finished;
@@ -182,7 +182,7 @@ module intBlock #(
 
     issueQue
     #(
-        .DEPTH              ( 16    ),
+        .DEPTH              ( `IQ0_SIZE    ),
         .INOUTPORT_NUM      ( 2     ),
         .EXTERNAL_WAKEUPNUM ( 2     ),
         .WBPORT_NUM         ( FU_NUM + EXTERNAL_WRITEBACK     ),
@@ -192,7 +192,7 @@ module intBlock #(
     u_issueQue_0(
         .clk                   ( clk ),
         .rst                   ( rst ),
-        .i_stall               ( ),
+        .i_stall               ( 0 ),
 
         .o_can_enq             ( IQ0_ready ),
         .i_enq_req             ( IQ0_has_selected[1:0] ),
@@ -244,6 +244,7 @@ module intBlock #(
     // s1: read data and check bypass, check inst can issue and deq from issueQue
     wire alu0_stall;
     reg[`WDEF(2)] s1_IQ0_inst_vld;
+    reg[`WDEF($clog2(`IQ0_SIZE))] s1_IQ0_inst_iqIdx[2];
     iprIdx_t s1_IQ0_iprs_idx[2][`NUMSRCS_INT];
     exeInfo_t s1_IQ0_inst_info[2];
     wire[`WDEF(`NUMSRCS_INT)] alu0_bypass_vld;
@@ -261,12 +262,14 @@ module intBlock #(
                 s1_IQ0_iprs_idx[0][fa] <= IQ0_inst_info[0].iprs_idx[fa];
                 s1_IQ0_iprs_idx[1][fa] <= IQ0_inst_info[1].iprs_idx[fa];
             end
+            s1_IQ0_inst_iqIdx <= IQ0_inst_iqIdx;
             s1_IQ0_inst_info <= IQ0_inst_info;
         end
     end
 
     assign IQ0_issue_finished[0] = s1_IQ0_inst_vld[0] && ((alu0_iprs_rdy | alu0_bypass_vld | {s1_IQ0_inst_info[0].use_imm, 1'b1}) == 2'b11);
     assign IQ0_issue_failed[0] = s1_IQ0_inst_vld[0] && (!IQ0_issue_finished[0]);
+    assign IQ0_issue_iqIdx[0] = s1_IQ0_inst_iqIdx[0];
 
     bypass_sel
     #(
@@ -445,8 +448,8 @@ module intBlock #(
             else if (i < FU_NUM*3 + EXTERNAL_WRITEBACK*2) begin : gen_elif
                 // external wb to s0 bypass
                 assign global_bypass_vld[i] = 0;// pat1_extwb_vld[i - FU_NUM*3 + EXTERNAL_WRITEBACK];
-                assign global_bypass_rdIdx[i] = pat1_extwb_iprdIdx[i - FU_NUM*3 + EXTERNAL_WRITEBACK];
-                assign global_bypass_data[i] = pat1_extwb_data[i - FU_NUM*3 + EXTERNAL_WRITEBACK];
+                assign global_bypass_rdIdx[i] = pat1_extwb_iprdIdx[i - FU_NUM*3 - EXTERNAL_WRITEBACK];
+                assign global_bypass_data[i] = pat1_extwb_data[i - FU_NUM*3 - EXTERNAL_WRITEBACK];
             end
         end
 

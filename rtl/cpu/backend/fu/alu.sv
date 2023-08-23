@@ -37,7 +37,7 @@ module alu (
 
 
     wire[`XDEF] src0 = saved_fuInfo.srcs[0];
-    wire[`XDEF] src1 = saved_fuInfo.srcs[0];
+    wire[`XDEF] src1 = saved_fuInfo.srcs[1];
 
     wire[5:0] shifter = src1[5:0];
 

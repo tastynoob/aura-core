@@ -6,27 +6,27 @@
 module misc_u #(
     parameter int BYPASS_WID = 4
 )(
-    input wire clk,
-    input wire rst,
-    //ctrl info
-    input wire i_has_vld,
-    input fuInfo_t i_fuInfo,
-    output wire o_fu_stall,
-    //data input
-    input wire[`XDEF] i_data[BYPASS_WID],
-    input wire[`WDEF($clog2(BYPASS_WID))] i_data_idx[`NUMSRCS_INT],//only need to save data_idx
+    // input wire clk,
+    // input wire rst,
+    // //ctrl info
+    // input wire i_has_vld,
+    // input fuInfo_t i_fuInfo,
+    // output wire o_fu_stall,
+    // //data input
+    // input wire[`XDEF] i_data[BYPASS_WID],
+    // input wire[`WDEF($clog2(BYPASS_WID))] i_data_idx[`NUMSRCS_INT],//only need to save data_idx
 
-    //imm
-    input imm_t i_imm,
-    //pc (branch/auipc only)
-    input wire[`XDEF] i_pc,
-    //predTakenpc(branch only)
-    input wire[`XDEF] i_predTakenpc,
+    // //imm
+    // input imm_t i_imm,
+    // //pc (branch/auipc only)
+    // input wire[`XDEF] i_pc,
+    // //predTakenpc(branch only)
+    // input wire[`XDEF] i_predTakenpc,
 
-    //wb, rd_idx will be used to fast bypass
-    input wire i_wb_stall,
-    output reg o_complete,
-    output wbInfo_t o_wbInfo
+    // //wb, rd_idx will be used to fast bypass
+    // input wire i_wb_stall,
+    // output reg o_complete,
+    // output wbInfo_t o_wbInfo
 );
     // reg saved_has_vld;
     // fuInfo_t saved_fuInfo;

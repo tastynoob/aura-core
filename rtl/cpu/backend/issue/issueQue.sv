@@ -99,7 +99,6 @@ module issueQue #(
     wire[`WDEF(wakeup_source_num)] wakeup_src_vld;
     iprIdx_t wakeup_rdIdx[wakeup_source_num];
     generate
-        genvar temp_idx;
         for (i=0;i<wakeup_source_num;i=i+1) begin: gen_for
             if (INTERNAL_WAKEUP==1 && i < INOUTPORT_NUM) begin : gen_internal_wakeup
                 //internal wakeup source
@@ -107,7 +106,7 @@ module issueQue #(
                 assign wakeup_rdIdx[i] = buffer[deq_idx[i]].info.iprd_idx;
             end
             else begin: gen_external_wakeup
-                assign temp_idx = i - (INTERNAL_WAKEUP == 1 ? INOUTPORT_NUM : 0);
+                localparam int temp_idx = i - (INTERNAL_WAKEUP == 1 ? INOUTPORT_NUM : 0);
                 //external wakeup source
                 assign wakeup_src_vld[i] = i_ext_wakeup_vld[temp_idx];
                 assign wakeup_rdIdx[i] = i_ext_wakeup_rdIdx[temp_idx];
@@ -197,7 +196,7 @@ module issueQue #(
 
     generate
         for(i=0;i<DEPTH;i=i+1) begin:gen_for
-            assign entry_ready[i] = buffer[i].vld && ((&buffer[i].src_rdy) || (&buffer[i].src_spec_rdy)) && (buffer[i].issued == false);
+            assign entry_ready[i] = buffer[i].vld && ((&buffer[i].src_rdy) || (&buffer[i].src_spec_rdy)) && (buffer[i].issued == 0);
         end
     endgenerate
 
@@ -216,17 +215,33 @@ module issueQue #(
 
             if (ca==0) begin
                 for (cb=DEPTH-1;cb>=0;cb=cb-1) begin
-                    //select free entry
-                    if (!buffer[cb].vld) begin
-                        free_entry_selected[ca][cb] = true;
-                        enq_idx[ca] = cb;
-                        enq_find_free[ca] = true;
+                    if (cb == DEPTH-1) begin
+                        //select free entry
+                        if (!buffer[cb].vld) begin
+                            free_entry_selected[ca][cb] = true;
+                            enq_idx[ca] = cb;
+                            enq_find_free[ca] = true;
+                        end
+                        //select ready entry
+                        if (entry_ready[cb]) begin
+                            ready_entry_selected[ca][cb] = true;
+                            deq_idx[ca] = cb;
+                            deq_find_ready[ca] = true;
+                        end
                     end
-                    //select ready entry
-                    if (entry_ready[cb]) begin
-                        ready_entry_selected[ca][cb] = true;
-                        deq_idx[ca] = cb;
-                        deq_find_ready[ca] = true;
+                    else begin
+                        //select free entry
+                        if ((!buffer[cb].vld) && ((free_entry_selected[ca] & `MASK(DEPTH,cb + 1)) == 0)) begin
+                            free_entry_selected[ca][cb] = true;
+                            enq_idx[ca] = cb;
+                            enq_find_free[ca] = true;
+                        end
+                        //select ready entry
+                        if (entry_ready[cb] && ((ready_entry_selected[ca] & `MASK(DEPTH,cb + 1)) == 0)) begin
+                            ready_entry_selected[ca][cb] = true;
+                            deq_idx[ca] = cb;
+                            deq_find_ready[ca] = true;
+                        end
                     end
                 end
             end
@@ -234,18 +249,36 @@ module issueQue #(
                 free_entry_selected[ca] = free_entry_selected[ca-1];
                 ready_entry_selected[ca] = ready_entry_selected[ca-1];
                 for (cb=DEPTH-1;cb>=0;cb=cb-1) begin
-                    //select free entry
-                    if ((free_entry_selected[ca-1][cb] == false) && (!buffer[cb].vld)) begin
-                        free_entry_selected[ca][cb] = true;
-                        enq_idx[ca] = cb;
-                        enq_find_free[ca] = true;
+                    if (cb == DEPTH-1) begin
+                        //select free entry
+                        if ((free_entry_selected[ca-1][cb] == false) && (!buffer[cb].vld)) begin
+                            free_entry_selected[ca][cb] = true;
+                            enq_idx[ca] = cb;
+                            enq_find_free[ca] = true;
+                        end
+                        //select ready entry
+                        if ((ready_entry_selected[ca-1][cb] == false) && entry_ready[cb]) begin
+                            ready_entry_selected[ca][cb] = true;
+                            deq_idx[ca] = cb;
+                            deq_find_ready[ca] = true;
+                        end
                     end
-                    //select ready entry
-                    if ((ready_entry_selected[ca-1][cb] == false) && entry_ready[cb]) begin
-                        ready_entry_selected[ca][cb] = true;
-                        deq_idx[ca] = cb;
-                        deq_find_ready[ca] = true;
+                    else begin
+                        //select free entry
+                        if ((free_entry_selected[ca-1][cb] == false) && (!buffer[cb].vld) && ((free_entry_selected[ca-1] ^ free_entry_selected[ca] & `MASK(DEPTH,cb + 1)) == 0)) begin
+                            free_entry_selected[ca][cb] = true;
+                            enq_idx[ca] = cb;
+                            enq_find_free[ca] = true;
+                        end
+
+                        //select ready entry
+                        if ((ready_entry_selected[ca-1][cb] == false) && entry_ready[cb] && ((ready_entry_selected[ca-1] ^ ready_entry_selected[ca] & `MASK(DEPTH,cb + 1)) == 0)) begin
+                            ready_entry_selected[ca][cb] = true;
+                            deq_idx[ca] = cb;
+                            deq_find_ready[ca] = true;
+                        end
                     end
+
                 end
             end
         end

@@ -10,10 +10,10 @@ module dispatch (
     input wire clk,
     input wire rst,
 
+    input wire i_squash_vld,
+
     // to rename
     output wire o_stall,
-
-    input wire i_squash_vld,
 
     // from rename
     input wire[`WDEF(`RENAME_WIDTH)] i_enq_vld,
@@ -167,7 +167,7 @@ module dispatch (
         .i_flush    ( i_squash_vld    ),
 
         .o_can_enq  ( can_insert_intDQ    ),
-        .i_enq_vld  ( can_dispatch        ),
+        .i_enq_vld  ( can_dispatch ),
         .i_enq_req  ( insert_intDQ_vld    ),
         .i_enq_data ( new_intDQEntry      ),
 
@@ -203,7 +203,7 @@ module dispatch (
         .rst            ( rst || i_squash_vld   ),
 
         .o_can_enq      ( can_insert_immBuffer  ),
-        .i_enq_vld      ( can_dispatch  ),
+        .i_enq_vld      ( can_dispatch ),
         .i_enq_req      ( use_imm_vec   ),
         .i_enq_data     ( imm_vec       ),
         .o_alloc_id     ( irob_alloc_idx   ),
