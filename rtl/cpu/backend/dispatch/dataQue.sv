@@ -28,7 +28,7 @@ module dataQue #(
     output wire[`WDEF(INPORT_NUM)] o_enq_vld,
     output wire[`WDEF($clog2(DEPTH))] o_enq_idx[INPORT_NUM],
 
-    // read data
+    // read data (only for imm buffer)
     input wire[`WDEF($clog2(DEPTH))] i_read_dqIdx[READPORT_NUM],
     output dtype o_read_data[READPORT_NUM],
     // clear data

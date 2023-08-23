@@ -338,7 +338,8 @@ module decoder (
     `BRUIQ_ID;
 
     //ALU
-    MicOp_t::_alu aluop_type =
+    MicOp_t::_alu aluop_type;
+    assign aluop_type =
     inst_LUI ? MicOp_t::lui :
     (inst_ADD | inst_ADDI) ? MicOp_t::add :
     (inst_SUB)  ? MicOp_t::sub :
@@ -359,7 +360,8 @@ module decoder (
     wire use_alu = (aluop_type != MicOp_t::none);
 
     //MDU
-    MicOp_t::_mdu mduop_type =
+    MicOp_t::_mdu mduop_type;
+    assign mduop_type =
     inst_MUL ? MicOp_t::mul :
     inst_MULW ? MicOp_t::mulw :
     inst_MULH ? MicOp_t::mulh :

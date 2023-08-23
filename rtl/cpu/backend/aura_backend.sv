@@ -151,6 +151,11 @@ module aura_backend (
     end
 
     assign toCtrl_clear_irob_vld = toCtrl_wb_vld[`ALU_NUM-1 : 0];
+    generate
+        for(i=0;i<`IMMBUFFER_CLEARPORT_NUM;i=i+1) begin:gen_for
+            assign toCtrl_clear_irob_idx[i] = toCtrl_wbInfo[i].irob_idx;
+        end
+    endgenerate
 
 
     oldest_select

@@ -226,13 +226,13 @@ module intBlock #(
             assign o_iprs_idx[0][i] = IQ0_inst_info[0].iprs_idx[i];
             assign o_iprs_idx[1][i] = IQ0_inst_info[1].iprs_idx[i];
 
-            assign o_immB_idx[0][i] = IQ0_inst_info[0].irob_idx[i];
-            assign o_immB_idx[1][i] = IQ0_inst_info[1].irob_idx[i];
-
             assign alu0_iprs_rdy[i] = i_iprs_ready[0][i];
             assign alu0_iprs_data[i] = i_iprs_data[0][i];
         end
     endgenerate
+
+    assign o_immB_idx[0] = IQ0_inst_info[0].irob_idx;
+    assign o_immB_idx[1] = IQ0_inst_info[1].irob_idx;
 
 /****************************************************************************************************/
 // alu0
@@ -245,6 +245,7 @@ module intBlock #(
     wire alu0_stall;
     reg[`WDEF(2)] s1_IQ0_inst_vld;
     reg[`WDEF($clog2(`IQ0_SIZE))] s1_IQ0_inst_iqIdx[2];
+    imm_t s1_irob_imm[`ALU_NUM];
     iprIdx_t s1_IQ0_iprs_idx[2][`NUMSRCS_INT];
     exeInfo_t s1_IQ0_inst_info[2];
     wire[`WDEF(`NUMSRCS_INT)] alu0_bypass_vld;
@@ -264,6 +265,7 @@ module intBlock #(
             end
             s1_IQ0_inst_iqIdx <= IQ0_inst_iqIdx;
             s1_IQ0_inst_info <= IQ0_inst_info;
+            s1_irob_imm <= i_imm_data;
         end
     end
 
@@ -299,7 +301,8 @@ module intBlock #(
         .o_target_data ( alu0_bypass_data[1]       )
     );
 
-    fuInfo_t alu0_info = '{
+    fuInfo_t alu0_info;
+    assign alu0_info = '{
         ftq_idx : s1_IQ0_inst_info[0].ftq_idx,
         rob_idx : s1_IQ0_inst_info[0].rob_idx,
         irob_idx : s1_IQ0_inst_info[0].irob_idx,
@@ -307,7 +310,7 @@ module intBlock #(
         iprd_idx : s1_IQ0_inst_info[0].iprd_idx,
         srcs : {
             alu0_bypass_vld[0] ? alu0_bypass_data[0] : i_iprs_data[0][0],
-            s1_IQ0_inst_info[0].use_imm ? i_imm_data[0] : (alu0_bypass_vld[1] ? alu0_bypass_data[1] : i_iprs_data[0][1])
+            s1_IQ0_inst_info[0].use_imm ? s1_irob_imm[0] : (alu0_bypass_vld[1] ? alu0_bypass_data[1] : i_iprs_data[0][1])
         },// need bypass
         issueQue_id : s1_IQ0_inst_info[0].issueQue_id,
         micOp : s1_IQ0_inst_info[0].micOp_type

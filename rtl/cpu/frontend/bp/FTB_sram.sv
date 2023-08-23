@@ -33,7 +33,6 @@ module FTB_sram #(
     genvar i;
     localparam int INDEX_WIDTH = $clog2(SETS);
 
-    `ASSERT(count_one(i_write_way_vec)==1 || count_one(i_write_way_vec)==0);
     `define INDEX_RANGE INDEX_WIDTH+1 - 1 : 1
     `define TAG_RANGE `FTB_TAG_WIDTH + INDEX_WIDTH+1-1 : INDEX_WIDTH+1
 

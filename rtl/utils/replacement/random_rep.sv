@@ -28,7 +28,7 @@ module random_rep #(
             rand_bits <= 1;
         end
         else begin
-            rand_bits <= {rand_bits[WAYS-2:0],rand_bits[WAYS-1]};
+            rand_bits <= {rand_bits[0], rand_bits[WAYS-1:1]};
         end
     end
 

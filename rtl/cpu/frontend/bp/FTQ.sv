@@ -166,7 +166,9 @@ module FTQ (
     always_ff @( posedge clk ) begin
         int fa, fb;
         if (rst) begin
-
+            for(fa=0;fa<`FTQ_SIZE;fa=fa+1) begin
+                buffer_branchInfo[fa].mispred <= 0;
+            end
         end
         else begin
             // read

@@ -91,6 +91,7 @@ module alu (
             wbInfo.rd_wen <= false;
         end
         else if (!i_wb_stall) begin
+            wb_vld <= saved_vld && saved_fuInfo.rd_wen;
             wbInfo.rob_idx <= saved_fuInfo.rob_idx;
             wbInfo.irob_idx <= saved_fuInfo.irob_idx;
             wbInfo.rd_wen <= saved_fuInfo.rd_wen;
