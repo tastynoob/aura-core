@@ -40,7 +40,7 @@ module aura_backend (
     wire[`WDEF(`RENAME_WIDTH)] toExe_mark_notready_vld;
     iprIdx_t toExe_mark_notready_iprIdx[`RENAME_WIDTH];
 
-    wire toCtrl_intDQ_deq_vld;
+    wire[`WDEF(`INTDQ_DISP_WID)] toCtrl_intDQ_deq_vld;
     wire[`WDEF(`INTDQ_DISP_WID)] toExe_intDQ_deq_req;
     intDQEntry_t toExe_intDQ_deq_info[`INTDQ_DISP_WID];
 

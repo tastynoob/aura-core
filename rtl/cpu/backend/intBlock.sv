@@ -71,7 +71,7 @@ module intBlock #(
     wire[`WDEF(FU_NUM)] wb_vld;
     valwbInfo_t wbInfo[FU_NUM];
 
-    wire IQ0_ready, IQ1_ready = 1;
+    wire IQ0_ready, IQ1_ready = 0;
 
     wire[`WDEF(INPUT_NUM)] select_alu, select_bru;
     wire[`WDEF(INPUT_NUM)] select_toIQ0, select_toIQ1;
@@ -106,6 +106,7 @@ module intBlock #(
                     .i_a   ( select_toIQ1[i-1:0]   ),
                     .o_sum ( IQ1_has_selected_num )
                 );
+                // FIXME: select_toIQ0 | select_toIQ1 must in order
                 assign select_toIQ0[i] = IQ0_ready && (IQ0_has_selected_num < 2 ? select_alu[i] : 0);
                 assign select_toIQ1[i] = IQ1_ready && (IQ1_has_selected_num < 2 ? select_bru[i] || (select_alu[i] && (!select_toIQ0[i])) : 0);
             end
