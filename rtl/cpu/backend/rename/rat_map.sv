@@ -38,7 +38,9 @@ module rat_map #(
     // from commit
     input wire i_squash_vld,
     input wire[`WDEF(COMMIT_WID)] i_commit_vld,
-    input renameCommitInfo_t i_commitInfo[COMMIT_WID]
+    input renameCommitInfo_t i_commitInfo[COMMIT_WID],
+
+    output prIdx_t o_specRenameMapping[32]
 
 );
     genvar i,j;
@@ -46,7 +48,7 @@ module rat_map #(
     // if is int regfile, the x0 should be fixedmapping
     prIdx_t spec_mapping[32];
     prIdx_t arch_mapping[32];
-
+    assign o_specRenameMapping = spec_mapping;
 
     //read directly from rat
     prIdx_t renamed0_prs_idx[WIDTH][NUMSRCS];

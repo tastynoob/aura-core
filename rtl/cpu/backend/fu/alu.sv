@@ -94,6 +94,7 @@ module alu (
             wb_vld <= saved_vld && saved_fuInfo.rd_wen;
             wbInfo.rob_idx <= saved_fuInfo.rob_idx;
             wbInfo.irob_idx <= saved_fuInfo.irob_idx;
+            wbInfo.use_imm <= saved_fuInfo.use_imm;
             wbInfo.rd_wen <= saved_fuInfo.rd_wen;
             wbInfo.iprd_idx <= saved_fuInfo.iprd_idx;
             wbInfo.result <= calc_data;

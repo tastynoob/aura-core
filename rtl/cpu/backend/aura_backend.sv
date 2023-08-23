@@ -62,7 +62,7 @@ module aura_backend (
     exceptwbInfo_t toCtrl_exceptwbInfo;
 
     robIdx_t commit_robIdx;
-
+    iprIdx_t specRenameMapping[32];
     ctrlBlock u_ctrlBlock(
         .clk                   ( clk                   ),
         .rst                   ( rst                   ),
@@ -102,7 +102,9 @@ module aura_backend (
         .i_read_ftqStartAddr   ( rob_read_ftqStartAddr ),
 
         .o_squash_vld          ( squash_vld          ),
-        .o_squashInfo          ( squashInfo          )
+        .o_squashInfo          ( squashInfo          ),
+
+        .o_specRenameMapping (specRenameMapping)
     );
 
 
@@ -150,10 +152,12 @@ module aura_backend (
         end
     end
 
-    assign toCtrl_clear_irob_vld = toCtrl_wb_vld[`ALU_NUM-1 : 0];
+
     generate
         for(i=0;i<`IMMBUFFER_CLEARPORT_NUM;i=i+1) begin:gen_for
+            // NOTE: toCtrl_wb_vld[`ALU_NUM-1:0] is must be alu's wbInfo
             assign toCtrl_clear_irob_idx[i] = toCtrl_wbInfo[i].irob_idx;
+            assign toCtrl_clear_irob_vld[i] = toCtrl_wb_vld[i] && toCtrl_wbInfo[i].use_imm;
         end
     endgenerate
 
@@ -170,7 +174,39 @@ module aura_backend (
     );
 
 
+`ifdef SIMULATION
+    wire[`WDEF(`WBPORT_NUM)] sim_wb_vld = toCtrl_wb_vld;
+    ilrIdx_t sim_wb_idx[`WBPORT_NUM];
+    logic[`XDEF] sim_wb_data[`WBPORT_NUM];
 
+    always_comb begin
+        int ca,cb;
+        for (ca=0;ca<`WBPORT_NUM;ca=ca+1) begin
+            sim_wb_idx[ca] = 0;
+            for (cb=0;cb<32;cb=cb+1) begin
+                if (specRenameMapping[cb] == toCtrl_wbInfo[ca].iprd_idx) begin
+                    sim_wb_idx[ca] = cb;
+                end
+            end
+        end
+    end
+    generate
+        for (i=0;i<`WBPORT_NUM;i=i+1) begin : gen_for
+            assign sim_wb_data[i] = toCtrl_wbInfo[i].result;
+        end
+    endgenerate
+
+    simRegfile u_simRegfile(
+        .clk       ( clk       ),
+        .rst       ( rst       ),
+
+        .i_wb_vld  ( sim_wb_vld  ),
+        .i_wb_idx  ( sim_wb_idx  ),
+        .i_wb_data ( sim_wb_data )
+    );
+
+
+`endif
 
 endmodule
 

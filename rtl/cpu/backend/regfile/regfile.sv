@@ -63,11 +63,18 @@ module regfile #(
                     end
                 end
             end
-
-            for (i=0;i<READPORT_NUM;i=i+1) begin:gen_for
-                assign o_read_data[i] = (i_read_idx[i] == 0) ? 0 : buffer[i_read_idx[i]];
-                assign o_data_rdy[i] = (i_read_idx[i] == 0) ? 1 : rdy_bit_bypass[i_read_idx[i]];
+            reg[`XDEF] read_data[READPORT_NUM];
+            reg[`WDEF(READPORT_NUM)] data_rdy;
+            always_ff @( posedge clk ) begin
+                int fa;
+                for (fa=0;fa<READPORT_NUM;fa=fa+1) begin
+                    read_data[fa] <= (i_read_idx[fa] == 0) ? 0 : buffer[i_read_idx[fa]];
+                    data_rdy[fa] <= (i_read_idx[fa] == 0) ? 1 : rdy_bit_bypass[i_read_idx[fa]];
+                end
             end
+
+            assign o_read_data = read_data;
+            assign o_data_rdy = data_rdy;
 
             for (i=0;i<`RENAME_WIDTH * `NUMSRCS_INT;i=i+1) begin:gen_for
                 assign o_disp_check_iprs_vld[i/2][i%2] = (i_disp_check_iprsIdx[i] == 0) ? 1 : rdy_bit_bypass[i_disp_check_iprsIdx[i]];

@@ -20,5 +20,9 @@ _start:
 	li x13,13
 	li x14,14
 	li x15,15
-	j _start
-    
+	li x16,16
+	li x17,17
+	li x18,18
+	li x19,19
+	li x20,20
+	add x21,x2,x3 // x1 = 5

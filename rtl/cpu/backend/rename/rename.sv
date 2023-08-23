@@ -18,7 +18,9 @@ module rename(
     input decInfo_t i_decinfo[`DECODE_WIDTH],
     // to dispatch
     output wire[`WDEF(`RENAME_WIDTH)] o_rename_vld,
-    output renameInfo_t o_renameInfo[`RENAME_WIDTH]
+    output renameInfo_t o_renameInfo[`RENAME_WIDTH],
+
+    output iprIdx_t o_specRenameMapping[32]
 );
     genvar i;
 
@@ -68,7 +70,8 @@ module rename(
 
         .i_squash_vld           ( i_squash_vld           ),
         .i_commit_vld           ( i_commit_vld           ),
-        .i_commitInfo           ( i_commitInfo           )
+        .i_commitInfo           ( i_commitInfo           ),
+        .o_specRenameMapping (o_specRenameMapping)
     );
 
     reg[`WDEF(`RENAME_WIDTH)] rename_vld;

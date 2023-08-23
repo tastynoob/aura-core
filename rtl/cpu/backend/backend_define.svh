@@ -85,6 +85,7 @@ typedef struct {
     ftqIdx_t ftq_idx;
     robIdx_t rob_idx;
     irobIdx_t irob_idx;
+    logic use_imm;
     logic rd_wen;
     iprIdx_t iprd_idx;
     logic[`XDEF] srcs[`NUMSRCS_INT];
@@ -97,6 +98,7 @@ typedef struct {
 typedef struct {
     robIdx_t rob_idx;
     irobIdx_t irob_idx;
+    logic use_imm;
     logic rd_wen;
     iprIdx_t iprd_idx;
     logic[`XDEF] result;

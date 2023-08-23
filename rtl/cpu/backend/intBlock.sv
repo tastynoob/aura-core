@@ -235,22 +235,11 @@ module intBlock #(
     assign o_immB_idx[0] = IQ0_inst_info[0].irob_idx;
     assign o_immB_idx[1] = IQ0_inst_info[1].irob_idx;
 
-/****************************************************************************************************/
-// alu0
-/****************************************************************************************************/
-
-    // when one instruction was selected
-    // there are 2 stage to process
-    // s0: send request to regfile
-    // s1: read data and check bypass, check inst can issue and deq from issueQue
-    wire alu0_stall;
     reg[`WDEF(2)] s1_IQ0_inst_vld;
     reg[`WDEF($clog2(`IQ0_SIZE))] s1_IQ0_inst_iqIdx[2];
     imm_t s1_irob_imm[`ALU_NUM];
     iprIdx_t s1_IQ0_iprs_idx[2][`NUMSRCS_INT];
     exeInfo_t s1_IQ0_inst_info[2];
-    wire[`WDEF(`NUMSRCS_INT)] alu0_bypass_vld;
-    wire[`XDEF] alu0_bypass_data[`NUMSRCS_INT];
     always_ff @( posedge clk ) begin
         int fa;
         if (rst) begin
@@ -270,9 +259,25 @@ module intBlock #(
         end
     end
 
-    assign IQ0_issue_finished[0] = s1_IQ0_inst_vld[0] && ((alu0_iprs_rdy | alu0_bypass_vld | {s1_IQ0_inst_info[0].use_imm, 1'b1}) == 2'b11);
-    assign IQ0_issue_failed[0] = s1_IQ0_inst_vld[0] && (!IQ0_issue_finished[0]);
-    assign IQ0_issue_iqIdx[0] = s1_IQ0_inst_iqIdx[0];
+/****************************************************************************************************/
+// alu0
+/****************************************************************************************************/
+generate
+if (1) begin: gen_intBlock_IQ0_alu0
+    localparam int IQ0_fuID = 0;
+    localparam int intBlock_fuID = 0;
+    localparam int global_fuID = 0;
+    // when one instruction was selected
+    // there are 2 stage to process
+    // s0: send request to regfile
+    // s1: read data and check bypass, check inst can issue and deq from issueQue
+    wire fu_stall;
+    wire[`WDEF(`NUMSRCS_INT)] alu_bypass_vld;
+    wire[`XDEF] alu_bypass_data[`NUMSRCS_INT];
+
+    assign IQ0_issue_finished[IQ0_fuID] = s1_IQ0_inst_vld[IQ0_fuID] && ((alu0_iprs_rdy | alu_bypass_vld | {s1_IQ0_inst_info[IQ0_fuID].use_imm, 1'b1}) == 2'b11);
+    assign IQ0_issue_failed[IQ0_fuID] = s1_IQ0_inst_vld[IQ0_fuID] && (!IQ0_issue_finished[IQ0_fuID]);
+    assign IQ0_issue_iqIdx[IQ0_fuID] = s1_IQ0_inst_iqIdx[IQ0_fuID];
 
     bypass_sel
     #(
@@ -285,9 +290,9 @@ module intBlock #(
         .i_src_vld     ( global_bypass_vld     ),
         .i_src_idx     ( global_bypass_rdIdx     ),
         .i_src_data    ( global_bypass_data    ),
-        .i_target_idx  ( IQ0_inst_info[0].iprs_idx[0]  ),
-        .o_target_vld  ( alu0_bypass_vld[0]  ),
-        .o_target_data ( alu0_bypass_data[0] )
+        .i_target_idx  ( IQ0_inst_info[IQ0_fuID].iprs_idx[0]  ),
+        .o_target_vld  ( alu_bypass_vld[0]  ),
+        .o_target_data ( alu_bypass_data[0] )
     );
     bypass_sel
     #(
@@ -297,82 +302,126 @@ module intBlock #(
         .i_src_vld     ( global_bypass_vld      ),
         .i_src_idx     ( global_bypass_rdIdx  ),
         .i_src_data    ( global_bypass_data     ),
-        .i_target_idx  ( IQ0_inst_info[0].iprs_idx[1] ),
-        .o_target_vld  ( alu0_bypass_vld[1]        ),
-        .o_target_data ( alu0_bypass_data[1]       )
+        .i_target_idx  ( IQ0_inst_info[IQ0_fuID].iprs_idx[1] ),
+        .o_target_vld  ( alu_bypass_vld[1]        ),
+        .o_target_data ( alu_bypass_data[1]       )
     );
 
-    fuInfo_t alu0_info;
-    assign alu0_info = '{
-        ftq_idx : s1_IQ0_inst_info[0].ftq_idx,
-        rob_idx : s1_IQ0_inst_info[0].rob_idx,
-        irob_idx : s1_IQ0_inst_info[0].irob_idx,
-        rd_wen : s1_IQ0_inst_info[0].rd_wen,
-        iprd_idx : s1_IQ0_inst_info[0].iprd_idx,
+    fuInfo_t fu_info;
+    assign fu_info = '{
+        ftq_idx : s1_IQ0_inst_info[IQ0_fuID].ftq_idx,
+        rob_idx : s1_IQ0_inst_info[IQ0_fuID].rob_idx,
+        irob_idx : s1_IQ0_inst_info[IQ0_fuID].irob_idx,
+        use_imm : s1_IQ0_inst_info[IQ0_fuID].use_imm,
+        rd_wen : s1_IQ0_inst_info[IQ0_fuID].rd_wen,
+        iprd_idx : s1_IQ0_inst_info[IQ0_fuID].iprd_idx,
         srcs : {
-            alu0_bypass_vld[0] ? alu0_bypass_data[0] : i_iprs_data[0][0],
-            s1_IQ0_inst_info[0].use_imm ? s1_irob_imm[0] : (alu0_bypass_vld[1] ? alu0_bypass_data[1] : i_iprs_data[0][1])
+            alu_bypass_vld[0] ? alu_bypass_data[0] : i_iprs_data[intBlock_fuID][0],
+            s1_IQ0_inst_info[IQ0_fuID].use_imm ? s1_irob_imm[intBlock_fuID] : (alu_bypass_vld[1] ? alu_bypass_data[1] : i_iprs_data[intBlock_fuID][1])
         },// need bypass
-        issueQue_id : s1_IQ0_inst_info[0].issueQue_id,
-        micOp : s1_IQ0_inst_info[0].micOp_type
+        issueQue_id : s1_IQ0_inst_info[IQ0_fuID].issueQue_id,
+        micOp : s1_IQ0_inst_info[IQ0_fuID].micOp_type
     };
 
     //fu0
-    alu u_alu_0(
+    alu u_alu(
         .clk               ( clk                ),
         .rst               ( rst                ),
 
-        .o_fu_stall        ( alu0_stall         ),
-        .i_vld             ( s1_IQ0_inst_vld[0] ),
-        .i_fuInfo          ( alu0_info          ),
+        .o_fu_stall        ( fu_stall         ),
+        .i_vld             ( s1_IQ0_inst_vld[IQ0_fuID] ),
+        .i_fuInfo          ( fu_info          ),
 
-        .o_willwrite_vld   ( internal_bypass_wb_vld[0]  ),
-        .o_willwrite_rdIdx ( internal_bypass_iprdIdx[0] ),
-        .o_willwrite_data  ( internal_bypass_data[0]    ),
+        .o_willwrite_vld   ( internal_bypass_wb_vld[intBlock_fuID]  ),
+        .o_willwrite_rdIdx ( internal_bypass_iprdIdx[intBlock_fuID] ),
+        .o_willwrite_data  ( internal_bypass_data[intBlock_fuID]    ),
 
-        .i_wb_stall        ( i_wb_stall[0]     ),
-        .o_wb_vld          ( wb_vld[0]         ),
-        .o_wbInfo          ( wbInfo[0]         )
+        .i_wb_stall        ( i_wb_stall[intBlock_fuID]     ),
+        .o_wb_vld          ( wb_vld[intBlock_fuID]         ),
+        .o_wbInfo          ( wbInfo[intBlock_fuID]         )
     );
-
+end
+endgenerate
 /****************************************************************************************************/
 // alu1
 /****************************************************************************************************/
+generate
+if (1) begin : gen_intBlock_IQ0_alu1
+    localparam int IQ0_fuID = 1;
+    localparam int intBlock_fuID = 1;
+    localparam int global_fuID = 1;
 
-    assign IQ0_issue_finished[1] = 0;
-    assign IQ0_issue_failed[1] = 0;
+    wire fu_stall;
+    wire[`WDEF(`NUMSRCS_INT)] alu_bypass_vld;
+    wire[`XDEF] alu_bypass_data[`NUMSRCS_INT];
 
-    fuInfo_t alu1_info = '{
-        ftq_idx : s1_IQ0_inst_info[1].ftq_idx,
-        rob_idx : s1_IQ0_inst_info[1].rob_idx,
-        irob_idx : s1_IQ0_inst_info[1].irob_idx,
-        rd_wen : s1_IQ0_inst_info[1].rd_wen,
-        iprd_idx : s1_IQ0_inst_info[1].iprd_idx,
-        srcs : {0,0},
-        issueQue_id : s1_IQ0_inst_info[1].issueQue_id,
-        micOp : s1_IQ0_inst_info[1].micOp_type
+    assign IQ0_issue_finished[IQ0_fuID] = s1_IQ0_inst_vld[IQ0_fuID] && ((alu0_iprs_rdy | alu_bypass_vld | {s1_IQ0_inst_info[IQ0_fuID].use_imm, 1'b1}) == 2'b11);
+    assign IQ0_issue_failed[IQ0_fuID] = s1_IQ0_inst_vld[IQ0_fuID] && (!IQ0_issue_finished[IQ0_fuID]);
+    assign IQ0_issue_iqIdx[IQ0_fuID] = s1_IQ0_inst_iqIdx[IQ0_fuID];
+
+    bypass_sel
+    #(
+        // why need to multiply by two
+        // one from will writeback bypass
+        // one from writeback take a pat
+        .WIDTH ( FU_NUM*3 + EXTERNAL_WRITEBACK*2 )
+    )
+    u_bypass_sel_0_src0(
+        .i_src_vld     ( global_bypass_vld     ),
+        .i_src_idx     ( global_bypass_rdIdx     ),
+        .i_src_data    ( global_bypass_data    ),
+        .i_target_idx  ( IQ0_inst_info[IQ0_fuID].iprs_idx[0]  ),
+        .o_target_vld  ( alu_bypass_vld[0]  ),
+        .o_target_data ( alu_bypass_data[0] )
+    );
+    bypass_sel
+    #(
+        .WIDTH ( FU_NUM*3 + EXTERNAL_WRITEBACK*2 )
+    )
+    u_bypass_sel_0_src1(
+        .i_src_vld     ( global_bypass_vld      ),
+        .i_src_idx     ( global_bypass_rdIdx  ),
+        .i_src_data    ( global_bypass_data     ),
+        .i_target_idx  ( IQ0_inst_info[IQ0_fuID].iprs_idx[1] ),
+        .o_target_vld  ( alu_bypass_vld[1]        ),
+        .o_target_data ( alu_bypass_data[1]       )
+    );
+
+    fuInfo_t fu_info;
+    assign fu_info = '{
+        ftq_idx : s1_IQ0_inst_info[IQ0_fuID].ftq_idx,
+        rob_idx : s1_IQ0_inst_info[IQ0_fuID].rob_idx,
+        irob_idx : s1_IQ0_inst_info[IQ0_fuID].irob_idx,
+        use_imm : s1_IQ0_inst_info[IQ0_fuID].use_imm,
+        rd_wen : s1_IQ0_inst_info[IQ0_fuID].rd_wen,
+        iprd_idx : s1_IQ0_inst_info[IQ0_fuID].iprd_idx,
+        srcs : {// FIXME: regfile read data is zero
+            alu_bypass_vld[0] ? alu_bypass_data[0] : i_iprs_data[intBlock_fuID][0],
+            s1_IQ0_inst_info[IQ0_fuID].use_imm ? s1_irob_imm[intBlock_fuID] : (alu_bypass_vld[1] ? alu_bypass_data[1] : i_iprs_data[intBlock_fuID][1])
+        },// need bypass
+        issueQue_id : s1_IQ0_inst_info[IQ0_fuID].issueQue_id,
+        micOp : s1_IQ0_inst_info[IQ0_fuID].micOp_type
     };
 
     //fu1
-    alu u_alu_1(
-        .clk               ( clk               ),
-        .rst               ( rst               ),
+    alu u_alu(
+        .clk               ( clk                ),
+        .rst               ( rst                ),
 
-        .o_fu_stall        (         ),
-        .i_vld             (0),
-        .i_fuInfo          ( alu1_info          ),
+        .o_fu_stall        ( fu_stall         ),
+        .i_vld             ( s1_IQ0_inst_vld[IQ0_fuID] ),
+        .i_fuInfo          ( fu_info          ),
 
-        .o_willwrite_vld   ( internal_bypass_wb_vld[1] ),
-        .o_willwrite_rdIdx ( internal_bypass_iprdIdx[1] ),
-        .o_willwrite_data  ( internal_bypass_data[1]  ),
+        .o_willwrite_vld   ( internal_bypass_wb_vld[intBlock_fuID]  ),
+        .o_willwrite_rdIdx ( internal_bypass_iprdIdx[intBlock_fuID] ),
+        .o_willwrite_data  ( internal_bypass_data[intBlock_fuID]    ),
 
-        .i_wb_stall        ( i_wb_stall[1]     ),
-        .o_wb_vld          ( wb_vld[1]         ),
-        .o_wbInfo          ( wbInfo[1]         )
+        .i_wb_stall        ( i_wb_stall[intBlock_fuID]     ),
+        .o_wb_vld          ( wb_vld[intBlock_fuID]         ),
+        .o_wbInfo          ( wbInfo[intBlock_fuID]         )
     );
-
-    assign wb_vld[FU_NUM-1:2] = 0;
-
+end
+endgenerate
 /****************************************************************************************************/
 // IQ1: 2x(alu+bru)
 /****************************************************************************************************/
@@ -394,6 +443,7 @@ module intBlock #(
 /****************************************************************************************************/
 // others
 /****************************************************************************************************/
+    assign wb_vld[FU_NUM-1:2] = 0;
     assign o_valwb_info = wbInfo;
     assign o_wb_vld = wb_vld;
 
@@ -427,7 +477,7 @@ module intBlock #(
     generate
         for(i=0; i<FU_NUM * 3 + EXTERNAL_WRITEBACK * 2; i=i+1) begin : gen_for
             if (i < FU_NUM) begin : gen_if
-                assign global_bypass_vld[i] = internal_bypass_wb_vld[i] && (i < 1);
+                assign global_bypass_vld[i] = internal_bypass_wb_vld[i] && (i < 2);
                 assign global_bypass_rdIdx[i] = internal_bypass_iprdIdx[i];
                 assign global_bypass_data[i] = internal_bypass_data[i];
             end
@@ -459,7 +509,7 @@ module intBlock #(
 
         for (i=0;i<FU_NUM + EXTERNAL_WRITEBACK;i=i+1) begin : gen_for
             if (i < FU_NUM) begin : gen_if
-                assign global_wb_vld[i] = wb_vld[i] && (i < 1);
+                assign global_wb_vld[i] = wb_vld[i] && (i < 2);
                 assign global_wb_rdIdx[i] = wbInfo[i].iprd_idx;
             end
             else begin: gen_else

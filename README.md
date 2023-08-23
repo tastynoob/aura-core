@@ -21,16 +21,15 @@ make aura # if enable trace: make aura USE_TRACE=1
 # for help
 ./build/aura -h
 ```
+## compile for aura firmware
+go to /firmware
+install vscode plugin EIDE
+open firmware.code-workspace
+
 
 # todo list
 
-## frontend
-- ftb
-- ftq
-
 ## backend
-- issue
-- fus
-- wb
+- mul and div unit
 
 ## mem subsystem

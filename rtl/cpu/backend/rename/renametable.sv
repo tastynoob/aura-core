@@ -26,8 +26,9 @@ module renametable(
     // from commit
     input wire i_squash_vld,
     input wire[`WDEF(`COMMIT_WIDTH)] i_commit_vld,
-    input renameCommitInfo_t i_commitInfo[`WDEF(`COMMIT_WIDTH)]
+    input renameCommitInfo_t i_commitInfo[`WDEF(`COMMIT_WIDTH)],
 
+    output iprIdx_t o_specRenameMapping[32]
 );
     genvar i;
 
@@ -62,7 +63,9 @@ module renametable(
 
         .i_squash_vld          ( i_squash_vld          ),
         .i_commit_vld          ( i_commit_vld          ),
-        .i_commitInfo          ( i_commitInfo          )
+        .i_commitInfo          ( i_commitInfo          ),
+
+        .o_specRenameMapping (o_specRenameMapping)
     );
 
     wire[`WDEF(`COMMIT_WIDTH)] commit_has_rd, commit_ismv;
