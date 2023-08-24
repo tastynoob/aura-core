@@ -1,6 +1,7 @@
 #include <verilated.h>
 #include <verilated_vcd_c.h>
 #include <string>
+#include <random>
 #include "Vtb.h"
 #include "cmdline.hpp"
 #include "dpic_util.hpp"
@@ -59,10 +60,14 @@ int main(int argc, char **argv)
         }
     }
 
-    int verilated_seed = time(0) % 1000;
+    int verilated_seed; 
     if (parser.exist("seed"))
     {
         verilated_seed = parser.get<uint32_t>("seed");
+    }
+    else {
+        std::random_device rd;
+        verilated_seed = rd() % 1000;
     }
 
     std::cout << "verilated random seed: " << verilated_seed << std::endl;
