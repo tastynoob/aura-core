@@ -26,8 +26,8 @@ module ctrlBlock (
 
     // write back, from exu
     // common writeback
-    input wire[`WDEF(`WBPORT_NUM)] i_wb_vld,
-    input valwbInfo_t i_valwb_info[`WBPORT_NUM],
+    input wire[`WDEF(`WBPORT_NUM)] i_fu_finished,
+    input comwbInfo_t i_comwbInfo[`WBPORT_NUM],
     // branch writeback (branch taken or mispred)
     input wire i_branchwb_vld,
     input branchwbInfo_t i_branchwb_info,
@@ -230,8 +230,8 @@ module ctrlBlock (
         .i_read_ftqOffset_idx  ( i_read_ftqOffset_idx ),
         .o_read_ftqOffset_data ( o_read_ftqOffset_data ),
 
-        .i_wb_vld              ( i_wb_vld             ),
-        .i_valwb_info              ( i_valwb_info             ),
+        .i_fu_finished              ( i_fu_finished             ),
+        .i_comwbInfo              ( i_comwbInfo             ),
         .i_branchwb_vld        ( i_branchwb_vld       ),
         .i_branchwb_info       ( i_branchwb_info      ),
         .i_exceptwb_vld        ( i_exceptwb_vld || toROB_disp_exceptwb_vld ),

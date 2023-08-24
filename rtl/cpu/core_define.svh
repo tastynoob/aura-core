@@ -28,7 +28,6 @@ typedef struct {
     BranchType::_ branch_type;
     robIdx_t rob_idx;
     ftqIdx_t ftq_idx;
-    brobIdx_t brob_idx;
     // the branchInst is mispred taken
     logic has_mispred;
     // is branchInst actually taken ? (the jal inst must taken)

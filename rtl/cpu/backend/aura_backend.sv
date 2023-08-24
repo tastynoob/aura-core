@@ -50,8 +50,8 @@ module aura_backend (
     wire[`XDEF] rob_read_ftqStartAddr = i_read_ftqStartAddr[0];
 
 
-    wire[`WDEF(`WBPORT_NUM)] toCtrl_wb_vld;
-    valwbInfo_t toCtrl_wbInfo[`WBPORT_NUM];
+    wire[`WDEF(`WBPORT_NUM)] toCtrl_fu_finished;
+    comwbInfo_t toCtrl_comwbInfo[`WBPORT_NUM];
 
     wire[`WDEF(`BRU_NUM)] exeBlock_branchwb_vld;
     branchwbInfo_t exeBlock_branchwbInfo[`BRU_NUM];
@@ -79,8 +79,8 @@ module aura_backend (
         .i_read_ftqOffset_idx  (    ),// TODO: BRU need ftqOffset
         .o_read_ftqOffset_data (    ),
 
-        .i_wb_vld              ( toCtrl_wb_vld          ),
-        .i_valwb_info          ( toCtrl_wbInfo          ),
+        .i_fu_finished              ( toCtrl_fu_finished          ),
+        .i_comwbInfo          ( toCtrl_comwbInfo          ),
         .i_branchwb_vld        ( toCtrl_branchwb_vld    ),
         .i_branchwb_info       ( toCtrl_branchwbInfo    ),
         .i_exceptwb_vld        ( toCtrl_except_vld      ),
@@ -136,8 +136,8 @@ module aura_backend (
         .i_read_ftqStartAddr ( i_read_ftqStartAddr  ),
         .i_read_ftqNextAddr  ( i_read_ftqNextAddr   ),
 
-        .o_wb_vld            ( toCtrl_wb_vld        ),
-        .o_wbInfo            ( toCtrl_wbInfo        ),
+        .o_fu_finished       ( toCtrl_fu_finished        ),
+        .o_comwbInfo         ( toCtrl_comwbInfo        ),
         .o_branchwb_vld      ( exeBlock_branchwb_vld ),
         .o_branchwb_info     ( exeBlock_branchwbInfo ),
         .o_exceptwb_vld      ( toCtrl_except_vld    ),
@@ -155,9 +155,9 @@ module aura_backend (
 
     generate
         for(i=0;i<`IMMBUFFER_CLEARPORT_NUM;i=i+1) begin:gen_for
-            // NOTE: toCtrl_wb_vld[`ALU_NUM-1:0] is must be alu's wbInfo
-            assign toCtrl_clear_irob_idx[i] = toCtrl_wbInfo[i].irob_idx;
-            assign toCtrl_clear_irob_vld[i] = toCtrl_wb_vld[i] && toCtrl_wbInfo[i].use_imm;
+            // NOTE: toCtrl_fu_finished[`ALU_NUM-1:0] is must be alu's wbInfo
+            assign toCtrl_clear_irob_idx[i] = toCtrl_comwbInfo[i].irob_idx;
+            assign toCtrl_clear_irob_vld[i] = toCtrl_fu_finished[i] && toCtrl_comwbInfo[i].use_imm;
         end
     endgenerate
 
@@ -175,16 +175,17 @@ module aura_backend (
 
 
 `ifdef SIMULATION
-    wire[`WDEF(`WBPORT_NUM)] sim_wb_vld = toCtrl_wb_vld;
+    logic[`WDEF(`WBPORT_NUM)] sim_wb_vld;
     ilrIdx_t sim_wb_idx[`WBPORT_NUM];
     logic[`XDEF] sim_wb_data[`WBPORT_NUM];
 
     always_comb begin
         int ca,cb;
         for (ca=0;ca<`WBPORT_NUM;ca=ca+1) begin
+            sim_wb_vld[ca] = toCtrl_fu_finished[ca] && toCtrl_comwbInfo[ca].rd_wen;
             sim_wb_idx[ca] = 0;
             for (cb=0;cb<32;cb=cb+1) begin
-                if (specRenameMapping[cb] == toCtrl_wbInfo[ca].iprd_idx) begin
+                if (specRenameMapping[cb] == toCtrl_comwbInfo[ca].iprd_idx) begin
                     sim_wb_idx[ca] = cb;
                 end
             end
@@ -192,7 +193,7 @@ module aura_backend (
     end
     generate
         for (i=0;i<`WBPORT_NUM;i=i+1) begin : gen_for
-            assign sim_wb_data[i] = toCtrl_wbInfo[i].result;
+            assign sim_wb_data[i] = toCtrl_comwbInfo[i].result;
         end
     endgenerate
 

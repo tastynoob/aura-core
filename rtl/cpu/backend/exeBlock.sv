@@ -26,8 +26,8 @@ module exeBlock(
 
     // writeback to rob
     // common writeback
-    output wire[`WDEF(`WBPORT_NUM)] o_wb_vld,
-    output valwbInfo_t o_wbInfo[`WBPORT_NUM],
+    output wire[`WDEF(`WBPORT_NUM)] o_fu_finished,
+    output comwbInfo_t o_comwbInfo[`WBPORT_NUM],
     // branch writeback (branch taken or mispred)
     output wire[`WDEF(`BRU_NUM)] o_branchwb_vld,
     output branchwbInfo_t o_branchwb_info[`BRU_NUM],
@@ -90,8 +90,8 @@ module exeBlock(
     wire[`WDEF(`NUMSRCS_INT)] toIntBlock_iprs_rdy[INTBLOCK_FUS];
     wire[`XDEF] toIntBlock_iprs_data[INTBLOCK_FUS][`NUMSRCS_INT];
 
-    wire[`WDEF(INTBLOCK_FUS)] intBlock_valwb_vld;
-    valwbInfo_t intBlock_valwb[INTBLOCK_FUS];
+    wire[`WDEF(INTBLOCK_FUS)] intBlock_fu_finished;
+    comwbInfo_t intBlock_comwbInfo[INTBLOCK_FUS];
     wire[`WDEF(`BRU_NUM)] intBlock_branchwb_vld;
     branchwbInfo_t intBlock_branchwb[`BRU_NUM];
     wire intBlock_exceptwb_vld;
@@ -129,11 +129,11 @@ module exeBlock(
         .i_read_ftqNextAddr  ( i_read_ftqNextAddr  ),
 
         .i_wb_stall        ( 0     ),
-        .o_wb_vld          ( intBlock_valwb_vld ),
-        .o_valwb_info      ( intBlock_valwb     ),
+        .o_fu_finished     ( intBlock_fu_finished ),
+        .o_comwbInfo       ( intBlock_comwbInfo     ),
 
         .o_branchWB_vld    ( intBlock_branchwb_vld ),
-        .o_branchWB_info   ( intBlock_branchwb     ),
+        .o_branchwb_info   ( intBlock_branchwb     ),
         .o_exceptwb_vld    ( intBlock_exceptwb_vld ),
         .o_exceptwb_info   ( intBlock_exceptwb     ),
 
@@ -165,14 +165,14 @@ module exeBlock(
         end
 
         for(i=0;i<IPRFWRITEPORTS;i=i+1) begin : gen_for
-            assign regfile_write_vld[i] = intBlock_valwb_vld[i];
-            assign regfile_write_iprIdx[i] = intBlock_valwb[i].iprd_idx;
-            assign regfile_write_data[i] = intBlock_valwb[i].result;
+            assign regfile_write_vld[i] = intBlock_fu_finished[i] && intBlock_comwbInfo[i].rd_wen;
+            assign regfile_write_iprIdx[i] = intBlock_comwbInfo[i].iprd_idx;
+            assign regfile_write_data[i] = intBlock_comwbInfo[i].result;
         end
     endgenerate
 
-    assign o_wb_vld = intBlock_valwb_vld;
-    assign o_wbInfo = intBlock_valwb;
+    assign o_fu_finished = intBlock_fu_finished;
+    assign o_comwbInfo = intBlock_comwbInfo;
 
 
     assign o_branchwb_vld = intBlock_branchwb_vld;

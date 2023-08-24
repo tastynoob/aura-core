@@ -1,7 +1,7 @@
 
 `include "core_define.svh"
 
-module alu (
+module alu_bru (
     input wire clk,
     input wire rst,
 
@@ -17,8 +17,10 @@ module alu (
 
     //wb, rd_idx will be used to fast bypass
     input wire i_wb_stall,
-    output wire o_wb_vld,
-    output valwbInfo_t o_wbInfo
+    output wire o_finished,
+    output comwbInfo_t o_wbInfo,
+    output wire o_branchwb_vld,
+    output branchwbInfo_t o_branchwbInfo
 );
 
     reg saved_vld;
@@ -85,7 +87,7 @@ module alu (
     0;
 
     reg wb_vld;
-    valwbInfo_t wbInfo;
+    comwbInfo_t wbInfo;
     always_ff @(posedge clk) begin
         if (rst) begin
             wb_vld <= 0;

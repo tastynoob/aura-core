@@ -27,7 +27,6 @@ typedef struct packed {
 } robIdx_t;
 // typedef logic [`WDEF($clog2(`ROB_SIZE))] robIdx_t;
 typedef logic [`WDEF($clog2(`IMMBUFFER_SIZE))] irobIdx_t; // the immBuffer idx
-typedef logic [`WDEF($clog2(`ROB_SIZE))] brobIdx_t; // the branchBuffer idx
 
 //[int/fp][logic/physic]r[dest/src]Idx
 typedef logic [`WDEF($clog2(32))] ilrIdx_t;//the int logic regfile idx

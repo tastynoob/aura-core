@@ -59,8 +59,8 @@ module ROB(
 
     // write back, from exu
     // common writeback
-    input wire[`WDEF(`WBPORT_NUM)] i_wb_vld,
-    input valwbInfo_t i_valwb_info[`WBPORT_NUM],
+    input wire[`WDEF(`WBPORT_NUM)] i_fu_finished,
+    input comwbInfo_t i_comwbInfo[`WBPORT_NUM],
     // branch writeback
     input wire i_branchwb_vld,
     input branchwbInfo_t i_branchwb_info,
@@ -118,7 +118,7 @@ module ROB(
     wire[`WDEF($clog2(`ROB_SIZE))] wb_idx[`WBPORT_NUM];
     generate
         for(i=0;i<`COMMIT_WIDTH;i=i+1) begin:gen_for
-            assign wb_idx[i] = i_valwb_info[i].rob_idx.idx;
+            assign wb_idx[i] = i_comwbInfo[i].rob_idx.idx;
         end
     endgenerate
     // NOTE: if commited insts has multi fetchblock ends
@@ -151,7 +151,7 @@ module ROB(
         .o_enq_vld        ( enq_vld         ),
         .o_enq_idx        ( enq_idx         ),
         // inst finished
-        .i_clear_vld      ( i_wb_vld      ),
+        .i_clear_vld      ( i_fu_finished      ),
         .i_clear_dqIdx    ( wb_idx    ),
 
         .o_willClear_vld  ( willCommit_vld  ),
@@ -400,7 +400,7 @@ module ROB(
 
     wire[`WDEF(`RENAME_WIDTH)] AAA_insert_ismv_nop = (o_can_enq && i_enq_vld) ? i_insert_rob_ismv & i_enq_req : 0;
 
-    wire[`WDEF(`WBPORT_NUM)] AAA_writeback_vec = i_wb_vld;
+    wire[`WDEF(`WBPORT_NUM)] AAA_fu_finished_vec = i_fu_finished;
 
     wire[`WDEF(`COMMIT_WIDTH)] AAA_can_commit_vec = canCommit_vld;
 

@@ -94,7 +94,6 @@ typedef struct {
     MicOp_t::_u micOp;
 } fuInfo_t;
 
-
 typedef struct {
     robIdx_t rob_idx;
     irobIdx_t irob_idx;
@@ -102,8 +101,7 @@ typedef struct {
     logic rd_wen;
     iprIdx_t iprd_idx;
     logic[`XDEF] result;
-} valwbInfo_t;
-
+} comwbInfo_t;
 
 typedef struct {
     robIdx_t rob_idx;

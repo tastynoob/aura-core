@@ -52,10 +52,10 @@ module intBlock #(
 
     // writeback
     input wire[`WDEF(FU_NUM)] i_wb_stall,
-    output wire[`WDEF(FU_NUM)] o_wb_vld,
-    output valwbInfo_t o_valwb_info[FU_NUM],
+    output wire[`WDEF(FU_NUM)] o_fu_finished,
+    output comwbInfo_t o_comwbInfo[FU_NUM],
     output wire[`WDEF(`BRU_NUM)] o_branchWB_vld,
-    output branchwbInfo_t o_branchWB_info[`WDEF(`BRU_NUM)],
+    output branchwbInfo_t o_branchwb_info[`WDEF(`BRU_NUM)],
     output wire o_exceptwb_vld,
     output exceptwbInfo_t o_exceptwb_info,
 
@@ -69,8 +69,8 @@ module intBlock #(
     input wire[`XDEF] i_ext_wb_data[EXTERNAL_WRITEBACK]
 );
     genvar i;
-    wire[`WDEF(FU_NUM)] wb_vld;
-    valwbInfo_t wbInfo[FU_NUM];
+    wire[`WDEF(FU_NUM)] fu_finished;
+    comwbInfo_t comwbInfo[FU_NUM];
 
     wire IQ0_ready, IQ1_ready;
 
@@ -337,8 +337,8 @@ if (1) begin: gen_intBlock_IQ0_alu0
         .o_willwrite_data  ( internal_bypass_data[intBlock_fuID]    ),
 
         .i_wb_stall        ( i_wb_stall[intBlock_fuID]     ),
-        .o_wb_vld          ( wb_vld[intBlock_fuID]         ),
-        .o_wbInfo          ( wbInfo[intBlock_fuID]         )
+        .o_fu_finished          ( fu_finished[intBlock_fuID]         ),
+        .o_comwbInfo          ( comwbInfo[intBlock_fuID]         )
     );
 end
 endgenerate
@@ -417,8 +417,8 @@ if (1) begin : gen_intBlock_IQ0_alu1
         .o_willwrite_data  ( internal_bypass_data[intBlock_fuID]    ),
 
         .i_wb_stall        ( i_wb_stall[intBlock_fuID]     ),
-        .o_wb_vld          ( wb_vld[intBlock_fuID]         ),
-        .o_wbInfo          ( wbInfo[intBlock_fuID]         )
+        .o_fu_finished          ( fu_finished[intBlock_fuID]         ),
+        .o_comwbInfo          ( comwbInfo[intBlock_fuID]         )
     );
 end
 endgenerate
@@ -610,8 +610,8 @@ if (1) begin: gen_intBlock_IQ1_alu2
         .o_willwrite_data  ( internal_bypass_data[intBlock_fuID]    ),
 
         .i_wb_stall        ( i_wb_stall[intBlock_fuID]     ),
-        .o_wb_vld          ( wb_vld[intBlock_fuID]         ),
-        .o_wbInfo          ( wbInfo[intBlock_fuID]         )
+        .o_fu_finished          ( fu_finished[intBlock_fuID]         ),
+        .o_comwbInfo          ( comwbInfo[intBlock_fuID]         )
     );
 end
 endgenerate
@@ -690,8 +690,8 @@ if (1) begin : gen_intBlock_IQ1_alu3
         .o_willwrite_data  ( internal_bypass_data[intBlock_fuID]    ),
 
         .i_wb_stall        ( i_wb_stall[intBlock_fuID]     ),
-        .o_wb_vld          ( wb_vld[intBlock_fuID]         ),
-        .o_wbInfo          ( wbInfo[intBlock_fuID]         )
+        .o_fu_finished          ( fu_finished[intBlock_fuID]         ),
+        .o_comwbInfo          ( comwbInfo[intBlock_fuID]         )
     );
 end
 endgenerate
@@ -712,9 +712,9 @@ endgenerate
 /****************************************************************************************************/
 // others
 /****************************************************************************************************/
-    assign wb_vld[FU_NUM-1:4] = 0;
-    assign o_valwb_info = wbInfo;
-    assign o_wb_vld = wb_vld;
+    assign fu_finished[FU_NUM-1:4] = 0;
+    assign o_comwbInfo = comwbInfo;
+    assign o_fu_finished = fu_finished;
 
     assign o_branchWB_vld = 0;
     assign o_exceptwb_vld = 0;
@@ -732,10 +732,10 @@ endgenerate
             pat1_wb_vld <= 0;
         end
         else begin
-            pat1_wb_vld <= wb_vld;
             for (fa=0;fa<FU_NUM;fa=fa+1) begin
-                pat1_wb_iprdIdx[fa] <= wbInfo[fa].iprd_idx;
-                pat1_wb_data[fa] <= wbInfo[fa].result;
+                pat1_wb_vld[fa] <= fu_finished[fa] && comwbInfo[fa].rd_wen;
+                pat1_wb_iprdIdx[fa] <= comwbInfo[fa].iprd_idx;
+                pat1_wb_data[fa] <= comwbInfo[fa].result;
             end
             pat1_extwb_vld <= i_ext_wb_vec;
             pat1_extwb_iprdIdx <= i_ext_wb_rdIdx;
@@ -752,9 +752,9 @@ endgenerate
             end
             else if (i < FU_NUM*2) begin : gen_elif
                 // internal wb to s1 bypass
-                assign global_bypass_vld[i] = 0;// wb_vld[i - FU_NUM];
-                assign global_bypass_rdIdx[i] = wbInfo[i - FU_NUM].iprd_idx;
-                assign global_bypass_data[i] = wbInfo[i - FU_NUM].result;
+                assign global_bypass_vld[i] = 0;// fu_finished[i - FU_NUM] && comwbInfo[i - FU_NUM].rd_wen;
+                assign global_bypass_rdIdx[i] = comwbInfo[i - FU_NUM].iprd_idx;
+                assign global_bypass_data[i] = comwbInfo[i - FU_NUM].result;
             end
             else if (i < FU_NUM*3) begin : gen_elif
                 // internal wb to s0 bypass
@@ -778,8 +778,8 @@ endgenerate
 
         for (i=0;i<FU_NUM + EXTERNAL_WRITEBACK;i=i+1) begin : gen_for
             if (i < FU_NUM) begin : gen_if
-                assign global_wb_vld[i] = wb_vld[i] && (i < 2);
-                assign global_wb_rdIdx[i] = wbInfo[i].iprd_idx;
+                assign global_wb_vld[i] = fu_finished[i] && comwbInfo[i].rd_wen && (i < 2);
+                assign global_wb_rdIdx[i] = comwbInfo[i].iprd_idx;
             end
             else begin: gen_else
                 assign global_wb_vld[i] = i_ext_wb_vec[i - FU_NUM];
