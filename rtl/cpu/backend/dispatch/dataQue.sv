@@ -158,7 +158,7 @@ module dataQue #(
                 enq_ptr[j] <= (enq_ptr[j] + real_enq_num) < DEPTH ? (enq_ptr[j] + real_enq_num) : (enq_ptr[j] + real_enq_num - DEPTH);
                 if (real_enq_vld[j]) begin
                     vld_bits[enq_ptr[j]] <= true;
-                    buffer[enq_ptr[j]] <= i_enq_data[j];
+                    buffer[enq_ptr[j]] <= enq_data[j];
                 end
                 if ((enq_ptr[j] + real_enq_num) < DEPTH) begin
                 end

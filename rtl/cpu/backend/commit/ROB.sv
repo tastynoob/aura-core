@@ -115,10 +115,10 @@ module ROB(
             };
         end
     endgenerate
-    wire[`WDEF($clog2(`ROB_SIZE))] wb_idx[`WBPORT_NUM];
+    wire[`WDEF($clog2(`ROB_SIZE))] finished_robIdx[`WBPORT_NUM];
     generate
         for(i=0;i<`COMMIT_WIDTH;i=i+1) begin:gen_for
-            assign wb_idx[i] = i_comwbInfo[i].rob_idx.idx;
+            assign finished_robIdx[i] = i_comwbInfo[i].rob_idx.idx;
         end
     endgenerate
     // NOTE: if commited insts has multi fetchblock ends
@@ -152,7 +152,7 @@ module ROB(
         .o_enq_idx        ( enq_idx         ),
         // inst finished
         .i_clear_vld      ( i_fu_finished      ),
-        .i_clear_dqIdx    ( wb_idx    ),
+        .i_clear_dqIdx    ( finished_robIdx    ),
 
         .o_willClear_vld  ( willCommit_vld  ),
         .o_willClear_idx  ( willCommit_idx  ),
@@ -175,6 +175,40 @@ module ROB(
             assign o_read_ftqOffset_data[i] = ftqOffset_buffer[i_read_ftqOffset_idx[i]];
         end
     endgenerate
+
+`ifdef SIMULATION
+    reg[`XDEF] result_buffer[`ROB_SIZE];
+    always_ff @( posedge clk ) begin
+        int fa;
+        for (fa=0;fa<`WBPORT_NUM;fa=fa+1) begin
+            if (i_fu_finished[fa] && i_comwbInfo[fa].rd_wen) begin
+                result_buffer[i_comwbInfo[fa].rob_idx] <= i_comwbInfo[fa].result;
+            end
+        end
+    end
+
+    logic[`WDEF(`COMMIT_WIDTH)] sim_wb_vld;
+    ilrIdx_t sim_wb_idx[`COMMIT_WIDTH];
+    logic[`XDEF] sim_wb_data[`COMMIT_WIDTH];
+    simRegfile u_simRegfile(
+        .clk       ( clk       ),
+        .rst       ( rst       ),
+        .i_wb_vld  ( sim_wb_vld  ),
+        .i_wb_idx  ( sim_wb_idx  ),
+        .i_wb_data ( sim_wb_data )
+    );
+
+    always_comb begin
+        int ca;
+        sim_wb_vld = willCommit_vld;
+        for (ca=0;ca <`COMMIT_WIDTH;ca=ca+1) begin
+            sim_wb_idx[ca] = willCommit_data[ca].ilrd_idx;
+            sim_wb_data[ca] = result_buffer[willCommit_idx[ca]];
+        end
+    end
+
+
+`endif
 
 
 /****************************************************************************************************/

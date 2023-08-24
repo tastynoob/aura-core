@@ -778,7 +778,7 @@ endgenerate
 
         for (i=0;i<FU_NUM + EXTERNAL_WRITEBACK;i=i+1) begin : gen_for
             if (i < FU_NUM) begin : gen_if
-                assign global_wb_vld[i] = fu_finished[i] && comwbInfo[i].rd_wen && (i < 2);
+                assign global_wb_vld[i] = fu_finished[i] && comwbInfo[i].rd_wen && (i < 4);
                 assign global_wb_rdIdx[i] = comwbInfo[i].iprd_idx;
             end
             else begin: gen_else

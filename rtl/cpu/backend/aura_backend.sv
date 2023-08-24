@@ -173,42 +173,6 @@ module aura_backend (
         .o_oldest_data    ( toCtrl_branchwbInfo )
     );
 
-
-`ifdef SIMULATION
-    logic[`WDEF(`WBPORT_NUM)] sim_wb_vld;
-    ilrIdx_t sim_wb_idx[`WBPORT_NUM];
-    logic[`XDEF] sim_wb_data[`WBPORT_NUM];
-
-    always_comb begin
-        int ca,cb;
-        for (ca=0;ca<`WBPORT_NUM;ca=ca+1) begin
-            sim_wb_vld[ca] = toCtrl_fu_finished[ca] && toCtrl_comwbInfo[ca].rd_wen;
-            sim_wb_idx[ca] = 0;
-            for (cb=0;cb<32;cb=cb+1) begin
-                if (specRenameMapping[cb] == toCtrl_comwbInfo[ca].iprd_idx) begin
-                    sim_wb_idx[ca] = cb;
-                end
-            end
-        end
-    end
-    generate
-        for (i=0;i<`WBPORT_NUM;i=i+1) begin : gen_for
-            assign sim_wb_data[i] = toCtrl_comwbInfo[i].result;
-        end
-    endgenerate
-
-    simRegfile u_simRegfile(
-        .clk       ( clk       ),
-        .rst       ( rst       ),
-
-        .i_wb_vld  ( sim_wb_vld  ),
-        .i_wb_idx  ( sim_wb_idx  ),
-        .i_wb_data ( sim_wb_data )
-    );
-
-
-`endif
-
 endmodule
 
 

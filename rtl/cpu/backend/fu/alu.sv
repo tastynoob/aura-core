@@ -101,7 +101,7 @@ module alu (
         end
     end
 
-    assign o_willwrite_vld = saved_fuInfo.rd_wen;
+    assign o_willwrite_vld = saved_vld && saved_fuInfo.rd_wen;
     assign o_willwrite_rdIdx = saved_fuInfo.iprd_idx;
     assign o_willwrite_data = calc_data;
 
