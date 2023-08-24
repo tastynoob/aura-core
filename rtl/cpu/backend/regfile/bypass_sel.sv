@@ -17,7 +17,7 @@ module bypass_sel #(
         o_target_vld=false;
         o_target_data = 0;
         for(j=0;j<WIDTH;j=j+1) begin
-            if (i_src_vld[j] && i_src_idx[j] == i_target_idx) begin
+            if (i_src_vld[j] && (i_src_idx[j] == i_target_idx)) begin
                 temp = temp + 1;
                 o_target_data = i_src_data[j];
                 o_target_vld = true;
