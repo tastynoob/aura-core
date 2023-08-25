@@ -78,12 +78,7 @@ module rat_map #(
                 renamed1_prs_idx[ca][cb] = renamed0_prs_idx[ca][cb];
             end
 
-            // rename dest
-            if ((PHYREG_TYPE==0) && i_ismv[ca]) begin
-                renamed_prd_idx[ca] = renamed1_prs_idx[ca][0];
-            end else begin
-                renamed_prd_idx[ca] = i_alloc_prd_idx[ca];
-            end
+            renamed_prd_idx[ca] = i_alloc_prd_idx[ca];
 
             for(int ck=0;ck<ca;ck=ck+1) begin
                 for(cb=0;cb<NUMSRCS;cb=cb+1) begin
@@ -92,6 +87,11 @@ module rat_map #(
                     end
                 end
             end
+            // rename dest
+            if ((PHYREG_TYPE==0) && i_ismv[ca]) begin
+                renamed_prd_idx[ca] = renamed1_prs_idx[ca][0];
+            end
+
             o_renamed_prd_idx = renamed_prd_idx;
         end
     end
@@ -211,18 +211,28 @@ module rat_map #(
         // second cycle: compute which prd need to be released
         logic[`WDEF(COMMIT_WID)] bits_dealloc;
         iprIdx_t real_dealloc_iprd[COMMIT_WID];
-
+        logic[`WDEF(32)] temp0[COMMIT_WID];
+        logic[`WDEF(COMMIT_WID)] temp1;
         always_comb begin
             int ca,cb;
-            for(ca=0;ca<COMMIT_WID;ca=ca+1) begin
-                bits_dealloc[ca] = true;
-                for(cb=0;cb<COMMIT_WID;cb=cb+1) begin
-                    if ((arch_prevRenamed_prd_idx_saved[ca] == arch_mapping[arch_commit_ilrd_idx_saved[ca]]) ||
-                        (arch_commit_ilrd_idx_saved[ca] == 0) ||
-                        (arch_prevRenamed_prd_idx_saved[ca] == arch_prevRenamed_prd_idx_saved[ca])) begin
-                        bits_dealloc[ca] = false;
+            for (ca=0; ca<COMMIT_WID; ca=ca+1) begin
+                temp0[ca] = 0;
+                temp1[ca] = 0;
+                if (arch_prevRenamed_prd_idx_saved[ca] == 0) begin
+                    temp0[ca][0] = 1;
+                end
+                for (cb=1; cb<32; cb=cb+1) begin
+                    if (arch_prevRenamed_prd_idx_saved[ca] == arch_mapping[cb]) begin
+                        temp0[ca][cb] = 1;
                     end
                 end
+                //deduplication
+                for (cb=0; cb<ca; cb=cb+1) begin
+                    if (arch_prevRenamed_prd_idx_saved[ca] == arch_prevRenamed_prd_idx_saved[cb]) begin
+                        temp1[ca] = 1;
+                    end
+                end
+                bits_dealloc[ca] = ~((|temp0[ca]) || temp1[ca]);
                 if (bits_dealloc[ca]) begin
                     real_dealloc_iprd[ca] = arch_prevRenamed_prd_idx_saved[ca];
                 end

@@ -294,7 +294,7 @@ module decoder (
     0;
 
     wire isnop = (isIntMath) && (ilrd_idx == 0);
-    wire ismv = ((inst_ADDI) && (ilrd_idx == ilrs1_idx) && (imm == 0)) || ((inst_ADD) && (ilrd_idx == ilrs1_idx) && (ilrs2_idx == 0));
+    wire ismv = ((inst_ADDI) && (imm == 0)) || ((inst_ADD) && (ilrs2_idx == 0));
 
     /********************************************************/
     //regfile write enable

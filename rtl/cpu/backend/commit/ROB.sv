@@ -204,6 +204,9 @@ module ROB(
         for (ca=0;ca <`COMMIT_WIDTH;ca=ca+1) begin
             sim_wb_idx[ca] = willCommit_data[ca].ilrd_idx;
             sim_wb_data[ca] = result_buffer[willCommit_idx[ca]];
+            if (willCommit_data[ca].ismv) begin
+                sim_wb_data[ca] = 64'haaaaaaaaaaaaaaaa;
+            end
         end
     end
 

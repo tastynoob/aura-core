@@ -164,6 +164,7 @@ module issueQue #(
                         buffer[i_feedback_idx[fa]].src_spec_rdy <= buffer[i_feedback_idx[fa]].src_rdy;
                     end
                 end
+                //FIXME: seed: 592
                 assert(SINGLEEXE ? !(|i_issue_replay_vec) : 1);
             end
         end
