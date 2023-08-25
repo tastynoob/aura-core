@@ -30,6 +30,9 @@ module FTQ (
     input wire i_squash_vld,
     input squashInfo_t i_squashInfo,
 
+    input wire i_stall,
+    input ftqIdx_t i_recovery_idx,
+
     // from BPU
     input wire i_pred_req,
     output wire o_ftq_rdy,
@@ -80,7 +83,7 @@ module FTQ (
 /****************************************************************************************************/
 
     wire do_commit = (commit_ptr != commit_ptr_thre);
-    wire do_fetch = (count != 0) && (fetch_ptr != pred_ptr);
+    wire do_fetch = (count != 0) && (fetch_ptr != pred_ptr) && (!i_stall);
     wire need_update_ftb = buffer_metaInfo[commit_ptr].hit_on_ftb || buffer_branchInfo[commit_ptr].mispred;
 
     always_ff @( posedge clk ) begin
@@ -102,6 +105,9 @@ module FTQ (
 
             if (do_fetch && i_icache_fetch_rdy) begin
                 fetch_ptr <= (fetch_ptr == `FTQ_SIZE - 1) ? 0 : fetch_ptr + 1;
+            end
+            else if (i_stall) begin
+                fetch_ptr <= i_recovery_idx;
             end
 
             if (i_commit_vld) begin

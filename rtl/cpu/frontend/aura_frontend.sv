@@ -25,7 +25,7 @@ module aura_frontend (
     output wire[`XDEF] o_read_ftqNextAddr[`BRU_NUM],
 
     // to backend
-    input wire i_backend_rdy,
+    input wire i_backend_stall,
     output wire[`WDEF(`FETCH_WIDTH)] o_fetch_inst_vld,
     output fetchEntry_t o_fetch_inst[`FETCH_WIDTH],
 
@@ -54,7 +54,7 @@ module aura_frontend (
         .o_read_ftqStartAddr ( o_read_ftqStartAddr         ),
         .o_read_ftqNextAddr  ( o_read_ftqNextAddr         ),
 
-        .i_backend_rdy       ( i_backend_rdy        ),
+        .i_backend_stall       ( i_backend_stall        ),
         .o_fetch_inst_vld    ( o_fetch_inst_vld         ),
         .o_fetch_inst        ( o_fetch_inst         ),
 

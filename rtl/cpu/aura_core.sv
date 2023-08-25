@@ -47,7 +47,7 @@ module aura_core (
         .o_read_ftqStartAddr ( read_ftqStartAddr ),
         .o_read_ftqNextAddr  ( read_ftqNextAddr  ),
 
-        .i_backend_rdy       ( !backend_stall    ),
+        .i_backend_stall     ( backend_stall    ),
         .o_fetch_inst_vld    ( fetch_inst_vld    ),
         .o_fetch_inst        ( fetch_inst        ),
 

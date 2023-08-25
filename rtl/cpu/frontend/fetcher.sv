@@ -25,7 +25,7 @@ module fetcher (
     output wire[`XDEF] o_read_ftqNextAddr[`BRU_NUM],
 
     // to backend
-    input wire i_backend_rdy,
+    input wire i_backend_stall,
     output wire[`WDEF(`FETCH_WIDTH)] o_fetch_inst_vld,
     output fetchEntry_t o_fetch_inst[`FETCH_WIDTH],
 
@@ -69,12 +69,16 @@ module fetcher (
     wire toFTQ_icache_rdy;
     ftq2icacheInfo_t toIcache_info;
 
+    ftqIdx_t stall_recovery_ftqIdx;
     FTQ u_FTQ(
         .clk                    ( clk ),
         .rst                    ( rst ),
 
         .i_squash_vld           ( i_squash_vld ),
         .i_squashInfo           ( i_squashInfo ),
+
+        .i_stall                ( i_backend_stall  ),
+        .i_recovery_idx         ( stall_recovery_ftqIdx  ),
 
         .i_pred_req             ( toFTQ_pred_vld     ),
         .o_ftq_rdy              ( toBPU_ftq_rdy      ),
@@ -115,6 +119,7 @@ module fetcher (
     reg[`XDEF] s1_startAddr;
     reg[`WDEF($clog2(`FTB_PREDICT_WIDTH))] s1_fetchblock_size;
 
+    reg s2_fetch_vld;
     ftqIdx_t s2_ftqIdx;
     reg[`WDEF($clog2(`CACHELINE_SIZE))] s2_start_shift;
     reg[`WDEF($clog2(`FTB_PREDICT_WIDTH))] s2_end_offset;
@@ -134,6 +139,7 @@ module fetcher (
         if (rst) begin
             new_inst_vld <= 0;
             s1_fetch_vld <= 0;
+            s2_fetch_vld <= 0;
             stall_dueto_pcUnaligned <= 0;
         end
         else begin
@@ -147,23 +153,31 @@ module fetcher (
 
             // s2: icache output 2 cachelines
             if (s1_fetch_vld && if_core_fetch.gnt) begin
-                s2_ftqIdx <= s1_ftqIdx;
+                s2_fetch_vld <= s1_fetch_vld && (!i_backend_stall);
+                if (!i_backend_stall) begin
+                    s2_ftqIdx <= s1_ftqIdx;
+                end
                 s2_start_shift <= s1_startAddr[$clog2(`CACHELINE_SIZE)-1:0];
                 s2_end_offset <= s1_fetchblock_size;
             end
+
             // s3: cacheline shift and align, generate new fetchEntry
-            new_inst_vld <= stall_dueto_pcUnaligned ? 1 : (if_core_fetch.rsp ? reordered_inst_OH : 0);
-            for (fa = 0; fa < `FETCH_WIDTH; fa=fa+1) begin
-                new_inst[fa] <= '{
-                    inst        : reordered_insts[fa],
-                    ftq_idx     : s2_ftqIdx,
-                    ftqOffset   : reordered_ftqOffset[fa],
-                    has_except  : stall_dueto_pcUnaligned,
-                    except      : rv_trap_t::pcUnaligned
-                };
+            if (!i_backend_stall) begin
+                new_inst_vld <= stall_dueto_pcUnaligned ? 1 : ((if_core_fetch.rsp && s2_fetch_vld) ? reordered_inst_OH : 0);
+                for (fa = 0; fa < `FETCH_WIDTH; fa=fa+1) begin
+                    new_inst[fa] <= '{
+                        inst        : reordered_insts[fa],
+                        ftq_idx     : s2_ftqIdx,
+                        ftqOffset   : reordered_ftqOffset[fa],
+                        has_except  : stall_dueto_pcUnaligned,
+                        except      : rv_trap_t::pcUnaligned
+                    };
+                end
             end
         end
     end
+
+    assign stall_recovery_ftqIdx = s2_ftqIdx;
 
     generate
         for(i=0; i < `FTB_PREDICT_WIDTH/2; i=i+1) begin:gen_for
