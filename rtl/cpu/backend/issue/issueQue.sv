@@ -4,7 +4,6 @@
 typedef struct {
     logic vld; //unused in compressed RS
     logic issued; // flag issued
-    logic spec_wakeup; // flag spec wakeup
     logic[`WDEF(`NUMSRCS_INT)] src_rdy; // which src is ready
     logic[`WDEF(`NUMSRCS_INT)] src_spec_rdy; // which src is speculative ready
 
@@ -164,7 +163,7 @@ module issueQue #(
                         buffer[i_feedback_idx[fa]].src_spec_rdy <= buffer[i_feedback_idx[fa]].src_rdy;
                     end
                 end
-                //FIXME: seed: 592
+                //FIXME: seed: 126
                 assert(SINGLEEXE ? !(|i_issue_replay_vec) : 1);
             end
         end

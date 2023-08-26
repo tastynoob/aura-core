@@ -200,7 +200,7 @@ module ROB(
 
     always_comb begin
         int ca;
-        sim_wb_vld = willCommit_vld;
+        sim_wb_vld = canCommit_vld;
         for (ca=0;ca <`COMMIT_WIDTH;ca=ca+1) begin
             sim_wb_idx[ca] = willCommit_data[ca].ilrd_idx;
             sim_wb_data[ca] = result_buffer[willCommit_idx[ca]];
@@ -283,16 +283,16 @@ module ROB(
 
         for(i=0;i<`COMMIT_WIDTH;i=i+1) begin:gen_for
             if (i==0) begin:gen_if
-                assign temp_0[i] = willCommit_vld[i];
+                assign temp_0[i] = willCommit_vld[i] && (!bmhr.mispred);
             end
             else begin:gen_else
-                assign temp_0[i] = willCommit_vld[i] && (willCommit_idx[i-1] != bmhr.rob_idx.idx) && temp_0[i-1];
+                assign temp_0[i] = willCommit_vld[i] && temp_0[i-1] && (bmhr.mispred ? (willCommit_idx[i-1] != bmhr.rob_idx.idx) : 1);
             end
-            assign temp_1[i] = willCommit_vld[i] && (willCommit_idx[i] == bmhr.rob_idx.idx);
+            assign temp_1[i] = willCommit_vld[i] && (willCommit_idx[i] == bmhr.rob_idx.idx) && bmhr.mispred;
         end
         `ASSERT(count_one(temp_1) <= 1);
     endgenerate
-    assign has_mispred = (|temp_1) && bmhr.mispred;
+    assign has_mispred = (|temp_1);
 
 
 /****************************************************************************************************/
@@ -337,17 +337,17 @@ module ROB(
         wire[`WDEF(`COMMIT_WIDTH)] temp_3;// 0 | 1(has_except) | 0 | 0
         for(i=0;i<`COMMIT_WIDTH;i=i+1) begin:gen_for
             if (i==0) begin :gen_if
-                assign temp_2[i] = willCommit_vld[i] && (willCommit_idx[i] != ehr.rob_idx.idx);
+                assign temp_2[i] = willCommit_vld[i] && (ehr.has_except ? (willCommit_idx[i] != ehr.rob_idx.idx) : 1);
             end
             else begin:gen_else
-                assign temp_2[i] = willCommit_vld[i] && (willCommit_idx[i] != ehr.rob_idx.idx) && temp_2[i-1];
+                assign temp_2[i] = willCommit_vld[i] && temp_2[i-1] && (ehr.has_except ? (willCommit_idx[i] != ehr.rob_idx.idx) : 1);
             end
-            assign temp_3[i] = willCommit_vld[i] && (willCommit_idx[i] == ehr.rob_idx.idx);
+            assign temp_3[i] = willCommit_vld[i] && (willCommit_idx[i] == ehr.rob_idx.idx) && ehr.has_except;
         end
         `ASSERT(count_one(temp_3) <= 1);
     endgenerate
     // mispred robIdx > except robIdx
-    assign has_except = (|temp_3) && ehr.has_except && (temp_3 < temp_1);
+    assign has_except = (|temp_3) && (temp_3 < temp_1);
     `ASSERT ((temp_3 != temp_1) || ((temp_3 == 0) && (temp_1 == 0)));
 
     assign canCommit_vld = has_except ? temp_2 : temp_0;

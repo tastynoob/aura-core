@@ -395,7 +395,7 @@ if (1) begin : gen_intBlock_IQ0_alu1
         use_imm : s1_IQ0_inst_info[IQ0_fuID].use_imm,
         rd_wen : s1_IQ0_inst_info[IQ0_fuID].rd_wen,
         iprd_idx : s1_IQ0_inst_info[IQ0_fuID].iprd_idx,
-        srcs : {// FIXME: regfile read data is zero
+        srcs : {
             alu_bypass_vld[0] ? alu_bypass_data[0] : i_iprs_data[intBlock_fuID][0],
             s1_IQ0_inst_info[IQ0_fuID].use_imm ? s1_irob_imm[intBlock_fuID] : (alu_bypass_vld[1] ? alu_bypass_data[1] : i_iprs_data[intBlock_fuID][1])
         },// need bypass
@@ -676,7 +676,7 @@ if (1) begin : gen_intBlock_IQ1_alu3
         micOp : s1_IQ1_inst_info[IQ1_fuID].micOp_type
     };
 
-    //fu1
+    //fu3
     alu u_alu(
         .clk               ( clk                ),
         .rst               ( rst                ),
@@ -746,19 +746,20 @@ endgenerate
     generate
         for(i=0; i<FU_NUM * 3 + EXTERNAL_WRITEBACK * 2; i=i+1) begin : gen_for
             if (i < FU_NUM) begin : gen_if
+                // back to back bypass
                 assign global_bypass_vld[i] = internal_bypass_wb_vld[i] && (i < 4);
                 assign global_bypass_rdIdx[i] = internal_bypass_iprdIdx[i];
                 assign global_bypass_data[i] = internal_bypass_data[i];
             end
             else if (i < FU_NUM*2) begin : gen_elif
                 // internal wb to s1 bypass
-                assign global_bypass_vld[i] = 0;// fu_finished[i - FU_NUM] && comwbInfo[i - FU_NUM].rd_wen;
+                assign global_bypass_vld[i] = fu_finished[i - FU_NUM] && comwbInfo[i - FU_NUM].rd_wen;
                 assign global_bypass_rdIdx[i] = comwbInfo[i - FU_NUM].iprd_idx;
                 assign global_bypass_data[i] = comwbInfo[i - FU_NUM].result;
             end
             else if (i < FU_NUM*3) begin : gen_elif
                 // internal wb to s0 bypass
-                assign global_bypass_vld[i] = 0;// pat1_wb_vld[i - FU_NUM*2];
+                assign global_bypass_vld[i] = pat1_wb_vld[i - FU_NUM*2];
                 assign global_bypass_rdIdx[i] = pat1_wb_iprdIdx[i - FU_NUM*2];
                 assign global_bypass_data[i] = pat1_wb_data[i - FU_NUM*2];
             end
@@ -778,7 +779,7 @@ endgenerate
 
         for (i=0;i<FU_NUM + EXTERNAL_WRITEBACK;i=i+1) begin : gen_for
             if (i < FU_NUM) begin : gen_if
-                assign global_wb_vld[i] = fu_finished[i] && comwbInfo[i].rd_wen && (i < 4);
+                assign global_wb_vld[i] = fu_finished[i] && comwbInfo[i].rd_wen;
                 assign global_wb_rdIdx[i] = comwbInfo[i].iprd_idx;
             end
             else begin: gen_else

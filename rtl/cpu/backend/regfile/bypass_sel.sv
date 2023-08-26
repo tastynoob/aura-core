@@ -14,10 +14,11 @@ module bypass_sel #(
     always_comb begin
         int j,temp;
         temp=0;
-        o_target_vld=false;
+        o_target_vld = 0;
         o_target_data = 0;
         for(j=0;j<WIDTH;j=j+1) begin
             if (i_src_vld[j] && (i_src_idx[j] == i_target_idx)) begin
+                assert (i_src_idx[j] != 0);
                 temp = temp + 1;
                 o_target_data = i_src_data[j];
                 o_target_vld = true;

@@ -27,7 +27,6 @@ module alu (
     always_ff @( posedge clk ) begin : blockName
         if (rst==true) begin
             saved_vld <= 0;
-            saved_fuInfo.rd_wen <= 0;
         end
         else if (!i_wb_stall) begin
             saved_vld <= i_vld;
@@ -88,7 +87,6 @@ module alu (
     always_ff @(posedge clk) begin
         if (rst) begin
             fu_finished <= 0;
-            comwbInfo.rd_wen <= false;
         end
         else if (!i_wb_stall) begin
             fu_finished <= saved_vld;

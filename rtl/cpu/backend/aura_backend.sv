@@ -156,8 +156,8 @@ module aura_backend (
     generate
         for(i=0;i<`IMMBUFFER_CLEARPORT_NUM;i=i+1) begin:gen_for
             // NOTE: toCtrl_fu_finished[`ALU_NUM-1:0] is must be alu's wbInfo
-            assign toCtrl_clear_irob_idx[i] = toCtrl_comwbInfo[i].irob_idx;
             assign toCtrl_clear_irob_vld[i] = toCtrl_fu_finished[i] && toCtrl_comwbInfo[i].use_imm;
+            assign toCtrl_clear_irob_idx[i] = toCtrl_comwbInfo[i].irob_idx;
         end
     endgenerate
 

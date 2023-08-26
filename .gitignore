@@ -3,3 +3,4 @@ slpp_all
 *.dot*
 *.vcd
 temp.v
+log.txt

@@ -116,10 +116,9 @@ module FTB_sram #(
             s1_req <= sram_read_req;
             s1_access_addr <= access_addr;
 
-            // set default value
             for(fa=0;fa<WAYS;fa=fa+1) begin
                 if (s1_req_hit[fa]) begin
-                    s2_lookup_info <= read_data[fa];
+                    s2_lookup_info <= read_data[fa].info;
                 end
             end
         end

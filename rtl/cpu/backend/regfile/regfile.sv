@@ -30,7 +30,7 @@ module regfile #(
     genvar i;
     generate
         if (HAS_ZERO != 0) begin:gen_has_zero
-            reg[`XDEF] buffer[1:SIZE];
+            reg[`XDEF] buffer[1:SIZE-1];
             reg[`WDEF(SIZE)] rdy_bit;
             logic[`WDEF(SIZE)] rdy_bit_bypass;
 
@@ -40,16 +40,12 @@ module regfile #(
                     rdy_bit <= 0;
                 end
                 else begin
-                    for (fa=0;fa<`RENAME_WIDTH;fa=fa+1) begin
-                        if (i_notready_mark[fa]) begin
-                            rdy_bit[i_notready_iprIdx[fa]] <= 0;
+                    rdy_bit <= rdy_bit_bypass;
+                    for (fa=0;fa<WBPORT_NUM;fa=fa+1) begin
+                        if (i_write_en[fa]) begin
+                            buffer[i_write_idx[fa]] <= i_write_data[fa];
+                            assert (rdy_bit[i_write_idx[fa]] == 0);
                         end
-                    end
-                end
-                for (fa=0;fa<WBPORT_NUM;fa=fa+1) begin
-                    if (i_write_en[fa]) begin
-                        buffer[i_write_idx[fa]] <= i_write_data[fa];
-                        rdy_bit[i_write_idx[fa]] <= 1;
                     end
                 end
             end
@@ -57,25 +53,31 @@ module regfile #(
             always_comb begin
                 int ca;
                 rdy_bit_bypass = rdy_bit;
+                for (ca=0;ca<`RENAME_WIDTH;ca=ca+1) begin
+                    if (i_notready_mark[ca]) begin
+                        rdy_bit_bypass[i_notready_iprIdx[ca]] = 0;
+                    end
+                end
                 for(ca=0;ca<WBPORT_NUM;ca=ca+1) begin
                     if (i_write_en[ca]) begin
                         rdy_bit_bypass[i_write_idx[ca]] = 1;
                     end
                 end
             end
+
             reg[`XDEF] read_data[READPORT_NUM];
             reg[`WDEF(READPORT_NUM)] data_rdy;
             always_ff @( posedge clk ) begin
                 int fa;
                 for (fa=0;fa<READPORT_NUM;fa=fa+1) begin
                     read_data[fa] <= (i_read_idx[fa] == 0) ? 0 : buffer[i_read_idx[fa]];
-                    data_rdy[fa] <= (i_read_idx[fa] == 0) ? 1 : rdy_bit_bypass[i_read_idx[fa]];
+                    data_rdy[fa] <= (i_read_idx[fa] == 0) ? 1 : rdy_bit[i_read_idx[fa]];
                 end
             end
 
             assign o_read_data = read_data;
             assign o_data_rdy = data_rdy;
-
+            // disp to IQ
             for (i=0;i<`RENAME_WIDTH * `NUMSRCS_INT;i=i+1) begin:gen_for
                 assign o_disp_check_iprs_vld[i/2][i%2] = (i_disp_check_iprsIdx[i] == 0) ? 1 : rdy_bit_bypass[i_disp_check_iprsIdx[i]];
             end
