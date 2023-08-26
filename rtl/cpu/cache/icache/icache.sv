@@ -37,7 +37,7 @@ module icache #(
             // s1: read sram
             s1_req <= if_core_fetch.req;
             s1_get2 <= if_core_fetch.get2;
-            s1_addr <= if_core_fetch.addr & 32'hfffff;
+            s1_addr <= if_core_fetch.addr & 52'hfffffffffffff;
 
             if_core_fetch.rsp <= s1_req;
         end

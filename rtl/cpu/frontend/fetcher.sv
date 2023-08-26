@@ -144,10 +144,12 @@ module fetcher (
         end
         else begin
             // s1
-            s1_fetch_vld <= toIcache_req && (!pcUnaligned) && if_core_fetch.gnt;
+            s1_fetch_vld <= toIcache_req && (!pcUnaligned) && if_core_fetch.gnt && (!i_backend_stall);
             stall_dueto_pcUnaligned <= toIcache_req ? pcUnaligned : 0;
+            if (!i_backend_stall) begin
+                s1_ftqIdx <= toIcache_ftqIdx;
+            end
 
-            s1_ftqIdx <= toIcache_ftqIdx;
             s1_startAddr <= toIcache_info.startAddr;
             s1_fetchblock_size <= toIcache_info.fetchBlock_size;
 
@@ -177,7 +179,7 @@ module fetcher (
         end
     end
 
-    assign stall_recovery_ftqIdx = s2_ftqIdx;
+    assign stall_recovery_ftqIdx = s2_fetch_vld ? s2_ftqIdx : s1_fetch_vld ? s1_ftqIdx : toIcache_ftqIdx;
 
     generate
         for(i=0; i < `FTB_PREDICT_WIDTH/2; i=i+1) begin:gen_for

@@ -84,7 +84,7 @@ module FTQ (
 
     wire do_commit = (commit_ptr != commit_ptr_thre);
     wire do_fetch = (count != 0) && (fetch_ptr != pred_ptr) && (!i_stall);
-    wire need_update_ftb = buffer_metaInfo[commit_ptr].hit_on_ftb || buffer_branchInfo[commit_ptr].mispred;
+    wire need_update_ftb = (buffer_metaInfo[commit_ptr].hit_on_ftb || buffer_branchInfo[commit_ptr].mispred) && do_commit;
 
     always_ff @( posedge clk ) begin
         if (rst) begin
@@ -95,9 +95,7 @@ module FTQ (
             count <= 0;
         end
         else begin
-            if (notFull) begin
-                count <= count + i_pred_req - (do_commit & (need_update_ftb ? i_bpu_update_finished : 1));
-            end
+            count <= count + (i_pred_req & notFull) - (do_commit & (need_update_ftb ? i_bpu_update_finished : 1));
 
             if (i_pred_req && notFull) begin
                 pred_ptr <= (pred_ptr == `FTQ_SIZE - 1) ? 0 : pred_ptr + 1;
@@ -124,7 +122,7 @@ module FTQ (
             // do commit
             // TODO: make commit and ftb commit separate
             if (commit_ptr != commit_ptr_thre) begin
-                if (i_bpu_update_finished) begin
+                if (need_update_ftb ? i_bpu_update_finished : 1) begin
                     commit_ptr <= (commit_ptr == `FTQ_SIZE - 1) ? 0 : commit_ptr + 1;
                 end
             end

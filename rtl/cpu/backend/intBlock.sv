@@ -98,7 +98,7 @@ module intBlock #(
                     .o_sum ( IQ0_has_selected_num )
                 );
                 // IQ1 current has selected
-                wire[`WDEF($clog2(i))] IQ1_has_selected_num;
+                wire[`SDEF(i)] IQ1_has_selected_num;
                 count_one
                 #(
                     .WIDTH ( i )
@@ -114,6 +114,8 @@ module intBlock #(
         end
     endgenerate
 
+    `ASSERT(funcs::count_one(select_toIQ0) <= 2);
+    `ASSERT(funcs::count_one(select_toIQ1) <= 2);
     `ASSERT((select_toIQ0 & select_toIQ1) == 0);
     `ORDER_CHECK((select_toIQ0 | select_toIQ1));
 
@@ -275,7 +277,7 @@ if (1) begin: gen_intBlock_IQ0_alu0
     wire[`WDEF(`NUMSRCS_INT)] alu_bypass_vld;
     wire[`XDEF] alu_bypass_data[`NUMSRCS_INT];
 
-    assign IQ0_issue_finished[IQ0_fuID] = s1_IQ0_inst_vld[IQ0_fuID] && ((i_iprs_ready[intBlock_fuID] | alu_bypass_vld | {s1_IQ0_inst_info[IQ0_fuID].use_imm, 1'b1}) == 2'b11);
+    assign IQ0_issue_finished[IQ0_fuID] = s1_IQ0_inst_vld[IQ0_fuID] && ((i_iprs_ready[intBlock_fuID] | alu_bypass_vld | {s1_IQ0_inst_info[IQ0_fuID].use_imm, 1'b0}) == 2'b11);
     assign IQ0_issue_failed[IQ0_fuID] = s1_IQ0_inst_vld[IQ0_fuID] && (!IQ0_issue_finished[IQ0_fuID]);
     assign IQ0_issue_iqIdx[IQ0_fuID] = s1_IQ0_inst_iqIdx[IQ0_fuID];
 
@@ -355,7 +357,7 @@ if (1) begin : gen_intBlock_IQ0_alu1
     wire[`WDEF(`NUMSRCS_INT)] alu_bypass_vld;
     wire[`XDEF] alu_bypass_data[`NUMSRCS_INT];
 
-    assign IQ0_issue_finished[IQ0_fuID] = s1_IQ0_inst_vld[IQ0_fuID] && ((i_iprs_ready[intBlock_fuID] | alu_bypass_vld | {s1_IQ0_inst_info[IQ0_fuID].use_imm, 1'b1}) == 2'b11);
+    assign IQ0_issue_finished[IQ0_fuID] = s1_IQ0_inst_vld[IQ0_fuID] && ((i_iprs_ready[intBlock_fuID] | alu_bypass_vld | {s1_IQ0_inst_info[IQ0_fuID].use_imm, 1'b0}) == 2'b11);
     assign IQ0_issue_failed[IQ0_fuID] = s1_IQ0_inst_vld[IQ0_fuID] && (!IQ0_issue_finished[IQ0_fuID]);
     assign IQ0_issue_iqIdx[IQ0_fuID] = s1_IQ0_inst_iqIdx[IQ0_fuID];
 
@@ -548,7 +550,7 @@ if (1) begin: gen_intBlock_IQ1_alu2
     wire[`WDEF(`NUMSRCS_INT)] alu_bypass_vld;
     wire[`XDEF] alu_bypass_data[`NUMSRCS_INT];
 
-    assign IQ1_issue_finished[IQ1_fuID] = s1_IQ1_inst_vld[IQ1_fuID] && ((i_iprs_ready[intBlock_fuID] | alu_bypass_vld | {s1_IQ1_inst_info[IQ1_fuID].use_imm, 1'b1}) == 2'b11);
+    assign IQ1_issue_finished[IQ1_fuID] = s1_IQ1_inst_vld[IQ1_fuID] && ((i_iprs_ready[intBlock_fuID] | alu_bypass_vld | {s1_IQ1_inst_info[IQ1_fuID].use_imm, 1'b0}) == 2'b11);
     assign IQ1_issue_failed[IQ1_fuID] = s1_IQ1_inst_vld[IQ1_fuID] && (!IQ1_issue_finished[IQ1_fuID]);
     assign IQ1_issue_iqIdx[IQ1_fuID] = s1_IQ1_inst_iqIdx[IQ1_fuID];
 
@@ -628,7 +630,7 @@ if (1) begin : gen_intBlock_IQ1_alu3
     wire[`WDEF(`NUMSRCS_INT)] alu_bypass_vld;
     wire[`XDEF] alu_bypass_data[`NUMSRCS_INT];
 
-    assign IQ1_issue_finished[IQ1_fuID] = s1_IQ1_inst_vld[IQ1_fuID] && ((i_iprs_ready[intBlock_fuID] | alu_bypass_vld | {s1_IQ1_inst_info[IQ1_fuID].use_imm, 1'b1}) == 2'b11);
+    assign IQ1_issue_finished[IQ1_fuID] = s1_IQ1_inst_vld[IQ1_fuID] && ((i_iprs_ready[intBlock_fuID] | alu_bypass_vld | {s1_IQ1_inst_info[IQ1_fuID].use_imm, 1'b0}) == 2'b11);
     assign IQ1_issue_failed[IQ1_fuID] = s1_IQ1_inst_vld[IQ1_fuID] && (!IQ1_issue_finished[IQ1_fuID]);
     assign IQ1_issue_iqIdx[IQ1_fuID] = s1_IQ1_inst_iqIdx[IQ1_fuID];
 
