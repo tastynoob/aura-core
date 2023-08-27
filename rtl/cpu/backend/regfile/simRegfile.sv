@@ -17,6 +17,7 @@ module simRegfile (
 
     reg[`XDEF] regfile[32];
     logic[`XDEF] regfile_temp[32];
+    reg[`XDEF] clk_count;
 
     always_comb begin
         int ca;
@@ -34,12 +35,15 @@ module simRegfile (
             for(fa=0;fa<32;fa=fa+1) begin
                 regfile[fa] = 0;
             end
+            clk_count <= 0;
         end
         else begin
             regfile <= regfile_temp;
+            clk_count <= clk_count + 1;
         end
     end
 `SET_TRACE_ON
+    wire[`XDEF] A_clk_count = clk_count;
     wire[`XDEF] x0_zero = 0;
     wire[`XDEF] x1_ra = regfile_temp[1];
     wire[`XDEF] x2_sp = regfile_temp[2];

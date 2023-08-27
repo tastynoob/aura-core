@@ -28,7 +28,6 @@
 `define UNKOWNBLOCK_ID 3
 
 // issue
-
 //used for dispQue into RS
 `define ALUIQ_ID 0
 `define BRUIQ_ID 1
@@ -50,17 +49,12 @@
 
 
 //int physical register num
-
-
 //the int Inst needs at least 2 srcs
 `define NUMSRCS_INT 2
 
 // cache region fast define
 `define BLKDEF `WDEF(`XLEN - $clog2(`CACHELINE_SIZE))
 `define BLK_RANGE `XLEN - 1 : $clog2(`CACHELINE_SIZE)
-
-
-
 
 //int logic register index def
 `define ILRIDX_DEF `WDEF($clog2(32))

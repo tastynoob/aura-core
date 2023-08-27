@@ -145,10 +145,15 @@ module intBlock #(
     wire[`XDEF] internal_bypass_data[FU_NUM];
 
     imm_t s1_irob_imm[`ALU_NUM];
-
     always_ff @( posedge clk ) begin
         s1_irob_imm <= i_imm_data;
     end
+
+    wire[`WDEF(2)] IQ0_export_wake_vld;
+    iprIdx_t IQ0_export_wake_rdIdx[2];
+
+    wire[`WDEF(2)] IQ1_export_wake_vld;
+    iprIdx_t IQ1_export_wake_rdIdx[2];
 
 /****************************************************************************************************/
 // IQ0: 1x(alu+scu) + 1x(alu)
@@ -187,8 +192,9 @@ module intBlock #(
     wire[`WDEF($clog2(16))] IQ0_issue_iqIdx[2];
 
     // IQ0 external wakeup from IQ1(2xalu+2xbru)
-    wire[`WDEF(2)] IQ0_ext_wake_vld = i_ext_wake_vec;
-    iprIdx_t IQ0_ext_wake_rdIdx[2] = i_ext_wake_rdIdx;
+    wire[`WDEF(2)] IQ0_ext_wake_vld = IQ1_export_wake_vld;
+    iprIdx_t IQ0_ext_wake_rdIdx[2];
+    assign IQ0_ext_wake_rdIdx = IQ1_export_wake_rdIdx;
 
     issueQue
     #(
@@ -217,8 +223,8 @@ module intBlock #(
         .i_issue_replay_vec    ( IQ0_issue_failed   ),
         .i_feedback_idx        ( IQ0_issue_iqIdx    ),
 
-        .o_export_wakeup_vld   (    ),
-        .o_export_wakeup_rdIdx (    ),
+        .o_export_wakeup_vld   ( IQ0_export_wake_vld   ),
+        .o_export_wakeup_rdIdx ( IQ0_export_wake_rdIdx   ),
 
         .i_ext_wakeup_vld      ( IQ0_ext_wake_vld  ),
         .i_ext_wakeup_rdIdx    ( IQ0_ext_wake_rdIdx   ),
@@ -461,8 +467,9 @@ endgenerate
     wire[`WDEF($clog2(16))] IQ1_issue_iqIdx[2];
 
     // IQ1 external wakeup from IQ1(2xalu+2xbru)
-    wire[`WDEF(2)] IQ1_ext_wake_vld = i_ext_wake_vec;
-    iprIdx_t IQ1_ext_wake_rdIdx[2] = i_ext_wake_rdIdx;
+    wire[`WDEF(2)] IQ1_ext_wake_vld = IQ0_export_wake_vld;
+    iprIdx_t IQ1_ext_wake_rdIdx[2];
+    assign IQ1_ext_wake_rdIdx = IQ0_export_wake_rdIdx;
 
     issueQue
     #(
@@ -491,8 +498,8 @@ endgenerate
         .i_issue_replay_vec    ( IQ1_issue_failed   ),
         .i_feedback_idx        ( IQ1_issue_iqIdx    ),
 
-        .o_export_wakeup_vld   (    ),
-        .o_export_wakeup_rdIdx (    ),
+        .o_export_wakeup_vld   ( IQ1_export_wake_vld   ),
+        .o_export_wakeup_rdIdx ( IQ1_export_wake_rdIdx   ),
 
         .i_ext_wakeup_vld      ( IQ1_ext_wake_vld  ),
         .i_ext_wakeup_rdIdx    ( IQ1_ext_wake_rdIdx   ),
@@ -777,6 +784,7 @@ endgenerate
                 assign global_bypass_rdIdx[i] = pat1_extwb_iprdIdx[i - FU_NUM*3 - EXTERNAL_WRITEBACK];
                 assign global_bypass_data[i] = pat1_extwb_data[i - FU_NUM*3 - EXTERNAL_WRITEBACK];
             end
+            `ASSERT(global_bypass_vld[i] ? global_bypass_rdIdx[i] < `IPHYREG_NUM : 1);
         end
 
         for (i=0;i<FU_NUM + EXTERNAL_WRITEBACK;i=i+1) begin : gen_for
@@ -788,6 +796,7 @@ endgenerate
                 assign global_wb_vld[i] = i_ext_wb_vec[i - FU_NUM];
                 assign global_wb_rdIdx[i] = i_ext_wb_rdIdx[i - FU_NUM];
             end
+            `ASSERT(global_wb_vld[i] ? global_wb_rdIdx[i] < `IPHYREG_NUM : 1);
         end
         for (i=0;i<FU_NUM + EXTERNAL_WAKEUP;i=i+1) begin : gen_for
             if (i < FU_NUM) begin : gen_if

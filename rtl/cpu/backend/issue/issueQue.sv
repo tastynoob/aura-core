@@ -106,15 +106,15 @@ module issueQue #(
                 assign wakeup_rdIdx[i] = buffer[deq_idx[i]].info.iprd_idx;
             end
             else begin: gen_external_wakeup
-                localparam int temp_idx = i - (INTERNAL_WAKEUP == 1 ? INOUTPORT_NUM : 0);
                 //external wakeup source
-                assign wakeup_src_vld[i] = i_ext_wakeup_vld[temp_idx];
-                assign wakeup_rdIdx[i] = i_ext_wakeup_rdIdx[temp_idx];
+                assign wakeup_src_vld[i] = i_ext_wakeup_vld[i - (INTERNAL_WAKEUP == 1 ? INOUTPORT_NUM : 0)];
+                assign wakeup_rdIdx[i] = i_ext_wakeup_rdIdx[i - (INTERNAL_WAKEUP == 1 ? INOUTPORT_NUM : 0)];
             end
+            `ASSERT(wakeup_src_vld[i] ? wakeup_rdIdx[i] < `IPHYREG_NUM : 1);
         end
         //export internal wakeup signal
         for (i=0;i<INOUTPORT_NUM;i=i+1) begin:gen_for
-            assign o_export_wakeup_vld[i] = deq_find_ready[i] & buffer[deq_idx[i]].info.rd_wen;
+            assign o_export_wakeup_vld[i] = buffer[deq_idx[i]].vld && deq_find_ready[i] && buffer[deq_idx[i]].info.rd_wen;
             assign o_export_wakeup_rdIdx[i] = buffer[deq_idx[i]].info.iprd_idx;
         end
     endgenerate

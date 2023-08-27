@@ -17,7 +17,8 @@
 `define FTQ_SIZE 16
 `define IPHYREG_NUM 80
 `define IMMBUFFER_SIZE 40
-`define ROB_SIZE 128
+`define ROB_SIZE 96
+`define INTDQ_SIZE 16
 
 typedef logic[`WDEF($clog2(`FTQ_SIZE))] ftqIdx_t;
 typedef logic[`WDEF($clog2(`FTB_PREDICT_WIDTH))] ftqOffset_t;

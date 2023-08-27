@@ -56,7 +56,7 @@ int main(int argc, char **argv)
         }
         else
         {
-            throw "can't open file: " + workload_path + "\n";
+            throw std::invalid_argument("can't open file: " + workload_path + "\n");
         }
     }
 

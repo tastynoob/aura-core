@@ -156,7 +156,7 @@ module dispatch (
 
     dispQue
     #(
-        .DEPTH       ( 16              ),
+        .DEPTH       ( `INTDQ_SIZE     ),
         .INPORT_NUM  ( `RENAME_WIDTH   ),
         .OUTPORT_NUM ( `INTDQ_DISP_WID ),
         .dtype       ( intDQEntry_t    )
