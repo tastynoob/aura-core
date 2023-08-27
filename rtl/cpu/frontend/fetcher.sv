@@ -1,5 +1,5 @@
 `include "frontend_define.svh"
-
+`include "funcs.svh"
 
 
 
@@ -144,7 +144,7 @@ module fetcher (
         end
         else begin
             // s1
-            s1_fetch_vld <= toIcache_req && (!pcUnaligned) && if_core_fetch.gnt && (!i_backend_stall);
+            s1_fetch_vld <= toIcache_req && if_core_fetch.gnt&& (!pcUnaligned)  && (!i_backend_stall);
             stall_dueto_pcUnaligned <= toIcache_req ? pcUnaligned : 0;
             if (!i_backend_stall) begin
                 s1_ftqIdx <= toIcache_ftqIdx;
@@ -154,14 +154,13 @@ module fetcher (
             s1_fetchblock_size <= toIcache_info.fetchBlock_size;
 
             // s2: icache output 2 cachelines
-            if (s1_fetch_vld && if_core_fetch.gnt) begin
-                s2_fetch_vld <= s1_fetch_vld && (!i_backend_stall);
-                if (!i_backend_stall) begin
-                    s2_ftqIdx <= s1_ftqIdx;
-                end
-                s2_start_shift <= s1_startAddr[$clog2(`CACHELINE_SIZE)-1:0];
-                s2_end_offset <= s1_fetchblock_size;
+            s2_fetch_vld <= s1_fetch_vld && (!i_backend_stall) ;
+
+            if (!i_backend_stall) begin
+                s2_ftqIdx <= s1_ftqIdx;
             end
+            s2_start_shift <= s1_startAddr[$clog2(`CACHELINE_SIZE)-1:0];
+            s2_end_offset <= s1_fetchblock_size;
 
             // s3: cacheline shift and align, generate new fetchEntry
             if (!i_backend_stall) begin
@@ -229,8 +228,27 @@ module fetcher (
     assign o_fetch_inst_vld = new_inst_vld;
     assign o_fetch_inst = new_inst;
 
+    wire AAA_s0_vld = toIcache_req;
+    ftqIdx_t AAA_s0_ftqIdx = toIcache_ftqIdx;
+    wire AAA_s1_vld = s1_fetch_vld;
+    ftqIdx_t AAA_s1_ftqIdx = s1_ftqIdx;
+    wire AAA_s2_vld = s2_fetch_vld;
+    ftqIdx_t AAA_s2_ftqIdx = s2_ftqIdx;
+    wire AAA_s3_vld = |o_fetch_inst_vld;
+    ftqIdx_t AAA_s3_ftqIdx = new_inst[0].ftq_idx;
+    wire has_fetched = (!i_backend_stall) && (|o_fetch_inst_vld);
 
-
+    int AAA_has_fetched_num;
+    always_ff @( posedge clk ) begin : blockName
+        if(rst) begin
+            AAA_has_fetched_num <=0;
+        end
+        else begin
+            if (has_fetched) begin
+                AAA_has_fetched_num <= AAA_has_fetched_num + funcs::count_one(o_fetch_inst_vld);
+            end
+        end
+    end
 
 endmodule
 

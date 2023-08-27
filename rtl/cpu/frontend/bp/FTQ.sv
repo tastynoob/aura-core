@@ -73,8 +73,9 @@ module FTQ (
     ftqFetchInfo_t buffer_fetchInfo[`FTQ_SIZE];
     ftqBranchInfo_t buffer_branchInfo[`FTQ_SIZE];
     ftqMetaInfo_t buffer_metaInfo[`FTQ_SIZE];
+    reg[`WDEF(`FTQ_SIZE)] buffer_vld;
 
-    wire notFull = count != `FTQ_SIZE;
+    wire notFull = (count != `FTQ_SIZE);
     assign o_ftq_rdy = notFull;
 
 /****************************************************************************************************/
@@ -86,6 +87,10 @@ module FTQ (
     wire do_fetch = (count != 0) && (fetch_ptr != pred_ptr) && (!i_stall);
     wire need_update_ftb = (buffer_metaInfo[commit_ptr].hit_on_ftb || buffer_branchInfo[commit_ptr].mispred) && do_commit;
 
+    wire[`SDEF(`FTQ_SIZE)] push,pop;
+    assign push = (i_pred_req && notFull ? 1 : 0);
+    assign pop = (do_commit && (need_update_ftb ? i_bpu_update_finished : 1) ? 1 : 0);
+
     always_ff @( posedge clk ) begin
         if (rst) begin
             pred_ptr <= 0;
@@ -93,41 +98,50 @@ module FTQ (
             commit_ptr <= 0;
             commit_ptr_thre <= 0;
             count <= 0;
+            buffer_vld <= 0;
         end
         else begin
-            count <= count + (i_pred_req & notFull) - (do_commit & (need_update_ftb ? i_bpu_update_finished : 1));
+
+            count <= count + push - pop;
 
             if (i_pred_req && notFull) begin
-                pred_ptr <= (pred_ptr == `FTQ_SIZE - 1) ? 0 : pred_ptr + 1;
+                assert(buffer_vld[pred_ptr] == 0);
+                buffer_vld[pred_ptr] <= 1;
+                pred_ptr <= (pred_ptr == (`FTQ_SIZE - 1)) ? 0 : pred_ptr + 1;
+            end
+
+            // do commit
+            // TODO: make commit and ftb commit separate
+            if (do_commit) begin
+                if (need_update_ftb ? i_bpu_update_finished : 1) begin
+                    assert(buffer_vld[commit_ptr]);
+                    buffer_vld[commit_ptr] <= 0;
+                    commit_ptr <= (commit_ptr == (`FTQ_SIZE - 1)) ? 0 : commit_ptr + 1;
+                end
             end
 
             if (do_fetch && i_icache_fetch_rdy) begin
-                fetch_ptr <= (fetch_ptr == `FTQ_SIZE - 1) ? 0 : fetch_ptr + 1;
+                fetch_ptr <= (fetch_ptr == (`FTQ_SIZE - 1)) ? 0 : fetch_ptr + 1;
             end
             else if (i_stall) begin
                 fetch_ptr <= i_recovery_idx;
             end
 
             if (i_commit_vld) begin
-                // if buffer_branchInfo[i_commit_ftqIdx].mispred = true
-                // commit_ptr_thre <= i_commit_ftqIdx + 1
+                buffer_branchInfo[i_commit_ftqIdx].mispred = 0;
                 if (buffer_branchInfo[i_commit_ftqIdx].mispred) begin
-                    commit_ptr_thre <= (i_commit_ftqIdx == `FTQ_SIZE) ? 0 : i_commit_ftqIdx + 1;
+                    assert(0);
+                    commit_ptr_thre <= (i_commit_ftqIdx == (`FTQ_SIZE-1)) ? 0 : i_commit_ftqIdx + 1;
+                    $display("mispred %b : %h", buffer_branchInfo[i_commit_ftqIdx].mispred, i_commit_ftqIdx);
                 end
                 else begin
                     commit_ptr_thre <= i_commit_ftqIdx;
                 end
-
-            end
-            // do commit
-            // TODO: make commit and ftb commit separate
-            if (commit_ptr != commit_ptr_thre) begin
-                if (need_update_ftb ? i_bpu_update_finished : 1) begin
-                    commit_ptr <= (commit_ptr == `FTQ_SIZE - 1) ? 0 : commit_ptr + 1;
-                end
             end
         end
     end
+
+    //`ASSERT(buffer_branchInfo[i_commit_ftqIdx].mispred == 0);
 /****************************************************************************************************/
 // BPU insert into FTQ
 /****************************************************************************************************/
@@ -171,7 +185,7 @@ module FTQ (
         int fa, fb;
         if (rst) begin
             for(fa=0;fa<`FTQ_SIZE;fa=fa+1) begin
-                buffer_branchInfo[fa].mispred <= 0;
+                buffer_branchInfo[fa].mispred = 0;
             end
         end
         else begin

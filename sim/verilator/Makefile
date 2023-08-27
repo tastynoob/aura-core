@@ -1,7 +1,7 @@
 TOP ?= tb
 seed ?= 123
 
-ADDITIONAL_PARAM = --x-assign unique --x-initial unique --assert
+ADDITIONAL_PARAM = --x-assign unique --x-initial unique --assert -O0
 
 EMU_DEFINES = -DSIMULATION -DDEBUG
 WARNING_OFF = -Wno-WIDTH -Wno-PINMISSING -Wno-TIMESCALEMOD -Wno-ENUMVALUE
@@ -23,7 +23,7 @@ endif
 ifdef THREAD
 	ADDITIONAL_PARAM += --threads $(THREAD)
 endif
-CXX_FLAGS := --CFLAGS "$(CXX_FLAGS)"
+CXX_FLAGS := --CFLAGS "$(CXX_FLAGS) -std=c++20"
 
 aura: 
 	@echo "**********verilator generating**********"
