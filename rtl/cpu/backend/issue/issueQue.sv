@@ -81,6 +81,7 @@ module issueQue #(
     localparam unsigned wakeup_source_num = ((INTERNAL_WAKEUP == 1 ? INOUTPORT_NUM : 0) + EXTERNAL_WAKEUPNUM);
 
     IQEntry buffer[DEPTH];
+    logic[`WDEF(`NUMSRCS_INT)] nxt_src_rdy[DEPTH], nxt_src_spec_rdy[DEPTH];
 
     //find the entry idx of buffer which can issue
     logic[`WDEF(INOUTPORT_NUM)] enq_find_free, deq_find_ready;//is find the entry which is ready to issue
@@ -136,6 +137,7 @@ module issueQue #(
             for (fa=0;fa<INOUTPORT_NUM;fa=fa+1) begin
                 //enq
                 if (real_enq_req[fa]) begin
+                    assert(buffer[enq_idx[fa]].vld == 0);
                     buffer[enq_idx[fa]].vld <= true;
                     buffer[enq_idx[fa]].info <= i_enq_exeInfo[fa];
                     buffer[enq_idx[fa]].issued <= 0;
@@ -161,25 +163,13 @@ module issueQue #(
                         buffer[i_feedback_idx[fa]].src_spec_rdy <= buffer[i_feedback_idx[fa]].src_rdy;
                     end
                 end
-                //FIXME: seed: 126
                 assert(SINGLEEXE ? !(|i_issue_replay_vec) : 1);
             end
-        end
 
-
-        for(fa=0;fa<DEPTH;fa=fa+1) begin
-            for (fb=0;fb<`NUMSRCS_INT;fb=fb+1) begin
-                //wb wakeup
-                for (fc=0;fc<WBPORT_NUM;fc=fc+1) begin
-                    if (buffer[fa].vld && (buffer[fa].info.iprs_idx[fb] == i_wb_rdIdx[fc]) && i_wb_vld[fc]) begin
-                        buffer[fa].src_rdy[fb] <= true;
-                    end
-                end
-                //spec wakeup
-                for (fc=0;fc<wakeup_source_num;fc=fc+1) begin
-                    if (buffer[fa].vld && (buffer[fa].info.iprs_idx[fb] == wakeup_rdIdx[fc]) && wakeup_src_vld[fc]) begin
-                        buffer[fa].src_spec_rdy[fb] <= true;
-                    end
+            for (fa=0;fa<DEPTH;fa=fa+1) begin
+                if (buffer[fa].vld) begin
+                    buffer[fa].src_rdy <= nxt_src_rdy[fa];
+                    buffer[fa].src_spec_rdy <= nxt_src_spec_rdy[fa];
                 end
             end
         end
@@ -254,6 +244,32 @@ module issueQue #(
 
     `ASSERT((i_issue_finished_vec & i_issue_replay_vec) == 0);
     `ASSERT(wakeup_source_num <= WBPORT_NUM  );
+
+    logic[`WDEF(DEPTH)] AAA_buffer_vld;
+
+    // wakeup
+    always_comb begin
+        int ca,cb,cc;
+        for(ca=0;ca<DEPTH;ca=ca+1) begin
+            AAA_buffer_vld[ca] = buffer[ca].vld;
+            nxt_src_rdy[ca] = buffer[ca].src_rdy;
+            nxt_src_spec_rdy[ca] = buffer[ca].src_spec_rdy;
+            for (cb=0;cb<`NUMSRCS_INT;cb=cb+1) begin
+                //wb wakeup
+                for (cc=0;cc<WBPORT_NUM;cc=cc+1) begin
+                    if ((buffer[ca].info.iprs_idx[cb] == i_wb_rdIdx[cc]) && i_wb_vld[cc]) begin
+                        nxt_src_rdy[ca][cb] = 1;
+                    end
+                end
+                //spec wakeup
+                for (cc=0;cc<wakeup_source_num;cc=cc+1) begin
+                    if ((buffer[ca].info.iprs_idx[cb] == wakeup_rdIdx[cc]) && wakeup_src_vld[cc]) begin
+                        nxt_src_spec_rdy[ca][cb] = 1;
+                    end
+                end
+            end
+        end
+    end
 endmodule
 
 
