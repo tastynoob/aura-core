@@ -9,12 +9,12 @@
 
 module aura_core (
     input wire clk,
-    input wire rst,
+    input wire rst
 
-    // tilelink 0
-    tilelink_if.m if_tilelink_bus0,
-    // tilelink 1
-    tilelink_if.m if_tilelink_bus1
+    // // tilelink 0
+    // tilelink_if.m if_tilelink_bus0,
+    // // tilelink 1
+    // tilelink_if.m if_tilelink_bus1
 );
 
 
@@ -52,9 +52,9 @@ module aura_core (
         .o_fetch_inst        ( fetch_inst        ),
 
         .i_commit_vld        ( commit_vld        ),
-        .i_commit_ftqIdx     ( commit_ftqIdx     ),
+        .i_commit_ftqIdx     ( commit_ftqIdx     )
 
-        .if_fetch_bus        ( if_tilelink_bus0  )
+        // .if_fetch_bus        ( if_tilelink_bus0  )
     );
 
 

@@ -45,7 +45,7 @@ module icache #(
 
 generate
     // s2: select
-    for(i = 0; i < `CACHELINE_SIZE; i=i+1) begin:gen_for
+    for(i = 0; i < `CACHELINE_SIZE; i=i+1) begin
         always_ff @( posedge clk ) begin
             if (s1_req) begin
                 if_core_fetch.line0[i*8+7 : i*8] <= read_rom((s1_addr<<$clog2(`CACHELINE_SIZE)) + i);

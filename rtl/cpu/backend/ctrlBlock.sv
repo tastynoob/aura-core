@@ -205,7 +205,7 @@ module ctrlBlock (
     );
 
     generate
-        for(i=0;i<`RENAME_WIDTH;i=i+1) begin : gen_for
+        for(i=0;i<`RENAME_WIDTH;i=i+1) begin 
             assign o_disp_mark_notready_vld[i] = toDispatch_can_insert && toROB_insert_vld && toROB_insert_req[i] && (!toROB_insert_ismv[i]);
             assign o_disp_mark_notready_iprIdx[i] = toROB_new_entry[i].iprd_idx;
         end

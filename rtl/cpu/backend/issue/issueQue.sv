@@ -81,6 +81,32 @@ module issueQue #(
     localparam unsigned wakeup_source_num = ((INTERNAL_WAKEUP == 1 ? INOUTPORT_NUM : 0) + EXTERNAL_WAKEUPNUM);
 
     IQEntry buffer[DEPTH];
+    logic[`WDEF(2)] buffer_src_rdy[DEPTH];
+    logic[`WDEF(2)] buffer_src_spec_rdy[DEPTH];
+
+    always_comb begin
+        int fa;
+        for(fa=0;fa<DEPTH;fa=fa+1) begin
+            buffer_src_rdy[fa] = buffer[fa].src_rdy;
+            buffer_src_spec_rdy[fa] = 0;// buffer[fa].src_spec_rdy;
+            for (integer fb=0;fb<`NUMSRCS_INT;fb=fb+1) begin
+                //wb wakeup
+                for (int fc=0;fc<WBPORT_NUM;fc=fc+1) begin
+                    if (buffer[fa].vld && (buffer[fa].info.iprs_idx[fb] == i_wb_rdIdx[fc]) && i_wb_vld[fc]) begin
+                        buffer_src_rdy[fa][fb] = 1;
+                    end
+                end
+                //spec wakeup
+                for (integer fc=0;fc<wakeup_source_num;fc=fc+1) begin
+                    if (buffer[fa].vld && (buffer[fa].info.iprs_idx[fb] == wakeup_rdIdx[fc]) && wakeup_src_vld[fc]) begin
+                        //buffer_src_spec_rdy[fa][fb] = 1;
+                    end
+                end
+            end
+        end
+    end
+
+
 
     //find the entry idx of buffer which can issue
     logic[`WDEF(INOUTPORT_NUM)] enq_find_free, deq_find_ready;//is find the entry which is ready to issue
@@ -98,7 +124,7 @@ module issueQue #(
     wire[`WDEF(wakeup_source_num)] wakeup_src_vld;
     iprIdx_t wakeup_rdIdx[wakeup_source_num];
     generate
-        for (i=0;i<wakeup_source_num;i=i+1) begin: gen_for
+        for (i=0;i<wakeup_source_num;i=i+1) begin
             if ((INTERNAL_WAKEUP==1) && (i < INOUTPORT_NUM)) begin : gen_internal_wakeup
                 //internal wakeup source
                 assign wakeup_src_vld[i] = deq_find_ready[i] && buffer[deq_idx[i]].info.rd_wen;
@@ -112,16 +138,15 @@ module issueQue #(
             end
         end
         //export internal wakeup signal
-        for (i=0;i<INOUTPORT_NUM;i=i+1) begin:gen_for
+        for (i=0;i<INOUTPORT_NUM;i=i+1) begin
             assign o_export_wakeup_vld[i] = deq_find_ready[i] & buffer[deq_idx[i]].info.rd_wen;
             assign o_export_wakeup_rdIdx[i] = buffer[deq_idx[i]].info.iprd_idx;
         end
     endgenerate
 
-
     //update status
     always_ff @( posedge clk ) begin
-        int fa,fb,fc;
+        int fa;
         if (rst) begin
             saved_deq_find_ready <= 0;
             for (fa=0;fa<DEPTH;fa=fa+1) begin
@@ -132,6 +157,11 @@ module issueQue #(
             //save selected entry's Idx
             saved_deq_find_ready <= deq_find_ready;
             saved_deq_idx <= deq_idx;
+
+            for(fa=0;fa<DEPTH;fa=fa+1) begin
+                buffer[fa].src_rdy <= buffer_src_rdy[fa];
+                buffer[fa].src_spec_rdy <= buffer_src_spec_rdy[fa];
+            end
 
             for (fa=0;fa<INOUTPORT_NUM;fa=fa+1) begin
                 //enq
@@ -167,22 +197,7 @@ module issueQue #(
         end
 
 
-        for(fa=0;fa<DEPTH;fa=fa+1) begin
-            for (fb=0;fb<`NUMSRCS_INT;fb=fb+1) begin
-                //wb wakeup
-                for (fc=0;fc<WBPORT_NUM;fc=fc+1) begin
-                    if (buffer[fa].vld && (buffer[fa].info.iprs_idx[fb] == i_wb_rdIdx[fc]) && i_wb_vld[fc]) begin
-                        buffer[fa].src_rdy[fb] <= true;
-                    end
-                end
-                //spec wakeup
-                for (fc=0;fc<wakeup_source_num;fc=fc+1) begin
-                    if (buffer[fa].vld && (buffer[fa].info.iprs_idx[fb] == wakeup_rdIdx[fc]) && wakeup_src_vld[fc]) begin
-                        buffer[fa].src_spec_rdy[fb] <= true;
-                    end
-                end
-            end
-        end
+
     end
 
     //select: find ready entry and find free entry
@@ -193,7 +208,7 @@ module issueQue #(
     wire[`WDEF(DEPTH)] entry_ready;
 
     generate
-        for(i=0;i<DEPTH;i=i+1) begin:gen_for
+        for(i=0;i<DEPTH;i=i+1) begin
             assign entry_ready[i] = buffer[i].vld && (&(buffer[i].src_rdy | buffer[i].src_spec_rdy)) && (buffer[i].issued == 0);
         end
     endgenerate
@@ -247,7 +262,7 @@ module issueQue #(
     end
 
     generate
-        for (i=0;i<INOUTPORT_NUM;i=i+1) begin:gen_for
+        for (i=0;i<INOUTPORT_NUM;i=i+1) begin
             assign o_issue_exeInfo[i] = buffer[saved_deq_idx[i]].info;
         end
     endgenerate

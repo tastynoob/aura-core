@@ -62,8 +62,8 @@ module rat_map #(
 
 
     generate
-        for(i=0;i<WIDTH;i=i+1) begin:gen_for
-            for (j=0; j<NUMSRCS; j=j+1) begin:gen_for
+        for(i=0;i<WIDTH;i=i+1) begin
+            for (j=0; j<NUMSRCS; j=j+1) begin
                 assign renamed0_prs_idx[i][j] = spec_mapping[i_lrs_idx[i][j]];
             end
             assign prevRenamed_prd_idx[i] = spec_mapping[i_lrd_idx[i]];
@@ -96,7 +96,7 @@ module rat_map #(
         end
     end
 
-    if (PHYREG_TYPE==0) begin:gen_if
+    if (PHYREG_TYPE==0) begin
         `ASSERT(spec_mapping[0]==0);
         `ASSERT(arch_mapping[0]==0);
     end
@@ -156,7 +156,7 @@ module rat_map #(
 
 
     // dealloc prd, compute which prd need to be released
-    if (PHYREG_TYPE==0) begin:gen_if
+    if (PHYREG_TYPE==0) begin
         // first cycle:
         // update arch_mapping
         // compute prevRenamed_iprd
@@ -260,7 +260,7 @@ module rat_map #(
         assign o_dealloc_vld = dealloc_vld;
         assign o_dealloc_prd_idx = dealloc_iprd_idx;
     end
-    else begin : gen_else
+    else begin 
         // always_comb begin
         //     int ca,cb;
         //     for(ca=0;ca<COMMIT_WID;ca=ca+1) begin
@@ -272,7 +272,7 @@ module rat_map #(
 
 
 
-    if (PHYREG_TYPE==0) begin:gen_if
+    if (PHYREG_TYPE==0) begin
         prIdx_t AAA_spec_x0 = spec_mapping[0];
         prIdx_t AAA_spec_ra = spec_mapping[1];
         prIdx_t AAA_spec_sp = spec_mapping[2];

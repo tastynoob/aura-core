@@ -1,10 +1,10 @@
 TOP ?= tb
 seed ?= 123
 
-ADDITIONAL_PARAM = --x-assign unique --x-initial unique --assert -O0
+ADDITIONAL_PARAM = --x-assign unique --x-initial unique --assert
 
 EMU_DEFINES = -DSIMULATION -DDEBUG
-WARNING_OFF = -Wno-WIDTH -Wno-PINMISSING -Wno-TIMESCALEMOD -Wno-ENUMVALUE
+WARNING_OFF = -Wno-WIDTH -Wno-PINMISSING -Wno-ENUMVALUE
 CXX_FLAGS = -DVTOP=V$(TOP) -DVname=\\\"$(TOP)\\\"
 
 TB_PATH = $(AURA_HOME)/sim/verilator/tb

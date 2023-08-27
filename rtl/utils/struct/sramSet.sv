@@ -28,14 +28,14 @@ module sramSet #(
     wire[`WDEF(WIDTH)] write_bits[WAYS];
 
     generate
-        for(i=0;i<WAYS;i=i+1) begin:gen_for
+        for(i=0;i<WAYS;i=i+1) begin
             assign write_bits[i] = i_write_data[i];
             assign o_read_data[i] = read_bits[i];
         end
     endgenerate
 
     generate
-        for (i=0;i<WAYS;i=i+1) begin:gen_for
+        for (i=0;i<WAYS;i=i+1) begin
             sram_1rw
             #(
                 .DEPTH ( SETS ),

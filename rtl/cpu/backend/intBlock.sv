@@ -78,15 +78,15 @@ module intBlock #(
     wire[`WDEF(INPUT_NUM)] select_toIQ0, select_toIQ1;
 
     generate
-        for(i=0;i<INPUT_NUM;i=i+1) begin : gen_for
+        for(i=0;i<INPUT_NUM;i=i+1) begin 
             assign select_alu[i] = i_disp_req[i] && (i_disp_info[i].issueQue_id == `ALUIQ_ID);
             assign select_bru[i] = i_disp_req[i] && (i_disp_info[i].issueQue_id == `BRUIQ_ID);
 
-            if (i < 2) begin : gen_if
+            if (i < 2) begin 
                 assign select_toIQ0[i] = IQ0_ready && select_alu[i];
                 assign select_toIQ1[i] = IQ1_ready && (select_bru[i] || (select_alu[i] && (!select_toIQ0[i])));
             end
-            else begin : gen_else
+            else begin 
                 // IQ0 current has selected
                 wire[`SDEF(i)] IQ0_has_selected_num;
                 count_one
@@ -229,7 +229,7 @@ module intBlock #(
 
 
     generate
-        for(i=0;i<`NUMSRCS_INT;i=i+1) begin : gen_for
+        for(i=0;i<`NUMSRCS_INT;i=i+1) begin 
             assign o_iprs_idx[0][i] = IQ0_inst_info[0].iprs_idx[i];
             assign o_iprs_idx[1][i] = IQ0_inst_info[1].iprs_idx[i];
         end
@@ -503,7 +503,7 @@ endgenerate
 
 
     generate
-        for(i=0;i<`NUMSRCS_INT;i=i+1) begin : gen_for
+        for(i=0;i<`NUMSRCS_INT;i=i+1) begin 
             assign o_iprs_idx[2][i] = IQ1_inst_info[0].iprs_idx[i];
             assign o_iprs_idx[3][i] = IQ1_inst_info[1].iprs_idx[i];
         end
@@ -746,32 +746,32 @@ endgenerate
     end
 
     generate
-        for(i=0; i<FU_NUM * 3 + EXTERNAL_WRITEBACK * 2; i=i+1) begin : gen_for
-            if (i < FU_NUM) begin : gen_if
+        for(i=0; i<FU_NUM * 3 + EXTERNAL_WRITEBACK * 2; i=i+1) begin 
+            if (i < FU_NUM) begin 
                 // back to back bypass
                 assign global_bypass_vld[i] = internal_bypass_wb_vld[i] && (i < 4);
                 assign global_bypass_rdIdx[i] = internal_bypass_iprdIdx[i];
                 assign global_bypass_data[i] = internal_bypass_data[i];
             end
-            else if (i < FU_NUM*2) begin : gen_elif
+            else if (i < FU_NUM*2) begin 
                 // internal wb to s1 bypass
                 assign global_bypass_vld[i] = fu_finished[i - FU_NUM] && comwbInfo[i - FU_NUM].rd_wen;
                 assign global_bypass_rdIdx[i] = comwbInfo[i - FU_NUM].iprd_idx;
                 assign global_bypass_data[i] = comwbInfo[i - FU_NUM].result;
             end
-            else if (i < FU_NUM*3) begin : gen_elif
+            else if (i < FU_NUM*3) begin 
                 // internal wb to s0 bypass
                 assign global_bypass_vld[i] = pat1_wb_vld[i - FU_NUM*2];
                 assign global_bypass_rdIdx[i] = pat1_wb_iprdIdx[i - FU_NUM*2];
                 assign global_bypass_data[i] = pat1_wb_data[i - FU_NUM*2];
             end
-            else if (i < FU_NUM*3 + EXTERNAL_WRITEBACK) begin : gen_elif
+            else if (i < FU_NUM*3 + EXTERNAL_WRITEBACK) begin 
                 // external wb to s1 bypass
                 assign global_bypass_vld[i] = 0;// i_ext_wb_vec[i - FU_NUM*3];
                 assign global_bypass_rdIdx[i] = i_ext_wb_rdIdx[i - FU_NUM*3];
                 assign global_bypass_data[i] = i_ext_wb_data[i - FU_NUM*3];
             end
-            else if (i < FU_NUM*3 + EXTERNAL_WRITEBACK*2) begin : gen_elif
+            else if (i < FU_NUM*3 + EXTERNAL_WRITEBACK*2) begin 
                 // external wb to s0 bypass
                 assign global_bypass_vld[i] = 0;// pat1_extwb_vld[i - FU_NUM*3 + EXTERNAL_WRITEBACK];
                 assign global_bypass_rdIdx[i] = pat1_extwb_iprdIdx[i - FU_NUM*3 - EXTERNAL_WRITEBACK];
@@ -779,22 +779,22 @@ endgenerate
             end
         end
 
-        for (i=0;i<FU_NUM + EXTERNAL_WRITEBACK;i=i+1) begin : gen_for
-            if (i < FU_NUM) begin : gen_if
+        for (i=0;i<FU_NUM + EXTERNAL_WRITEBACK;i=i+1) begin 
+            if (i < FU_NUM) begin 
                 assign global_wb_vld[i] = fu_finished[i] && comwbInfo[i].rd_wen;
                 assign global_wb_rdIdx[i] = comwbInfo[i].iprd_idx;
             end
-            else begin: gen_else
+            else begin
                 assign global_wb_vld[i] = i_ext_wb_vec[i - FU_NUM];
                 assign global_wb_rdIdx[i] = i_ext_wb_rdIdx[i - FU_NUM];
             end
         end
-        for (i=0;i<FU_NUM + EXTERNAL_WAKEUP;i=i+1) begin : gen_for
-            if (i < FU_NUM) begin : gen_if
+        for (i=0;i<FU_NUM + EXTERNAL_WAKEUP;i=i+1) begin 
+            if (i < FU_NUM) begin 
                 assign global_wake_vld[i] = 0;
                 assign global_wake_rdIdx[i] = 0;
             end
-            else begin: gen_else
+            else begin
                 assign global_wake_vld[i] = i_ext_wake_vec[i - FU_NUM];
                 assign global_wake_rdIdx[i] = i_ext_wake_rdIdx[i - FU_NUM];
             end

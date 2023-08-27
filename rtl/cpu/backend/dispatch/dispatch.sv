@@ -73,7 +73,7 @@ module dispatch (
     // new rob entry
     assign insert_rob_vld = i_enq_vld;
     generate
-        for(i=0;i<`RENAME_WIDTH;i=i+1) begin:gen_for
+        for(i=0;i<`RENAME_WIDTH;i=i+1) begin
             // new intDQ entry, skip mv
             assign insert_intDQ_vld[i] = i_enq_vld[i] && (i_enq_inst[i].dispQue_id == `INTBLOCK_ID) && (!i_enq_inst[i].ismv);
             // new memDQ entry

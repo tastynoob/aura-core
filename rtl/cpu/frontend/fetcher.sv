@@ -181,12 +181,12 @@ module fetcher (
     assign stall_recovery_ftqIdx = s2_fetch_vld ? s2_ftqIdx : s1_fetch_vld ? s1_ftqIdx : toIcache_ftqIdx;
 
     generate
-        for(i=0; i < `FTB_PREDICT_WIDTH/2; i=i+1) begin:gen_for
-            if (i == 0) begin : gen_if
+        for(i=0; i < `FTB_PREDICT_WIDTH/2; i=i+1) begin
+            if (i == 0) begin 
                 assign fetched_32i_OH[i] = icacheline_merge[i*16 + 1 : i*16]==2'b11;
                 assign fetched_inst_OH[i] = 1;
             end
-            else begin : gen_else
+            else begin 
                 assign fetched_32i_OH[i] = (icacheline_merge[i*16 + 1 : i*16]==2'b11) && (!fetched_32i_OH[i-1]);
                 assign fetched_inst_OH[i] = fetched_32i_OH[i-1] ? 0 : 1;
             end
@@ -209,7 +209,7 @@ module fetcher (
 
     ftqOffset_t temp_ftqOffset[`FTB_PREDICT_WIDTH/2];
     generate
-        for(i=0;i<`FTB_PREDICT_WIDTH/2;i=i+1) begin:gen_for
+        for(i=0;i<`FTB_PREDICT_WIDTH/2;i=i+1) begin
             assign temp_ftqOffset[i] = 2 * i;
         end
     endgenerate

@@ -45,7 +45,7 @@ module exeBlock(
     wire[`WDEF(`NUMSRCS_INT)] disp_check_iprs_rdy[`RENAME_WIDTH];
 
     generate
-        for (i=0;i<`RENAME_WIDTH * `NUMSRCS_INT;i=i+1) begin : gen_for
+        for (i=0;i<`RENAME_WIDTH * `NUMSRCS_INT;i=i+1) begin 
             assign disp_check_iprsIdx[i] = i_intDQ_deq_info[i/2].iprs_idx[i%2];
         end
     endgenerate
@@ -153,18 +153,18 @@ module exeBlock(
 
     // TODO: regfile read/write arbitration
     generate
-        for(i=0;i<IPRFREADPORTS;i=i+1) begin : gen_for
+        for(i=0;i<IPRFREADPORTS;i=i+1) begin 
             assign regfile_read_iprIdx[i] = intBlock_iprs_idx[i/2][i%2];
         end
 
-        for(i=0;i<INTBLOCK_FUS;i=i+1) begin : gen_for
+        for(i=0;i<INTBLOCK_FUS;i=i+1) begin 
             assign toIntBlock_iprs_rdy[i][0] = regfile_read_rdy[i*2];
             assign toIntBlock_iprs_rdy[i][1] = regfile_read_rdy[i*2 + 1];
             assign toIntBlock_iprs_data[i][0] = regfile_read_data[i*2];
             assign toIntBlock_iprs_data[i][1] = regfile_read_data[i*2 + 1];
         end
 
-        for(i=0;i<IPRFWRITEPORTS;i=i+1) begin : gen_for
+        for(i=0;i<IPRFWRITEPORTS;i=i+1) begin 
             assign regfile_write_vld[i] = intBlock_fu_finished[i] && intBlock_comwbInfo[i].rd_wen;
             assign regfile_write_iprIdx[i] = intBlock_comwbInfo[i].iprd_idx;
             assign regfile_write_data[i] = intBlock_comwbInfo[i].result;

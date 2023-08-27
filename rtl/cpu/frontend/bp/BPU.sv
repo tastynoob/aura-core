@@ -76,9 +76,6 @@ module BPU (
                 s2_ftb_lookup_hit <= s1_ftb_lookup_hit;
                 s2_ftb_lookup_hit_rdy <= s1_ftb_lookup_hit_rdy;
             end
-            else begin
-                s2_ftb_lookup_hit_rdy <= 0;
-            end
 
             s2_ftb_unhit_fallthruAddr <= s1_base_pc + (`FTB_PREDICT_WIDTH);
         end

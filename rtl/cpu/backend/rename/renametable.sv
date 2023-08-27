@@ -87,7 +87,7 @@ module renametable(
     );
 
     generate
-        for(i=0;i<`COMMIT_WIDTH;i=i+1) begin:gen_for
+        for(i=0;i<`COMMIT_WIDTH;i=i+1) begin
             assign commit_has_rd[i] = i_commitInfo[i].has_rd;
             assign commit_ismv[i] = i_commitInfo[i].ismv;
         end

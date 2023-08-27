@@ -108,7 +108,7 @@ module ROB(
     wire ptr_flipped[`RENAME_WIDTH];
     wire[`WDEF($clog2(`ROB_SIZE))] alloc_idx[`RENAME_WIDTH];
     generate
-        for(i=0;i<`RENAME_WIDTH;i=i+1) begin:gen_for
+        for(i=0;i<`RENAME_WIDTH;i=i+1) begin
             assign o_alloc_robIdx[i] = '{
                 flipped : ptr_flipped[i],
                 idx     : alloc_idx[i]
@@ -117,7 +117,7 @@ module ROB(
     endgenerate
     wire[`WDEF($clog2(`ROB_SIZE))] finished_robIdx[`WBPORT_NUM];
     generate
-        for(i=0;i<`COMMIT_WIDTH;i=i+1) begin:gen_for
+        for(i=0;i<`COMMIT_WIDTH;i=i+1) begin
             assign finished_robIdx[i] = i_comwbInfo[i].rob_idx.idx;
         end
     endgenerate
@@ -171,7 +171,7 @@ module ROB(
 
     generate
         // read from exu
-        for(i=0;i<`BRU_NUM;i=i+1) begin:gen_for
+        for(i=0;i<`BRU_NUM;i=i+1) begin
             assign o_read_ftqOffset_data[i] = ftqOffset_buffer[i_read_ftqOffset_idx[i]];
         end
     endgenerate
@@ -226,7 +226,7 @@ module ROB(
     // rename rob commit -> physical register used buffer
     assign o_rename_commit = canCommit_vld;
     generate
-        for(i=0;i<`COMMIT_WIDTH;i=i+1) begin:gen_for
+        for(i=0;i<`COMMIT_WIDTH;i=i+1) begin
             assign o_rename_commitInfo[i] = '{
                 ismv:willCommit_data[i].ismv,
                 has_rd:willCommit_data[i].has_rd,
@@ -281,11 +281,11 @@ module ROB(
     wire[`WDEF(`COMMIT_WIDTH)] temp_1;// 0 | 0 | 1(has_mispred) | 0
     generate
 
-        for(i=0;i<`COMMIT_WIDTH;i=i+1) begin:gen_for
-            if (i==0) begin:gen_if
+        for(i=0;i<`COMMIT_WIDTH;i=i+1) begin
+            if (i==0) begin
                 assign temp_0[i] = willCommit_vld[i] && (!bmhr.mispred);
             end
-            else begin:gen_else
+            else begin
                 assign temp_0[i] = willCommit_vld[i] && temp_0[i-1] && (bmhr.mispred ? (willCommit_idx[i-1] != bmhr.rob_idx.idx) : 1);
             end
             assign temp_1[i] = willCommit_vld[i] && (willCommit_idx[i] == bmhr.rob_idx.idx) && bmhr.mispred;
@@ -335,11 +335,11 @@ module ROB(
         /* verilator lint_off UNOPTFLAT */
         wire[`WDEF(`COMMIT_WIDTH)] temp_2;// 0 | 0(has_except) | 1 | 1
         wire[`WDEF(`COMMIT_WIDTH)] temp_3;// 0 | 1(has_except) | 0 | 0
-        for(i=0;i<`COMMIT_WIDTH;i=i+1) begin:gen_for
-            if (i==0) begin :gen_if
+        for(i=0;i<`COMMIT_WIDTH;i=i+1) begin
+            if (i==0) begin 
                 assign temp_2[i] = willCommit_vld[i] && (ehr.has_except ? (willCommit_idx[i] != ehr.rob_idx.idx) : 1);
             end
-            else begin:gen_else
+            else begin
                 assign temp_2[i] = willCommit_vld[i] && temp_2[i-1] && (ehr.has_except ? (willCommit_idx[i] != ehr.rob_idx.idx) : 1);
             end
             assign temp_3[i] = willCommit_vld[i] && (willCommit_idx[i] == ehr.rob_idx.idx) && ehr.has_except;

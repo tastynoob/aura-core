@@ -16,11 +16,11 @@ module oldest_select #(
     `SET_TRACE_ON
 
     generate
-        if (WIDTH==1)begin:gen_if
+        if (WIDTH==1)begin
             assign o_oldest_rob_idx = i_rob_idx[0];
             assign o_oldest_data = i_datas[0];
         end
-        else if (WIDTH==2) begin:gen_if
+        else if (WIDTH==2) begin
             assign o_oldest_rob_idx = (i_rob_idx[0].flipped == i_rob_idx[1].flipped) ?
             (i_rob_idx[0].idx <= i_rob_idx[1].idx ? i_rob_idx[0] : i_rob_idx[1]) :
             (i_rob_idx[0].idx > i_rob_idx[1].idx ? i_rob_idx[0] : i_rob_idx[1]);
@@ -28,7 +28,7 @@ module oldest_select #(
             (i_rob_idx[0].idx <= i_rob_idx[1].idx ? i_datas[0] : i_datas[1]) :
             (i_rob_idx[0].idx > i_rob_idx[1].idx ? i_datas[0] : i_datas[1]);
         end
-        else begin : gen_if
+        else begin 
             robIdx_t left,right;
             dtype left_data,right_data;
             oldest_select

@@ -75,6 +75,8 @@ module FTQ (
     ftqMetaInfo_t buffer_metaInfo[`FTQ_SIZE];
     reg[`WDEF(`FTQ_SIZE)] buffer_vld;
 
+    ftqFetchInfo_t AAA_fetchInfo = buffer_fetchInfo[fetch_ptr];
+
     wire notFull = (count != `FTQ_SIZE);
     assign o_ftq_rdy = notFull;
 
@@ -128,7 +130,6 @@ module FTQ (
             end
 
             if (i_commit_vld) begin
-                buffer_branchInfo[i_commit_ftqIdx].mispred = 0;
                 if (buffer_branchInfo[i_commit_ftqIdx].mispred) begin
                     assert(0);
                     commit_ptr_thre <= (i_commit_ftqIdx == (`FTQ_SIZE-1)) ? 0 : i_commit_ftqIdx + 1;
@@ -141,7 +142,7 @@ module FTQ (
         end
     end
 
-    //`ASSERT(buffer_branchInfo[i_commit_ftqIdx].mispred == 0);
+    `ASSERT(buffer_branchInfo[i_commit_ftqIdx].mispred == 0);
 /****************************************************************************************************/
 // BPU insert into FTQ
 /****************************************************************************************************/
@@ -172,7 +173,7 @@ module FTQ (
 
     branchwbInfo_t branchwbInfo[`BRU_NUM];
     generate
-        for(i=0;i<`BRU_NUM;i=i+1) begin:gen_for
+        for(i=0;i<`BRU_NUM;i=i+1) begin
             assign branchwbInfo[i] = i_backend_branchwbInfo[i];
         end
     endgenerate
@@ -185,7 +186,7 @@ module FTQ (
         int fa, fb;
         if (rst) begin
             for(fa=0;fa<`FTQ_SIZE;fa=fa+1) begin
-                buffer_branchInfo[fa].mispred = 0;
+                buffer_branchInfo[fa].mispred <= 0;
             end
         end
         else begin

@@ -35,7 +35,7 @@ module rename(
     iprIdx_t iprs_idx[`RENAME_WIDTH][`NUMSRCS_INT];
 
     generate
-        for(i=0;i<`RENAME_WIDTH;i=i+1) begin:gen_for
+        for(i=0;i<`RENAME_WIDTH;i=i+1) begin
             assign ismv[i] = i_decinfo_vld[i] & i_decinfo[i].ismv;
             assign has_rd[i] = i_decinfo_vld[i] & i_decinfo[i].rd_wen & (!i_stall);
             assign ilrd_idx[i] = i_decinfo[i].ilrd_idx;

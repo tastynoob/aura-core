@@ -48,7 +48,7 @@ module dataQue #(
     reg[`WDEF($clog2(DEPTH))] enq_ptr[INPORT_NUM],head_ptr[COMMIT_WID];
     reg enq_ptr_flipped[INPORT_NUM];
 
-    if(!ISROB) begin:gen_if
+    if(!ISROB) begin
         reorder
         #(
             .dtype ( dtype ),
@@ -83,7 +83,7 @@ module dataQue #(
         );
 
     end
-    else begin:gen_else
+    else begin
     // if isROB, the enq_req must in order
         assign enq_req = i_enq_req;
         assign enq_data = i_enq_data;
@@ -190,21 +190,21 @@ module dataQue #(
     end
 
     generate
-        if (!ISROB) begin:gen_if
+        if (!ISROB) begin
         // if is imm reorder buffer
-            for(i=0;i<READPORT_NUM;i=i+1) begin:gen_for
+            for(i=0;i<READPORT_NUM;i=i+1) begin
                 assign o_read_data[i] = buffer[i_read_dqIdx[i]];
             end
         end
 
-        for (i = 0; i < COMMIT_WID; i = i + 1) begin:gen_for
-            if (i==0) begin:gen_if
+        for (i = 0; i < COMMIT_WID; i = i + 1) begin
+            if (i==0) begin
                 assign can_clear_vld[i] = clear_bits[head_ptr[i]] & (ISROB ? !i_stall : 1);
             end
-            else begin:gen_else
+            else begin
                 assign can_clear_vld[i] = clear_bits[head_ptr[i]] & can_clear_vld[i-1];
             end
-            if (ISROB) begin:gen_if
+            if (ISROB) begin
                 assign o_willClear_vld[i] = can_clear_vld[i];
                 assign o_willClear_idx[i] = head_ptr[i];
                 assign o_willClear_data[i] = buffer[head_ptr[i]];

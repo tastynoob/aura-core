@@ -30,11 +30,11 @@ module aura_frontend (
     output fetchEntry_t o_fetch_inst[`FETCH_WIDTH],
 
     input wire i_commit_vld,
-    input ftqIdx_t i_commit_ftqIdx,
+    input ftqIdx_t i_commit_ftqIdx
 
 
-    // to next level storage
-    tilelink_if.m if_fetch_bus
+    // // to next level storage
+    // tilelink_if.m if_fetch_bus
 );
 
 

@@ -20,11 +20,11 @@ module redirect #(
     generate
         genvar i;
         //todo: finish it
-        for(i=0;i<NUM;i=i+1)begin:gen_for
-            if (i==0) begin:gen_if
+        for(i=0;i<NUM;i=i+1)begin
+            if (i==0) begin
                 assign sel_offset[0] = 0;
             end
-            else begin:gen_else
+            else begin
             count_one
             #(
                 .WIDTH ( i+1 )
