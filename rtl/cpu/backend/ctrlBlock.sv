@@ -230,8 +230,8 @@ module ctrlBlock (
         .i_read_ftqOffset_idx  ( i_read_ftqOffset_idx ),
         .o_read_ftqOffset_data ( o_read_ftqOffset_data ),
 
-        .i_fu_finished              ( i_fu_finished             ),
-        .i_comwbInfo              ( i_comwbInfo             ),
+        .i_fu_finished         ( i_fu_finished             ),
+        .i_comwbInfo           ( i_comwbInfo             ),
         .i_branchwb_vld        ( i_branchwb_vld       ),
         .i_branchwb_info       ( i_branchwb_info      ),
         .i_exceptwb_vld        ( i_exceptwb_vld || toROB_disp_exceptwb_vld ),

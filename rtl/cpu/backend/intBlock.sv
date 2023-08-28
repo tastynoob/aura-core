@@ -49,6 +49,9 @@ module intBlock #(
     output ftqIdx_t o_read_ftqIdx[`BRU_NUM],
     input wire[`XDEF] i_read_ftqStartAddr[`BRU_NUM],
     input wire[`XDEF] i_read_ftqNextAddr[`BRU_NUM],
+    // read ftqOffste (to rob)
+    output wire[`WDEF($clog2(`ROB_SIZE))] o_read_robIdx[`BRU_NUM],
+    input ftqOffset_t i_read_ftqOffset[`BRU_NUM],
 
     // writeback
     input wire[`WDEF(FU_NUM)] i_wb_stall,
@@ -108,6 +111,7 @@ module intBlock #(
                     .o_sum ( IQ1_has_selected_num )
                 );
                 // FIXME: select_toIQ0 | select_toIQ1 must in order
+                // prepare for bru
                 assign select_toIQ0[i] = IQ0_ready && (IQ0_has_selected_num < 2 ? select_alu[i] : 0);
                 assign select_toIQ1[i] = IQ1_ready && (IQ1_has_selected_num < 2 ? select_bru[i] || (select_alu[i] && (!select_toIQ0[i])) : 0);
             end
@@ -207,7 +211,7 @@ module intBlock #(
     )
     u_issueQue_0(
         .clk                   ( clk ),
-        .rst                   ( rst ),
+        .rst                   ( rst || i_squash_vld ),
         .i_stall               ( 0 ),
 
         .o_can_enq             ( IQ0_ready ),
@@ -251,7 +255,7 @@ module intBlock #(
     exeInfo_t s1_IQ0_inst_info[2];
     always_ff @( posedge clk ) begin
         int fa;
-        if (rst) begin
+        if (rst || i_squash_vld) begin
             s1_IQ0_inst_vld <= 0;
         end
         else begin
@@ -325,8 +329,12 @@ if (1) begin: gen_intBlock_IQ0_alu0
         iprd_idx : s1_IQ0_inst_info[IQ0_fuID].iprd_idx,
         srcs : {
             alu_bypass_vld[0] ? alu_bypass_data[0] : i_iprs_data[intBlock_fuID][0],
-            s1_IQ0_inst_info[IQ0_fuID].use_imm ? s1_irob_imm[intBlock_fuID] : (alu_bypass_vld[1] ? alu_bypass_data[1] : i_iprs_data[intBlock_fuID][1])
+            s1_IQ0_inst_info[IQ0_fuID].use_imm ? {{44{s1_irob_imm[intBlock_fuID][19]}},s1_irob_imm[intBlock_fuID]} : (alu_bypass_vld[1] ? alu_bypass_data[1] : i_iprs_data[intBlock_fuID][1])
         },// need bypass
+        ftqOffset : 0,
+        pc : 0,
+        npc : 0,
+        imm20 : 0,
         issueQue_id : s1_IQ0_inst_info[IQ0_fuID].issueQue_id,
         micOp : s1_IQ0_inst_info[IQ0_fuID].micOp_type
     };
@@ -334,7 +342,7 @@ if (1) begin: gen_intBlock_IQ0_alu0
     //fu0
     alu u_alu(
         .clk               ( clk                ),
-        .rst               ( rst                ),
+        .rst               ( rst || i_squash_vld                ),
 
         .o_fu_stall        ( fu_stall         ),
         .i_vld             ( s1_IQ0_inst_vld[IQ0_fuID] ),
@@ -405,8 +413,12 @@ if (1) begin : gen_intBlock_IQ0_alu1
         iprd_idx : s1_IQ0_inst_info[IQ0_fuID].iprd_idx,
         srcs : {
             alu_bypass_vld[0] ? alu_bypass_data[0] : i_iprs_data[intBlock_fuID][0],
-            s1_IQ0_inst_info[IQ0_fuID].use_imm ? s1_irob_imm[intBlock_fuID] : (alu_bypass_vld[1] ? alu_bypass_data[1] : i_iprs_data[intBlock_fuID][1])
+            s1_IQ0_inst_info[IQ0_fuID].use_imm ? {{44{s1_irob_imm[intBlock_fuID][19]}},s1_irob_imm[intBlock_fuID]} : (alu_bypass_vld[1] ? alu_bypass_data[1] : i_iprs_data[intBlock_fuID][1])
         },// need bypass
+        ftqOffset : 0,
+        pc : 0,
+        npc : 0,
+        imm20 : 0,
         issueQue_id : s1_IQ0_inst_info[IQ0_fuID].issueQue_id,
         micOp : s1_IQ0_inst_info[IQ0_fuID].micOp_type
     };
@@ -414,7 +426,7 @@ if (1) begin : gen_intBlock_IQ0_alu1
     //fu1
     alu u_alu(
         .clk               ( clk                ),
-        .rst               ( rst                ),
+        .rst               ( rst || i_squash_vld                ),
 
         .o_fu_stall        ( fu_stall         ),
         .i_vld             ( s1_IQ0_inst_vld[IQ0_fuID] ),
@@ -482,7 +494,7 @@ endgenerate
     )
     u_issueQue_1(
         .clk                   ( clk ),
-        .rst                   ( rst ),
+        .rst                   ( rst || i_squash_vld ),
         .i_stall               ( 0 ),
 
         .o_can_enq             ( IQ1_ready ),
@@ -514,6 +526,10 @@ endgenerate
             assign o_iprs_idx[2][i] = IQ1_inst_info[0].iprs_idx[i];
             assign o_iprs_idx[3][i] = IQ1_inst_info[1].iprs_idx[i];
         end
+        for(i=0;i<`BRU_NUM;i=i+1) begin : gen_for
+            assign o_read_ftqIdx[i] = IQ1_inst_info[i].ftq_idx;
+            assign o_read_robIdx[i] = IQ1_inst_info[i].rob_idx.idx;
+        end
     endgenerate
 
     assign o_immB_idx[2] = IQ1_inst_info[0].irob_idx;
@@ -525,7 +541,7 @@ endgenerate
     exeInfo_t s1_IQ1_inst_info[2];
     always_ff @( posedge clk ) begin
         int fa;
-        if (rst) begin
+        if (rst || i_squash_vld) begin
             s1_IQ1_inst_vld <= 0;
         end
         else begin
@@ -599,16 +615,20 @@ if (1) begin: gen_intBlock_IQ1_alu2
         iprd_idx : s1_IQ1_inst_info[IQ1_fuID].iprd_idx,
         srcs : {
             alu_bypass_vld[0] ? alu_bypass_data[0] : i_iprs_data[intBlock_fuID][0],
-            s1_IQ1_inst_info[IQ1_fuID].use_imm ? s1_irob_imm[intBlock_fuID] : (alu_bypass_vld[1] ? alu_bypass_data[1] : i_iprs_data[intBlock_fuID][1])
+            (s1_IQ1_inst_info[IQ1_fuID].use_imm && (s1_IQ1_inst_info[IQ1_fuID].issueQue_id == `ALUIQ_ID)) ? {{44{s1_irob_imm[intBlock_fuID][19]}},s1_irob_imm[intBlock_fuID]} : (alu_bypass_vld[1] ? alu_bypass_data[1] : i_iprs_data[intBlock_fuID][1])
         },// need bypass
+        ftqOffset : i_read_ftqOffset[IQ1_fuID],
+        pc : i_read_ftqStartAddr[IQ1_fuID] + i_read_ftqOffset[IQ1_fuID], // TODO: read ftqOffset
+        npc : i_read_ftqNextAddr[IQ1_fuID],
+        imm20 : s1_irob_imm[intBlock_fuID],
         issueQue_id : s1_IQ1_inst_info[IQ1_fuID].issueQue_id,
         micOp : s1_IQ1_inst_info[IQ1_fuID].micOp_type
     };
 
     //fu2
-    alu u_alu(
+    alu_bru u_alu_bru(
         .clk               ( clk                ),
-        .rst               ( rst                ),
+        .rst               ( rst || i_squash_vld                ),
 
         .o_fu_stall        ( fu_stall         ),
         .i_vld             ( s1_IQ1_inst_vld[IQ1_fuID] ),
@@ -677,18 +697,22 @@ if (1) begin : gen_intBlock_IQ1_alu3
         use_imm : s1_IQ1_inst_info[IQ1_fuID].use_imm,
         rd_wen : s1_IQ1_inst_info[IQ1_fuID].rd_wen,
         iprd_idx : s1_IQ1_inst_info[IQ1_fuID].iprd_idx,
-        srcs : {// FIXME: regfile read data is zero
+        srcs : {
             alu_bypass_vld[0] ? alu_bypass_data[0] : i_iprs_data[intBlock_fuID][0],
-            s1_IQ1_inst_info[IQ1_fuID].use_imm ? s1_irob_imm[intBlock_fuID] : (alu_bypass_vld[1] ? alu_bypass_data[1] : i_iprs_data[intBlock_fuID][1])
+            (s1_IQ1_inst_info[IQ1_fuID].use_imm && (s1_IQ1_inst_info[IQ1_fuID].issueQue_id == `ALUIQ_ID)) ? {{44{s1_irob_imm[intBlock_fuID][19]}},s1_irob_imm[intBlock_fuID]} : (alu_bypass_vld[1] ? alu_bypass_data[1] : i_iprs_data[intBlock_fuID][1])
         },// need bypass
+        ftqOffset : i_read_ftqOffset[IQ1_fuID],
+        pc : i_read_ftqStartAddr[IQ1_fuID] + i_read_ftqOffset[IQ1_fuID], //TODO: read ftqOffset
+        npc : i_read_ftqNextAddr[IQ1_fuID],
+        imm20 : s1_irob_imm[intBlock_fuID],
         issueQue_id : s1_IQ1_inst_info[IQ1_fuID].issueQue_id,
         micOp : s1_IQ1_inst_info[IQ1_fuID].micOp_type
     };
 
     //fu3
-    alu u_alu(
+    alu_bru u_alu_bru(
         .clk               ( clk                ),
-        .rst               ( rst                ),
+        .rst               ( rst || i_squash_vld    ),
 
         .o_fu_stall        ( fu_stall         ),
         .i_vld             ( s1_IQ1_inst_vld[IQ1_fuID] ),
@@ -737,7 +761,7 @@ endgenerate
     reg[`XDEF] pat1_extwb_data[EXTERNAL_WRITEBACK];
     always_ff @( posedge clk ) begin
         int fa;
-        if (rst) begin
+        if (rst || i_squash_vld) begin
             pat1_wb_vld <= 0;
         end
         else begin

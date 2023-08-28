@@ -159,6 +159,7 @@ module ROB(
         .o_willClear_data ( willCommit_data )
     );
 
+    ftqOffset_t read_ftqOffset_data[`BRU_NUM];
     always_ff @( posedge clk ) begin
         int fj;
         for(fj=0;fj<`RENAME_WIDTH;fj=fj+1) begin
@@ -167,14 +168,19 @@ module ROB(
                 ftqOffset_buffer[enq_idx[fj]] <= i_new_entry_ftqOffset[fj];
             end
         end
+        for (fj=0;fj<`BRU_NUM;fj=fj+1) begin
+            read_ftqOffset_data[fj] <= ftqOffset_buffer[i_read_ftqOffset_idx[fj]];
+        end
     end
 
     generate
         // read from exu
         for(i=0;i<`BRU_NUM;i=i+1) begin:gen_for
-            assign o_read_ftqOffset_data[i] = ftqOffset_buffer[i_read_ftqOffset_idx[i]];
+            assign o_read_ftqOffset_data[i] = read_ftqOffset_data[i];
         end
     endgenerate
+
+
 
 `ifdef SIMULATION
     reg[`XDEF] result_buffer[`ROB_SIZE];
@@ -260,7 +266,7 @@ module ROB(
     // branch mispred handle register
     branch_mispred_handle bmhr;
     always_ff @( posedge clk ) begin
-        if (rst) begin
+        if (rst || squash_vld) begin
             bmhr.mispred <= 0;
         end
         else begin
@@ -316,7 +322,7 @@ module ROB(
     // exception handle register
     except_handle ehr;
     always_ff @( posedge clk ) begin
-        if (clk) begin
+        if (clk || squash_vld) begin
             ehr.has_except <= 0;
         end
         else begin
@@ -383,7 +389,7 @@ module ROB(
     reg squash_vld;
     squashInfo_t squashInfo;
     always_ff @( posedge clk ) begin
-        if (rst) begin
+        if (rst || squash_vld) begin
             status <= commit_status_t::normal;
             commit_stall <= 0;
             squash_vld <= 0;

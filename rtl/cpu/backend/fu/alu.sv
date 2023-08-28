@@ -38,8 +38,8 @@ module alu (
     wire[`XDEF] src0 = saved_fuInfo.srcs[0];
     wire[`XDEF] src1 = saved_fuInfo.srcs[1];
 
-    wire[5:0] shifter = src1[5:0];
 
+    wire[5:0] shifter = src1[5:0];
     wire[`XDEF] lui = {{32{1'b1}},src1[19:0],12'd0};
     wire[`XDEF] add = src0 + src1;
     wire[`XDEF] sub = src0 - src1;
@@ -62,7 +62,6 @@ module alu (
     // src0 > src1 : fasle : src0 - src1 > 0
     wire[`XDEF] sltu = src0 < src1;
 
-
     wire[`XDEF] calc_data =
     (saved_fuInfo.micOp == MicOp_t::lui) ? lui :
     (saved_fuInfo.micOp == MicOp_t::add) ? add :
@@ -81,6 +80,9 @@ module alu (
     (saved_fuInfo.micOp == MicOp_t::slt) ? slt :
     (saved_fuInfo.micOp == MicOp_t::sltu) ? sltu :
     0;
+
+
+
 
     reg fu_finished;
     comwbInfo_t comwbInfo;

@@ -23,6 +23,9 @@ module exeBlock(
     output ftqIdx_t o_read_ftqIdx[`BRU_NUM],
     input wire[`XDEF] i_read_ftqStartAddr[`BRU_NUM],
     input wire[`XDEF] i_read_ftqNextAddr[`BRU_NUM],
+    // read ftqOffste (to rob)
+    output wire[`WDEF($clog2(`ROB_SIZE))] o_read_robIdx[`BRU_NUM],
+    input ftqOffset_t i_read_ftqOffset[`BRU_NUM],
 
     // writeback to rob
     // common writeback
@@ -127,6 +130,8 @@ module exeBlock(
         .o_read_ftqIdx       ( o_read_ftqIdx       ),
         .i_read_ftqStartAddr ( i_read_ftqStartAddr ),
         .i_read_ftqNextAddr  ( i_read_ftqNextAddr  ),
+        .o_read_robIdx       ( o_read_robIdx       ),
+        .i_read_ftqOffset    ( i_read_ftqOffset    ),
 
         .i_wb_stall        ( 0     ),
         .o_fu_finished     ( intBlock_fu_finished ),

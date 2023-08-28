@@ -17,19 +17,17 @@ module alu_bru (
 
     //wb, rd_idx will be used to fast bypass
     input wire i_wb_stall,
-    output wire o_finished,
-    output comwbInfo_t o_wbInfo,
+    output wire o_fu_finished,
+    output comwbInfo_t o_comwbInfo,
     output wire o_branchwb_vld,
     output branchwbInfo_t o_branchwbInfo
 );
-
     reg saved_vld;
     fuInfo_t saved_fuInfo;
 
     always_ff @( posedge clk ) begin : blockName
         if (rst==true) begin
             saved_vld <= 0;
-            saved_fuInfo.rd_wen <= 0;
         end
         else if (!i_wb_stall) begin
             saved_vld <= i_vld;
@@ -41,7 +39,9 @@ module alu_bru (
     wire[`XDEF] src0 = saved_fuInfo.srcs[0];
     wire[`XDEF] src1 = saved_fuInfo.srcs[1];
 
-
+/****************************************************************************************************/
+// alu
+/****************************************************************************************************/
     wire[5:0] shifter = src1[5:0];
 
     wire[`XDEF] lui = {{32{1'b1}},src1[19:0],12'd0};
@@ -86,31 +86,94 @@ module alu_bru (
     (saved_fuInfo.micOp == MicOp_t::sltu) ? sltu :
     0;
 
-    reg wb_vld;
-    comwbInfo_t wbInfo;
+/****************************************************************************************************/
+// bru
+/****************************************************************************************************/
+
+    wire[`XDEF] pc = saved_fuInfo.pc;
+    wire[`XDEF] pred_npc = saved_fuInfo.npc;
+    wire[`XDEF] fallthru = saved_fuInfo.pc + 4;
+    wire[`XDEF] imm20 = {{44{saved_fuInfo.imm20[19]}}, saved_fuInfo.imm20};
+
+    wire[`XDEF] jal_target = pc + imm20;
+    wire[`XDEF] jalr_target = src0 + imm20;
+    wire[`XDEF] br_target = pc + imm20;
+
+    wire beq_taken = src0 == src1;
+    wire bne_taken = !beq_taken;
+    wire blt_taken = slt;
+    wire bge_taken = !blt_taken;
+    wire bltu_taken = sltu;
+    wire bgeu_taken = !bltu_taken;
+
+    wire taken =
+    (saved_fuInfo.micOp == MicOp_t::jal) ? 1 :
+    (saved_fuInfo.micOp == MicOp_t::jalr) ? 1 :
+    (saved_fuInfo.micOp == MicOp_t::beq) ? beq_taken :
+    (saved_fuInfo.micOp == MicOp_t::bne) ? bne_taken :
+    (saved_fuInfo.micOp == MicOp_t::blt) ? blt_taken :
+    (saved_fuInfo.micOp == MicOp_t::bge) ? bge_taken :
+    (saved_fuInfo.micOp == MicOp_t::bltu) ? bltu_taken :
+    (saved_fuInfo.micOp == MicOp_t::bgeu) ? bgeu_taken :
+    0;
+
+    wire[`XDEF] target =
+    (saved_fuInfo.micOp == MicOp_t::jal) ? jal_target :
+    (saved_fuInfo.micOp == MicOp_t::jalr) ? jalr_target :
+    br_target;
+
+    wire[`XDEF] npc =
+    taken ? target : fallthru;
+
+    wire mispred = npc != pred_npc;
+    //TODO: remove it
+    BranchType::_ branch_type;
+    assign branch_type =
+    (saved_fuInfo.micOp == MicOp_t::jalr) && (saved_fuInfo.iprd_idx == 1) ? BranchType::isCall :
+    (saved_fuInfo.micOp == MicOp_t::jalr) && (saved_fuInfo.iprd_idx == 0) ? BranchType::isRet : //FIXME: iprs[0] should is 1
+    (saved_fuInfo.micOp == MicOp_t::jalr) ? BranchType::isIndirect :
+    (saved_fuInfo.micOp == MicOp_t::jal) ? BranchType::isDirect :
+    BranchType::isCond;
+
+    reg fu_finished;
+    comwbInfo_t comwbInfo;
+    reg branchwb_vld;
+    branchwbInfo_t branchwb_info;
     always_ff @(posedge clk) begin
         if (rst) begin
-            wb_vld <= 0;
-            wbInfo.rd_wen <= false;
+            fu_finished <= 0;
+            branchwb_vld <= 0;
         end
         else if (!i_wb_stall) begin
-            wb_vld <= saved_vld && saved_fuInfo.rd_wen;
-            wbInfo.rob_idx <= saved_fuInfo.rob_idx;
-            wbInfo.irob_idx <= saved_fuInfo.irob_idx;
-            wbInfo.use_imm <= saved_fuInfo.use_imm;
-            wbInfo.rd_wen <= saved_fuInfo.rd_wen;
-            wbInfo.iprd_idx <= saved_fuInfo.iprd_idx;
-            wbInfo.result <= calc_data;
+            fu_finished <= saved_vld;
+            comwbInfo.rob_idx <= saved_fuInfo.rob_idx;
+            comwbInfo.irob_idx <= saved_fuInfo.irob_idx;
+            comwbInfo.use_imm <= saved_fuInfo.use_imm;
+            comwbInfo.rd_wen <= saved_fuInfo.rd_wen;
+            comwbInfo.iprd_idx <= saved_fuInfo.iprd_idx;
+            comwbInfo.result <= calc_data;
+
+            branchwb_vld <= mispred;
+            branchwb_info <= '{
+                branch_type : branch_type,
+                rob_idx : saved_fuInfo.rob_idx,
+                ftq_idx : saved_fuInfo.ftq_idx,
+                has_mispred : mispred,
+                branch_taken : taken,
+                fallthruOffset : (saved_fuInfo.ftqOffset == (`FTB_PREDICT_WIDTH - 2)) ? (`FTB_PREDICT_WIDTH-1) : saved_fuInfo.ftqOffset + 4,
+                target_pc : target,
+                branch_npc : npc
+            };
         end
     end
 
-    assign o_willwrite_vld = saved_fuInfo.rd_wen;
+    assign o_willwrite_vld = saved_vld && saved_fuInfo.rd_wen;
     assign o_willwrite_rdIdx = saved_fuInfo.iprd_idx;
     assign o_willwrite_data = calc_data;
 
     assign o_fu_stall = i_wb_stall;
-    assign o_wb_vld = wb_vld;
-    assign o_wbInfo = wbInfo;
+    assign o_fu_finished = fu_finished;
+    assign o_comwbInfo = comwbInfo;
 
 
 

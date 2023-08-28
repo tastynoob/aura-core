@@ -33,6 +33,7 @@ typedef struct {
     // is branchInst actually taken ? (the jal inst must taken)
     logic branch_taken;
     // branchInst's fallthruOffset
+    // NOTE: fallthruOffset <= FTB_PREDICT_WIDTH
     ftqOffset_t fallthruOffset;
     // branchInst's taken pc
     logic[`XDEF] target_pc;

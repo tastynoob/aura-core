@@ -37,6 +37,9 @@ module aura_backend (
     wire[`WDEF(`IMMBUFFER_CLEARPORT_NUM)] toCtrl_clear_irob_vld;
     irobIdx_t toCtrl_clear_irob_idx[`IMMBUFFER_CLEARPORT_NUM];
 
+    wire[`WDEF($clog2(`ROB_SIZE))] toCtrl_read_rob_idx[`BRU_NUM];
+    ftqOffset_t toExe_read_rob_ftqOffset[`BRU_NUM];
+
     wire[`WDEF(`RENAME_WIDTH)] toExe_mark_notready_vld;
     iprIdx_t toExe_mark_notready_iprIdx[`RENAME_WIDTH];
 
@@ -76,11 +79,11 @@ module aura_backend (
         .i_clear_irob_vld      ( toCtrl_clear_irob_vld      ),
         .i_clear_irob_idx      ( toCtrl_clear_irob_idx    ),
 
-        .i_read_ftqOffset_idx  (    ),// TODO: BRU need ftqOffset
-        .o_read_ftqOffset_data (    ),
+        .i_read_ftqOffset_idx  ( toCtrl_read_rob_idx   ),// TODO: BRU need ftqOffset
+        .o_read_ftqOffset_data ( toExe_read_rob_ftqOffset   ),
 
-        .i_fu_finished              ( toCtrl_fu_finished          ),
-        .i_comwbInfo          ( toCtrl_comwbInfo          ),
+        .i_fu_finished         ( toCtrl_fu_finished          ),
+        .i_comwbInfo           ( toCtrl_comwbInfo          ),
         .i_branchwb_vld        ( toCtrl_branchwb_vld    ),
         .i_branchwb_info       ( toCtrl_branchwbInfo    ),
         .i_exceptwb_vld        ( toCtrl_except_vld      ),
@@ -135,13 +138,15 @@ module aura_backend (
         .o_read_ftqIdx       ( exeBlock_read_ftqIdx ),
         .i_read_ftqStartAddr ( i_read_ftqStartAddr  ),
         .i_read_ftqNextAddr  ( i_read_ftqNextAddr   ),
+        .o_read_robIdx       ( toCtrl_read_rob_idx  ),
+        .i_read_ftqOffset    ( toExe_read_rob_ftqOffset ),
 
-        .o_fu_finished       ( toCtrl_fu_finished        ),
-        .o_comwbInfo         ( toCtrl_comwbInfo        ),
+        .o_fu_finished       ( toCtrl_fu_finished    ),
+        .o_comwbInfo         ( toCtrl_comwbInfo      ),
         .o_branchwb_vld      ( exeBlock_branchwb_vld ),
         .o_branchwb_info     ( exeBlock_branchwbInfo ),
-        .o_exceptwb_vld      ( toCtrl_except_vld    ),
-        .o_exceptwb_info     ( toCtrl_exceptwbInfo  )
+        .o_exceptwb_vld      ( toCtrl_except_vld     ),
+        .o_exceptwb_info     ( toCtrl_exceptwbInfo   )
     );
 
     always_comb begin

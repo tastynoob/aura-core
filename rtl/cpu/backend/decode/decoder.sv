@@ -249,7 +249,7 @@ module decoder (
     wire isIntMath = isAdd | isSub | isShift | isLogic | isCompare;
     // replace rs2 to imm
     wire isImmMath = inst_ADDI | inst_ADDIW | inst_SLLI | inst_SLLIW | inst_SRLI | inst_SRLIW | inst_SRAI | inst_SRAIW;
-    wire use_imm = isImmMath;
+    wire use_imm = isImmMath | isCondBranch | inst_JAL;
 
     wire[`WDEF(5)] ilrd_idx = inst[11:7];
     wire[`WDEF(5)] ilrs1_idx = inst[19:15];
@@ -359,6 +359,21 @@ module decoder (
     MicOp_t::none;
     wire use_alu = (aluop_type != MicOp_t::none);
 
+    //BRU
+    MicOp_t::_bru bruop_type;
+    assign bruop_type =
+    inst_AUIPC ? MicOp_t::auipc :
+    inst_JAL ? MicOp_t::jal :
+    inst_JALR ? MicOp_t::jalr :
+    inst_BEQ ? MicOp_t::beq :
+    inst_BNE ? MicOp_t::bne :
+    inst_BLT ? MicOp_t::blt :
+    inst_BGE ? MicOp_t::bge :
+    inst_BLTU ? MicOp_t::bltu :
+    inst_BGEU ? MicOp_t::bgeu :
+    MicOp_t::none;
+    wire use_bru = (bruop_type != MicOp_t::none);
+
     //MDU
     MicOp_t::_mdu mduop_type;
     assign mduop_type =
@@ -378,7 +393,6 @@ module decoder (
     wire use_mdu = (mduop_type != MicOp_t::none);
 
     assign o_unkown_inst = isUnknow;
-
     assign o_decinfo.isRVC = isRVC;
     assign o_decinfo.ismv = ismv;
     assign o_decinfo.imm20 = imm;
@@ -392,6 +406,7 @@ module decoder (
 
     assign o_decinfo.micOp_type =
     use_alu ? aluop_type :
+    use_bru ? bruop_type :
     use_mdu ? mduop_type :
     0;
 

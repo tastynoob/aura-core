@@ -89,6 +89,11 @@ typedef struct {
     logic rd_wen;
     iprIdx_t iprd_idx;
     logic[`XDEF] srcs[`NUMSRCS_INT];
+    // only for bru
+    ftqOffset_t ftqOffset;
+    logic[`XDEF] pc;
+    logic[`XDEF] npc;
+    imm_t imm20;
 
     logic[`WDEF(2)] issueQue_id;
     MicOp_t::_u micOp;
