@@ -68,7 +68,7 @@ module FTQ (
     ftqIdx_t fetch_ptr; // to ICACHE
     ftqIdx_t commit_ptr; // from rob
     ftqIdx_t commit_ptr_thre;// commit_ptr -> commit_ptr_thre
-    reg[`SDEF(`FTQ_SIZE)] count;
+    reg[`SDEF(`FTQ_SIZE)] count, arch_count;
 
     ftqFetchInfo_t buffer_fetchInfo[`FTQ_SIZE];
     ftqBranchInfo_t buffer_branchInfo[`FTQ_SIZE];
@@ -76,20 +76,21 @@ module FTQ (
     reg[`WDEF(`FTQ_SIZE)] buffer_vld;
 
     wire notFull = (count != `FTQ_SIZE);
-    assign o_ftq_rdy = notFull;
+    assign o_ftq_rdy = notFull && (!need_update_ftb);
 
 /****************************************************************************************************/
 // do update for ptr
 // NOTE: we need to commit mispred ftq entry quickly
 /****************************************************************************************************/
 
+    wire do_pred = i_pred_req && o_ftq_rdy;
     wire do_commit = (commit_ptr != commit_ptr_thre);
     wire do_fetch = (count != 0) && (fetch_ptr != pred_ptr) && (!i_stall);
     wire need_update_ftb = (buffer_metaInfo[commit_ptr].hit_on_ftb || buffer_branchInfo[commit_ptr].mispred) && do_commit;
 
     wire[`SDEF(`FTQ_SIZE)] push,pop;
     assign push = (i_pred_req && notFull ? 1 : 0);
-    assign pop = (do_commit && (need_update_ftb ? i_bpu_update_finished : 1) ? 1 : 0);
+    assign pop = ((do_commit && (need_update_ftb ? i_bpu_update_finished : 1)) ? 1 : 0);
 
     always_ff @( posedge clk ) begin
         if (rst) begin
@@ -100,10 +101,22 @@ module FTQ (
             count <= 0;
             buffer_vld <= 0;
         end
+        else if (i_squash_vld) begin
+            pred_ptr <= commit_ptr_thre;
+            fetch_ptr <= commit_ptr_thre;
+            count <= 1;
+            for (int fa=0;fa<`FTQ_SIZE;fa=fa+1) begin
+                if (fa == commit_ptr) begin
+                end
+                else begin
+                    buffer_vld[fa] <= 0;
+                end
+            end
+        end
         else begin
             count <= count + push - pop;
 
-            if (i_pred_req && notFull) begin
+            if (do_pred) begin
                 assert(buffer_vld[pred_ptr] == 0);
                 buffer_vld[pred_ptr] <= 1;
                 pred_ptr <= (pred_ptr == (`FTQ_SIZE - 1)) ? 0 : pred_ptr + 1;
@@ -113,7 +126,11 @@ module FTQ (
             // TODO: make commit and ftb commit separate
             if (do_commit) begin
                 if (need_update_ftb ? i_bpu_update_finished : 1) begin
+                    //FIXME: should use ptr flipped
                     assert(buffer_vld[commit_ptr]);
+                    if (buffer_branchInfo[commit_ptr].mispred) begin
+                        $display("mispred %b : %h", buffer_branchInfo[commit_ptr].mispred, commit_ptr);
+                    end
                     buffer_vld[commit_ptr] <= 0;
                     commit_ptr <= (commit_ptr == (`FTQ_SIZE - 1)) ? 0 : commit_ptr + 1;
                 end
@@ -127,13 +144,7 @@ module FTQ (
             end
 
             if (i_commit_vld) begin
-                if (buffer_branchInfo[i_commit_ftqIdx].mispred) begin
-                    commit_ptr_thre <= (i_commit_ftqIdx == (`FTQ_SIZE-1)) ? 0 : i_commit_ftqIdx + 1;
-                    $display("mispred %b : %h", buffer_branchInfo[i_commit_ftqIdx].mispred, i_commit_ftqIdx);
-                end
-                else begin
-                    commit_ptr_thre <= i_commit_ftqIdx;
-                end
+                commit_ptr_thre <= i_commit_ftqIdx;
             end
         end
     end
@@ -145,7 +156,7 @@ module FTQ (
         if (rst) begin
         end
         else begin
-            if (i_pred_req && notFull) begin
+            if (do_pred) begin
                 buffer_fetchInfo[pred_ptr] <= '{
                     startAddr : i_pred_ftqInfo.startAddr,
                     endAddr   : i_pred_ftqInfo.endAddr,
@@ -179,9 +190,6 @@ module FTQ (
     always_ff @( posedge clk ) begin
         int fa, fb;
         if (rst) begin
-            for(fa=0;fa<`FTQ_SIZE;fa=fa+1) begin
-                buffer_branchInfo[fa].mispred <= 0;
-            end
         end
         else begin
             // read
@@ -213,6 +221,10 @@ module FTQ (
                     end
                 end
             end
+
+            if (do_pred) begin
+                buffer_branchInfo[pred_ptr].mispred <= 0;
+            end
         end
     end
 
@@ -235,7 +247,7 @@ module FTQ (
                     // generate new ftb entry
                     // TODO: optimize it
                     ftb_update : '{
-                        carry        : temp_fallthruAddr[`FTB_FALLTHRU_WIDTH+1] == buffer_fetchInfo[commit_ptr].startAddr[`FTB_FALLTHRU_WIDTH+1],
+                        carry        : temp_fallthruAddr[`FTB_FALLTHRU_WIDTH+1] != buffer_fetchInfo[commit_ptr].startAddr[`FTB_FALLTHRU_WIDTH+1],
                         fallthruAddr : temp_fallthruAddr[`FTB_FALLTHRU_WIDTH:1],
                         tarStat      : ftbFuncs::calcuTarStat(buffer_fetchInfo[commit_ptr].startAddr, buffer_branchInfo[commit_ptr].targetAddr),
                         targetAddr   : buffer_branchInfo[commit_ptr].targetAddr[`FTB_TARGET_WIDTH:1],
@@ -244,7 +256,7 @@ module FTQ (
                     }
                 };
             end
-            update_vld <= do_commit && need_update_ftb;
+            update_vld <= do_commit && need_update_ftb && (!i_bpu_update_finished);
         end
     end
 
@@ -260,6 +272,7 @@ module FTQ (
     assign o_icache_fetch_ftqIdx = fetch_ptr;
     assign o_icache_fetchInfo = '{
         startAddr : buffer_fetchInfo[fetch_ptr].startAddr,
+        // TODO: use byte mask
         fetchBlock_size : buffer_fetchInfo[fetch_ptr].endAddr - buffer_fetchInfo[fetch_ptr].startAddr
     };
 

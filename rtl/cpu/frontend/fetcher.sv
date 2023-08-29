@@ -129,14 +129,15 @@ module fetcher (
     wire[`WDEF(`FTB_PREDICT_WIDTH/2)] fetched_32i_OH;// which region is a 32bit inst
     wire[`IDEF] fetched_insts[`FTB_PREDICT_WIDTH/2], reordered_insts[`FTB_PREDICT_WIDTH/2];
     ftqOffset_t reordered_ftqOffset[`FTB_PREDICT_WIDTH/2];
-    wire[`WDEF(`CACHELINE_SIZE*8*2)] icacheline_merge = ({if_core_fetch.line1, if_core_fetch.line0} >> (s2_start_shift*8));
+    wire[`WDEF(`CACHELINE_SIZE*8*2)] icacheline_merge;
+    assign icacheline_merge = ({if_core_fetch.line1, if_core_fetch.line0} >> (s2_start_shift*8)) & ((512'd256<<(s2_end_offset*8)) - 1);
 
     // generate new fetch entry
     reg[`WDEF(`FTB_PREDICT_WIDTH/2)] new_inst_vld;
     fetchEntry_t new_inst[`FTB_PREDICT_WIDTH/2];
     always_ff @( posedge clk ) begin
         int fa;
-        if (rst) begin
+        if (rst || i_squash_vld) begin
             new_inst_vld <= 0;
             s1_fetch_vld <= 0;
             s2_fetch_vld <= 0;

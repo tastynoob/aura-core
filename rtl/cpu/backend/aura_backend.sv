@@ -113,9 +113,8 @@ module aura_backend (
 
     assign o_branchwb_vld = exeBlock_branchwb_vld;
     assign o_branchwbInfo = exeBlock_branchwbInfo;
-    assign o_commit_vld = 0;
-    assign o_squash_vld = 0;// squash_vld;
-    // assign o_squashInfo = squashInfo;
+    assign o_squash_vld = squash_vld;
+    assign o_squashInfo = squashInfo;
 
 
     ftqIdx_t exeBlock_read_ftqIdx[`BRU_NUM];
@@ -169,10 +168,11 @@ module aura_backend (
 
     oldest_select
     #(
-        .WIDTH     ( 2     ),
+        .WIDTH     ( `BRU_NUM     ),
         .dtype     ( branchwbInfo_t )
     )
     u_oldest_select(
+        .i_vld            ( exeBlock_branchwb_vld    ),
         .i_rob_idx        ( {exeBlock_branchwbInfo[0].rob_idx, exeBlock_branchwbInfo[1].rob_idx} ),
         .i_datas          ( exeBlock_branchwbInfo ),
         .o_oldest_data    ( toCtrl_branchwbInfo )

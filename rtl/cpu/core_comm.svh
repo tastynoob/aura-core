@@ -8,7 +8,7 @@
 `define CACHELINE_SIZE 32
 `define XLEN 64
 `define XLEN_64
-`define INIT_PC 64'h8000000000000000
+`define INIT_PC 64'h0000000000000000
 
 `define CSRIDX_DEF `WDEF(12)
 `define PCDEF `WDEF(64)

@@ -48,7 +48,7 @@ module cache_sram #(
     reg s1_islookup;
     reg[`XDEF] s1_access_addr;
 
-    wire[`WDEF(CACHELINE_SIZE)] read_data[`WDEF(WAYS)], write_data[`WDEF(WAYS)];
+    wire[`WDEF(CACHELINE_SIZE)] read_data[WAYS], write_data[WAYS];
 
     sramSet
     #(

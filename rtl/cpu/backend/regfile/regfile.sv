@@ -79,6 +79,7 @@ module regfile #(
             assign o_data_rdy = data_rdy;
             // disp to IQ
             for (i=0;i<`RENAME_WIDTH * `NUMSRCS_INT;i=i+1) begin:gen_for
+                // this should use rdy_bit_bypass;
                 assign o_disp_check_iprs_vld[i/2][i%2] = (i_disp_check_iprsIdx[i] == 0) ? 1 : rdy_bit_bypass[i_disp_check_iprsIdx[i]];
             end
         end

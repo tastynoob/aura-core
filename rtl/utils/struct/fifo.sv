@@ -83,7 +83,7 @@ module fifo #(
         always_ff @( posedge clk ) begin
             int fa;
             if (rst==true) begin
-                arch_count <= 0;
+                arch_count <= DEPTH;
                 arch_deq_ptr <= 0;
             end
             else begin

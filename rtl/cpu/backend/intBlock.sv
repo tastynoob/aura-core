@@ -58,7 +58,7 @@ module intBlock #(
     output wire[`WDEF(FU_NUM)] o_fu_finished,
     output comwbInfo_t o_comwbInfo[FU_NUM],
     output wire[`WDEF(`BRU_NUM)] o_branchWB_vld,
-    output branchwbInfo_t o_branchwb_info[`WDEF(`BRU_NUM)],
+    output branchwbInfo_t o_branchwb_info[`BRU_NUM],
     output wire o_exceptwb_vld,
     output exceptwbInfo_t o_exceptwb_info,
 
@@ -639,8 +639,10 @@ if (1) begin: gen_intBlock_IQ1_alu2
         .o_willwrite_data  ( internal_bypass_data[intBlock_fuID]    ),
 
         .i_wb_stall        ( i_wb_stall[intBlock_fuID]     ),
-        .o_fu_finished          ( fu_finished[intBlock_fuID]         ),
-        .o_comwbInfo          ( comwbInfo[intBlock_fuID]         )
+        .o_fu_finished     ( fu_finished[intBlock_fuID]         ),
+        .o_comwbInfo       ( comwbInfo[intBlock_fuID]         ),
+        .o_branchwb_vld    ( o_branchWB_vld[IQ1_fuID] ),
+        .o_branchwbInfo    ( o_branchwb_info[IQ1_fuID] )
     );
 end
 endgenerate
@@ -722,9 +724,11 @@ if (1) begin : gen_intBlock_IQ1_alu3
         .o_willwrite_rdIdx ( internal_bypass_iprdIdx[intBlock_fuID] ),
         .o_willwrite_data  ( internal_bypass_data[intBlock_fuID]    ),
 
-        .i_wb_stall        ( i_wb_stall[intBlock_fuID]     ),
-        .o_fu_finished          ( fu_finished[intBlock_fuID]         ),
-        .o_comwbInfo          ( comwbInfo[intBlock_fuID]         )
+        .i_wb_stall        ( i_wb_stall[intBlock_fuID]  ),
+        .o_fu_finished     ( fu_finished[intBlock_fuID] ),
+        .o_comwbInfo       ( comwbInfo[intBlock_fuID]   ),
+        .o_branchwb_vld    ( o_branchWB_vld[IQ1_fuID]   ),
+        .o_branchwbInfo    ( o_branchwb_info[IQ1_fuID]  )
     );
 end
 endgenerate

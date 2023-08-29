@@ -90,7 +90,8 @@ module ROB(
     `ORDER_CHECK(i_enq_req);
     genvar i;
 
-
+    reg squash_vld;
+    squashInfo_t squashInfo;
     reg commit_stall;
     wire[`WDEF(`COMMIT_WIDTH)] canCommit_vld;
     wire[`WDEF(`COMMIT_WIDTH)] willCommit_vld;
@@ -100,8 +101,8 @@ module ROB(
     wire has_except;
     wire has_interrupt=0;//TODO:interrupt
 
-    // if has except, prev_commit_inst = (excepted inst - 1)
-    ROBEntry_t prev_commit_inst;
+    // if has except, commit_end_inst = (excepted inst - 1)
+    ROBEntry_t commit_end_inst;
     // if has except prev_commit_rob_idx = (excepted inst - 1)
     logic[`WDEF($clog2(`ROB_SIZE))] prev_commit_rob_idx;
 
@@ -138,7 +139,7 @@ module ROB(
     )
     u_dataQue(
         .clk              ( clk             ),
-        .rst              ( rst             ),
+        .rst              ( rst || squash_vld ),
         .i_stall          ( commit_stall    ),
 
         .o_can_enq        ( o_can_enq       ),
@@ -206,13 +207,17 @@ module ROB(
 
     always_comb begin
         int ca;
-        sim_wb_vld = canCommit_vld;
+        sim_wb_vld = squash_vld ? 0 : canCommit_vld;
         for (ca=0;ca <`COMMIT_WIDTH;ca=ca+1) begin
+            if (!willCommit_data[ca].has_rd) begin
+                sim_wb_vld[ca] = 0;
+            end
             sim_wb_idx[ca] = willCommit_data[ca].ilrd_idx;
             sim_wb_data[ca] = result_buffer[willCommit_idx[ca]];
             if (willCommit_data[ca].ismv) begin
                 sim_wb_data[ca] = 64'haaaaaaaaaaaaaaaa;
             end
+
         end
     end
 
@@ -227,10 +232,10 @@ module ROB(
 /****************************************************************************************************/
 
 
-    assign o_commit_ftq_idx = prev_commit_inst.ftq_idx;
+    assign o_commit_ftq_idx = has_mispred ? (commit_end_inst.ftq_idx == `FTQ_SIZE-1 ? 0 : commit_end_inst.ftq_idx + 1) : commit_end_inst.ftq_idx;
     // TODO: we may need to improve rename method
     // rename rob commit -> physical register used buffer
-    assign o_rename_commit = canCommit_vld;
+    assign o_rename_commit = squash_vld ? 0 : canCommit_vld;
     generate
         for(i=0;i<`COMMIT_WIDTH;i=i+1) begin:gen_for
             assign o_rename_commitInfo[i] = '{
@@ -271,7 +276,7 @@ module ROB(
         end
         else begin
             if (i_branchwb_vld && i_branchwb_info.has_mispred) begin
-                if ((bmhr.rob_idx.flipped == i_branchwb_info.rob_idx.flipped) ? (i_branchwb_info.rob_idx.idx < bmhr.rob_idx.idx) : (i_branchwb_info.rob_idx.idx > bmhr.rob_idx.idx)) begin
+                if ((!bmhr.mispred) || ((bmhr.rob_idx.flipped == i_branchwb_info.rob_idx.flipped) ? (i_branchwb_info.rob_idx.idx < bmhr.rob_idx.idx) : (i_branchwb_info.rob_idx.idx > bmhr.rob_idx.idx))) begin
                     bmhr <= '{
                         rob_idx:i_branchwb_info.rob_idx,
                         taken:i_branchwb_info.branch_taken,
@@ -289,7 +294,7 @@ module ROB(
 
         for(i=0;i<`COMMIT_WIDTH;i=i+1) begin:gen_for
             if (i==0) begin:gen_if
-                assign temp_0[i] = willCommit_vld[i] && (!bmhr.mispred);
+                assign temp_0[i] = willCommit_vld[i];
             end
             else begin:gen_else
                 assign temp_0[i] = willCommit_vld[i] && temp_0[i-1] && (bmhr.mispred ? (willCommit_idx[i-1] != bmhr.rob_idx.idx) : 1);
@@ -357,15 +362,15 @@ module ROB(
     `ASSERT ((temp_3 != temp_1) || ((temp_3 == 0) && (temp_1 == 0)));
 
     assign canCommit_vld = has_except ? temp_2 : temp_0;
-    assign o_read_ftqIdx = prev_commit_inst.ftq_idx;
+    assign o_read_ftqIdx = commit_end_inst.ftq_idx;
 
     always_comb begin
         int ca;
-        prev_commit_inst = willCommit_data[0];
+        commit_end_inst = willCommit_data[0];
         prev_commit_rob_idx = willCommit_idx[0];
         for(ca=0;ca<`COMMIT_WIDTH;ca=ca+1) begin
             if(canCommit_vld[ca]) begin
-                prev_commit_inst = willCommit_data[ca];
+                commit_end_inst = willCommit_data[ca];
                 prev_commit_rob_idx = willCommit_idx[ca];
             end
         end
@@ -386,8 +391,6 @@ module ROB(
     wire[`XDEF] trap_ret_pc;
     reg last_commit_isRVC;
     ftqOffset_t ftqOffset;
-    reg squash_vld;
-    squashInfo_t squashInfo;
     always_ff @( posedge clk ) begin
         if (rst || squash_vld) begin
             status <= commit_status_t::normal;
@@ -401,8 +404,8 @@ module ROB(
                 // s1: stall and read ftq;
                 commit_stall <= 1;
                 status <= commit_status_t::trapProcess;
-                // NOTE: if has except, prev_commit_inst = (excepted inst - 1)
-                last_commit_isRVC <= prev_commit_inst.isRVC;
+                // NOTE: if has except, commit_end_inst = (excepted inst - 1)
+                last_commit_isRVC <= commit_end_inst.isRVC;
                 // read from rob
                 ftqOffset <= ftqOffset_buffer[prev_commit_rob_idx];
             end

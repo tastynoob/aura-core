@@ -47,8 +47,9 @@ module FTB_sram #(
     reg s1_islookup;
     reg[`XDEF] s1_access_addr;
 
-    ftbEntry_t read_data[`WDEF(WAYS)], write_data[`WDEF(WAYS)];
+    ftbEntry_t read_data[WAYS], write_data[WAYS];
 
+    wire[`WDEF(INDEX_WIDTH)] index = access_addr[`INDEX_RANGE];
     sramSet
     #(
         .SETS  ( SETS  ),
@@ -60,8 +61,8 @@ module FTB_sram #(
         .clk            ( clk            ),
         .rst            ( rst            ),
 
-        .i_addr         ( access_addr[`INDEX_RANGE]         ),
-        .i_read_en      ( sram_read_req      ),
+        .i_addr         ( index         ),
+        .i_read_en      ( sram_read_req ),
         .i_write_en_vec ( i_write_req ? i_write_way_vec : 0 ),
         .o_read_data    ( read_data    ),
         .i_write_data   ( write_data   )

@@ -153,7 +153,7 @@ module alu_bru (
             comwbInfo.iprd_idx <= saved_fuInfo.iprd_idx;
             comwbInfo.result <= calc_data;
 
-            branchwb_vld <= mispred;
+            branchwb_vld <= saved_vld && (saved_fuInfo.issueQue_id == `BRUIQ_ID);
             branchwb_info <= '{
                 branch_type : branch_type,
                 rob_idx : saved_fuInfo.rob_idx,
@@ -174,6 +174,8 @@ module alu_bru (
     assign o_fu_stall = i_wb_stall;
     assign o_fu_finished = fu_finished;
     assign o_comwbInfo = comwbInfo;
+    assign o_branchwb_vld = branchwb_vld;
+    assign o_branchwbInfo = branchwb_info;
 
 
 

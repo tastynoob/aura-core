@@ -28,6 +28,8 @@ module BPU (
 
 
     reg[`XDEF] base_pc, s1_base_pc, s2_base_pc;
+    wire pred_continue;
+    assign pred_continue = (o_pred_vld ? i_ftq_rdy : 1);
 
     wire lookup_req = 1;
 
@@ -71,14 +73,11 @@ module BPU (
                 s2_ftbPred_use <= 0;
                 s2_ftb_lookup_hit_rdy <= 0;
             end
-            else if (i_ftq_rdy) begin
+            else if (pred_continue) begin
                 s2_ftbPred_use <= s1_ftb_lookup_hit_rdy && s1_ftb_lookup_hit;
                 s2_ftb_lookup_hit <= s1_ftb_lookup_hit;
                 s2_ftb_lookup_hit_rdy <= s1_ftb_lookup_hit_rdy;
             end
-            // else begin
-            //     s2_ftb_lookup_hit_rdy <= 0;
-            // end
 
             s2_ftb_unhit_fallthruAddr <= s1_base_pc + (`FTB_PREDICT_WIDTH);
         end
@@ -100,15 +99,15 @@ module BPU (
             if (squash_dueToBackend) begin
                 base_pc <= i_squashInfo.arch_pc;
             end
-            else if (s2_ftbPred_use && i_ftq_rdy) begin
+            else if (s2_ftbPred_use) begin
                 base_pc <= s2_predNPC;
             end
-            else if (!i_update_vld && i_ftq_rdy) begin
+            else if (!i_update_vld && pred_continue) begin
                 // donot pred when updating
                 base_pc <= base_pc + (`FTB_PREDICT_WIDTH);
             end
 
-            if (i_ftq_rdy) begin
+            if (pred_continue) begin
                 s1_base_pc <= base_pc;
                 s2_base_pc <= s1_base_pc;
             end
@@ -133,7 +132,7 @@ module BPU (
         // ftb meta
         hit_on_ftb : s2_ftb_lookup_hit,
         branch_type : s2_ftb_lookup_info.branch_type,
-        ftb_counter : s2_ftb_lookup_info.counter
+        ftb_counter : s2_ftbPred_use ? s2_ftb_lookup_info.counter : 1
         // or more
     };
 

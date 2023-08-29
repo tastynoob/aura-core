@@ -55,7 +55,7 @@ module decode (
     decInfo_t decinfo[`DECODE_WIDTH];
     always_ff @(posedge clk) begin
         int fa;
-        if (rst) begin
+        if (rst || i_squash_vld) begin
             decinfo_vld <= 0;
         end
         else if (!i_stall) begin

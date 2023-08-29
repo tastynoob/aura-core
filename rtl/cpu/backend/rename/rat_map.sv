@@ -77,8 +77,12 @@ module rat_map #(
             for (cb=0;cb<NUMSRCS;cb=cb+1) begin
                 renamed1_prs_idx[ca][cb] = renamed0_prs_idx[ca][cb];
             end
-
-            renamed_prd_idx[ca] = i_alloc_prd_idx[ca];
+            if  (i_has_rd[ca]) begin
+                renamed_prd_idx[ca] = i_alloc_prd_idx[ca];
+            end
+            else begin
+                renamed_prd_idx[ca] = 0;
+            end
 
             for(int ck=0;ck<ca;ck=ck+1) begin
                 for(cb=0;cb<NUMSRCS;cb=cb+1) begin
