@@ -1,4 +1,5 @@
 build
+firmware
 slpp_all
 *.dot*
 *.vcd
