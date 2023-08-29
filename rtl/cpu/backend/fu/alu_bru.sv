@@ -160,7 +160,8 @@ module alu_bru (
                 ftq_idx : saved_fuInfo.ftq_idx,
                 has_mispred : mispred,
                 branch_taken : taken,
-                fallthruOffset : (saved_fuInfo.ftqOffset == (`FTB_PREDICT_WIDTH - 2)) ? (`FTB_PREDICT_WIDTH-1) : saved_fuInfo.ftqOffset + 4,
+                //FIXME: fallthruAddr should always point to branch_pc + 4
+                fallthruOffset : saved_fuInfo.ftqOffset + 4,
                 target_pc : target,
                 branch_npc : npc
             };

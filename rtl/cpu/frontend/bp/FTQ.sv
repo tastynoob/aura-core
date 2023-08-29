@@ -10,7 +10,7 @@ typedef struct {
 typedef struct {
     logic mispred;
     logic taken;
-    ftqOffset_t fallthruOffset;// in backend: branch's offset + isRVC ? 2:4
+    logic[`WDEF($clog2(`FTB_PREDICT_WIDTH) + 1)] fallthruOffset;// in backend: branch's offset + isRVC ? 2:4
     logic[`XDEF] targetAddr;
     BranchType::_ branch_type;
     //we need fallthruAddr to update ftb
@@ -68,15 +68,17 @@ module FTQ (
     ftqIdx_t fetch_ptr; // to ICACHE
     ftqIdx_t commit_ptr; // from rob
     ftqIdx_t commit_ptr_thre;// commit_ptr -> commit_ptr_thre
-    reg[`SDEF(`FTQ_SIZE)] count, arch_count;
+    reg pptr_flipped, fptr_flipped, cptr_flipped;
 
     ftqFetchInfo_t buffer_fetchInfo[`FTQ_SIZE];
     ftqBranchInfo_t buffer_branchInfo[`FTQ_SIZE];
     ftqMetaInfo_t buffer_metaInfo[`FTQ_SIZE];
     reg[`WDEF(`FTQ_SIZE)] buffer_vld;
 
-    wire notFull = (count != `FTQ_SIZE);
-    assign o_ftq_rdy = notFull && (!need_update_ftb);
+    wire ftqEmpty = (commit_ptr == pred_ptr) && (cptr_flipped == pptr_flipped);
+    wire ftqFull = (commit_ptr == pred_ptr) && (cptr_flipped != pptr_flipped);
+    // wire fetch_finished = (fetch_ptr == pred_ptr) && (cptr_flipped == fptr_flipped);
+    assign o_ftq_rdy = (!ftqFull) && (!need_update_ftb);
 
 /****************************************************************************************************/
 // do update for ptr
@@ -85,11 +87,11 @@ module FTQ (
 
     wire do_pred = i_pred_req && o_ftq_rdy;
     wire do_commit = (commit_ptr != commit_ptr_thre);
-    wire do_fetch = (count != 0) && (fetch_ptr != pred_ptr) && (!i_stall);
+    wire do_fetch = (!ftqEmpty) && (fetch_ptr != pred_ptr) && (!i_stall);
     wire need_update_ftb = (buffer_metaInfo[commit_ptr].hit_on_ftb || buffer_branchInfo[commit_ptr].mispred) && do_commit;
 
     wire[`SDEF(`FTQ_SIZE)] push,pop;
-    assign push = (i_pred_req && notFull ? 1 : 0);
+    assign push = (i_pred_req && (!ftqFull) ? 1 : 0);
     assign pop = ((do_commit && (need_update_ftb ? i_bpu_update_finished : 1)) ? 1 : 0);
 
     always_ff @( posedge clk ) begin
@@ -98,15 +100,25 @@ module FTQ (
             fetch_ptr <= 0;
             commit_ptr <= 0;
             commit_ptr_thre <= 0;
-            count <= 0;
             buffer_vld <= 0;
+            pptr_flipped<=0;
+            fptr_flipped<=0;
+            cptr_flipped<=0;
         end
         else if (i_squash_vld) begin
             pred_ptr <= commit_ptr_thre;
             fetch_ptr <= commit_ptr_thre;
-            count <= 1;
+            if (commit_ptr_thre > commit_ptr) begin
+                pptr_flipped <= cptr_flipped;
+                fptr_flipped <= cptr_flipped;
+            end
+            else begin
+                assert (commit_ptr_thre != commit_ptr);
+                pptr_flipped <= (!cptr_flipped);
+                fptr_flipped <= (!cptr_flipped);
+            end
             for (int fa=0;fa<`FTQ_SIZE;fa=fa+1) begin
-                if (fa == commit_ptr) begin
+                if ((fa >= commit_ptr) && (fa < commit_ptr_thre)) begin
                 end
                 else begin
                     buffer_vld[fa] <= 0;
@@ -114,12 +126,12 @@ module FTQ (
             end
         end
         else begin
-            count <= count + push - pop;
 
             if (do_pred) begin
                 assert(buffer_vld[pred_ptr] == 0);
                 buffer_vld[pred_ptr] <= 1;
                 pred_ptr <= (pred_ptr == (`FTQ_SIZE - 1)) ? 0 : pred_ptr + 1;
+                pptr_flipped <= (pred_ptr == (`FTQ_SIZE - 1)) ? ~pptr_flipped : pptr_flipped;
             end
 
             // do commit
@@ -133,14 +145,17 @@ module FTQ (
                     end
                     buffer_vld[commit_ptr] <= 0;
                     commit_ptr <= (commit_ptr == (`FTQ_SIZE - 1)) ? 0 : commit_ptr + 1;
+                    cptr_flipped <= (commit_ptr == (`FTQ_SIZE - 1)) ? ~cptr_flipped : cptr_flipped;
                 end
             end
 
             if (do_fetch && i_icache_fetch_rdy) begin
                 fetch_ptr <= (fetch_ptr == (`FTQ_SIZE - 1)) ? 0 : fetch_ptr + 1;
+                fptr_flipped <= (fetch_ptr == (`FTQ_SIZE - 1)) ? ~fptr_flipped : fptr_flipped;
             end
             else if (i_stall) begin
                 fetch_ptr <= i_recovery_idx;
+                fptr_flipped <= (i_recovery_idx > pred_ptr) ? ~pptr_flipped : pptr_flipped;
             end
 
             if (i_commit_vld) begin
@@ -148,6 +163,7 @@ module FTQ (
             end
         end
     end
+
 /****************************************************************************************************/
 // BPU insert into FTQ
 /****************************************************************************************************/
@@ -235,6 +251,7 @@ module FTQ (
 
     reg update_vld;
     BPupdateInfo_t new_updateInfo;
+    //FIXME: fallthruAddr should always point to branch_pc + 4
     wire[`XDEF] temp_fallthruAddr = buffer_fetchInfo[commit_ptr].startAddr + buffer_branchInfo[commit_ptr].fallthruOffset;
     always_ff @( posedge clk ) begin
         if (rst) begin
