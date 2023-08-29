@@ -88,7 +88,8 @@ module FTQ (
     wire do_pred = i_pred_req && o_ftq_rdy;
     wire do_commit = (commit_ptr != commit_ptr_thre);
     wire do_fetch = (!ftqEmpty) && (fetch_ptr != pred_ptr) && (!i_stall);
-    wire need_update_ftb = (buffer_metaInfo[commit_ptr].hit_on_ftb || buffer_branchInfo[commit_ptr].mispred) && do_commit;
+    wire train_stop;
+    wire need_update_ftb = (buffer_metaInfo[commit_ptr].hit_on_ftb || buffer_branchInfo[commit_ptr].mispred) && (!train_stop) && do_commit;
 
     wire[`SDEF(`FTQ_SIZE)] push,pop;
     assign push = (i_pred_req && (!ftqFull) ? 1 : 0);
@@ -253,6 +254,8 @@ module FTQ (
     BPupdateInfo_t new_updateInfo;
     //FIXME: fallthruAddr should always point to branch_pc + 4
     wire[`XDEF] temp_fallthruAddr = buffer_fetchInfo[commit_ptr].startAddr + buffer_branchInfo[commit_ptr].fallthruOffset;
+
+    assign train_stop = ftbFuncs::counterUpdate(buffer_metaInfo[commit_ptr].ftb_counter, buffer_branchInfo[commit_ptr].taken) == buffer_metaInfo[commit_ptr].ftb_counter;
     always_ff @( posedge clk ) begin
         if (rst) begin
             update_vld <= 0;
