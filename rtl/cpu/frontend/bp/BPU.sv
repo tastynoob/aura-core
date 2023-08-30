@@ -28,8 +28,10 @@ module BPU (
 
 
     reg[`XDEF] base_pc, s1_base_pc, s2_base_pc;
+    wire pred_access;
     wire pred_continue;
-    assign pred_continue = (o_pred_vld ? i_ftq_rdy : 1);
+    assign pred_continue = i_ftq_rdy;
+    assign pred_access = (o_pred_vld && i_ftq_rdy);
 
     wire lookup_req = 1;
 
@@ -58,7 +60,7 @@ module BPU (
 // lookup predictors
 /****************************************************************************************************/
 
-
+    reg s1_req;
     reg s2_ftb_lookup_hit;
     reg s2_ftb_lookup_hit_rdy;
     reg s2_ftbPred_use; // ftb lookup hit
@@ -69,12 +71,14 @@ module BPU (
             s2_ftb_lookup_hit_rdy <= 0;
         end
         else begin
-            if (squash_vld) begin
+            if (squash_vld || i_update_vld) begin
+                s1_req <= 0;
                 s2_ftbPred_use <= 0;
                 s2_ftb_lookup_hit_rdy <= 0;
             end
             else if (pred_continue) begin
-                s2_ftbPred_use <= s1_ftb_lookup_hit_rdy && s1_ftb_lookup_hit;
+                s1_req <= lookup_req;
+                s2_ftbPred_use <= (s1_ftb_lookup_hit_rdy && s1_ftb_lookup_hit && s1_req);
                 s2_ftb_lookup_hit <= s1_ftb_lookup_hit;
                 s2_ftb_lookup_hit_rdy <= s1_ftb_lookup_hit_rdy;
             end
@@ -99,19 +103,18 @@ module BPU (
             if (squash_dueToBackend) begin
                 base_pc <= i_squashInfo.arch_pc;
             end
+            else if (i_update_vld) begin
+                base_pc <= s2_ftb_lookup_hit_rdy ? s2_base_pc : s1_req ? s1_base_pc : base_pc;
+            end
             else if (s2_ftbPred_use) begin
                 base_pc <= s2_predNPC;
             end
-            else if (!i_update_vld && pred_continue) begin
+            else if (pred_continue) begin
                 // donot pred when updating
                 base_pc <= base_pc + (`FTB_PREDICT_WIDTH);
-            end
-
-            if (pred_continue) begin
                 s1_base_pc <= base_pc;
                 s2_base_pc <= s1_base_pc;
             end
-
         end
     end
 

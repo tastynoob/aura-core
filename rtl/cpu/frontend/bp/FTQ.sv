@@ -78,7 +78,7 @@ module FTQ (
     wire ftqEmpty = (commit_ptr == pred_ptr) && (cptr_flipped == pptr_flipped);
     wire ftqFull = (commit_ptr == pred_ptr) && (cptr_flipped != pptr_flipped);
     // wire fetch_finished = (fetch_ptr == pred_ptr) && (cptr_flipped == fptr_flipped);
-    assign o_ftq_rdy = (!ftqFull) && (!need_update_ftb);
+    assign o_ftq_rdy = (!ftqFull);
 
 /****************************************************************************************************/
 // do update for ptr
@@ -89,8 +89,7 @@ module FTQ (
     wire do_commit = (commit_ptr != commit_ptr_thre);
     wire do_fetch = (!ftqEmpty) && (fetch_ptr != pred_ptr) && (!i_stall);
     wire BP_bypass = ftqEmpty && do_pred;
-    wire train_stop;
-    wire need_update_ftb = (buffer_metaInfo[commit_ptr].hit_on_ftb || buffer_branchInfo[commit_ptr].mispred) && (!train_stop) && do_commit;
+
 
     wire[`SDEF(`FTQ_SIZE)] push,pop;
     assign push = (i_pred_req && (!ftqFull) ? 1 : 0);
@@ -251,39 +250,32 @@ module FTQ (
 // commit and update ftq entry
 /****************************************************************************************************/
 
-    reg update_vld;
-    BPupdateInfo_t new_updateInfo;
-    //FIXME: fallthruAddr should always point to branch_pc + 4
     wire[`XDEF] temp_fallthruAddr = buffer_fetchInfo[commit_ptr].startAddr + buffer_branchInfo[commit_ptr].fallthruOffset;
-
+    wire train_stop;
+    wire need_update_ftb;
     assign train_stop = ftbFuncs::counterUpdate(buffer_metaInfo[commit_ptr].ftb_counter, buffer_branchInfo[commit_ptr].taken) == buffer_metaInfo[commit_ptr].ftb_counter;
-    always_ff @( posedge clk ) begin
-        if (rst) begin
-            update_vld <= 0;
-        end
-        else begin
-            if (do_commit) begin
-                new_updateInfo <= '{
-                    startAddr : buffer_fetchInfo[commit_ptr].startAddr,
-                    // generate new ftb entry
-                    // TODO: optimize it
-                    ftb_update : '{
-                        carry        : temp_fallthruAddr[`FTB_FALLTHRU_WIDTH+1] != buffer_fetchInfo[commit_ptr].startAddr[`FTB_FALLTHRU_WIDTH+1],
-                        fallthruAddr : temp_fallthruAddr[`FTB_FALLTHRU_WIDTH:1],
-                        tarStat      : ftbFuncs::calcuTarStat(buffer_fetchInfo[commit_ptr].startAddr, buffer_branchInfo[commit_ptr].targetAddr),
-                        targetAddr   : buffer_branchInfo[commit_ptr].targetAddr[`FTB_TARGET_WIDTH:1],
-                        branch_type  : buffer_branchInfo[commit_ptr].branch_type,
-                        counter      : ftbFuncs::counterUpdate(buffer_metaInfo[commit_ptr].ftb_counter, buffer_branchInfo[commit_ptr].taken)
-                    }
-                };
-            end
-            update_vld <= do_commit && need_update_ftb && (!i_bpu_update_finished);
-        end
-    end
+    assign need_update_ftb = (buffer_metaInfo[commit_ptr].hit_on_ftb || buffer_branchInfo[commit_ptr].mispred) && (!train_stop) && do_commit;
+
+    wire update_vld;
+    BPupdateInfo_t new_updateInfo;
+
+    assign update_vld = need_update_ftb;
+    assign new_updateInfo = '{
+        startAddr : buffer_fetchInfo[commit_ptr].startAddr,
+        // generate new ftb entry
+        // TODO: optimize it
+        ftb_update : '{
+            carry        : temp_fallthruAddr[`FTB_FALLTHRU_WIDTH+1] != buffer_fetchInfo[commit_ptr].startAddr[`FTB_FALLTHRU_WIDTH+1],
+            fallthruAddr : temp_fallthruAddr[`FTB_FALLTHRU_WIDTH:1],
+            tarStat      : ftbFuncs::calcuTarStat(buffer_fetchInfo[commit_ptr].startAddr, buffer_branchInfo[commit_ptr].targetAddr),
+            targetAddr   : buffer_branchInfo[commit_ptr].targetAddr[`FTB_TARGET_WIDTH:1],
+            branch_type  : buffer_branchInfo[commit_ptr].branch_type,
+            counter      : ftbFuncs::counterUpdate(buffer_metaInfo[commit_ptr].ftb_counter, buffer_branchInfo[commit_ptr].taken)
+        }
+    };
 
     assign o_bpu_update = update_vld;
     assign o_BPUupdateInfo = new_updateInfo;
-
 
 /****************************************************************************************************/
 // send request to icache

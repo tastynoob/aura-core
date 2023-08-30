@@ -231,7 +231,6 @@ module ROB(
 // rename commit, storeQue commit and rob commit must in one cycle
 /****************************************************************************************************/
 
-
     assign o_commit_ftq_idx = has_mispred ? (commit_end_inst.ftq_idx == `FTQ_SIZE-1 ? 0 : commit_end_inst.ftq_idx + 1) : commit_end_inst.ftq_idx;
     // TODO: we may need to improve rename method
     // rename rob commit -> physical register used buffer

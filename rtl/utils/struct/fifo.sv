@@ -118,7 +118,7 @@ module fifo #(
         else if ((USE_RENAME != 0) && i_resteer_vld) begin
             count <= arch_count;
             for (fa = 0; fa < OUTPORT_NUM; fa = fa + 1) begin
-                deq_ptr[fa] <= arch_deq_ptr + fa;
+                deq_ptr[fa] <= (arch_deq_ptr + fa) < DEPTH ? (arch_deq_ptr + fa) : (arch_deq_ptr + fa - DEPTH);
             end
         end
         else begin

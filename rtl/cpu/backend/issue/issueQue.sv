@@ -225,14 +225,13 @@ module issueQue #(
         end
     end
 
-
+`SET_TRACE_OFF
     robIdx_t ages[DEPTH];
     generate
         for (i=0;i<DEPTH;i=i+1) begin : gen_for3
             assign ages[i] = buffer[i].info.rob_idx;
         end
     endgenerate
-`SET_TRACE_OFF
     age_schedule
     #(
         .WIDTH ( DEPTH ),
