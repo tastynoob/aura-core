@@ -11,10 +11,8 @@ module oldest_select #(
     output robIdx_t o_oldest_rob_idx,
     output dtype o_oldest_data
 );
-    `SET_TRACE_OFF
     localparam int left_len = WIDTH/2 + ((WIDTH%2 == 1) ? 1 : 0);
     localparam int right_len = WIDTH/2;
-    `SET_TRACE_ON
 
     generate
         if (WIDTH==1)begin:gen_if
@@ -43,7 +41,8 @@ module oldest_select #(
             dtype left_data,right_data;
             oldest_select
             #(
-                .WIDTH (left_len)
+                .WIDTH (left_len),
+                .dtype (dtype)
             )
             u_oldest_select_left(
                 .i_vld            ( i_vld[left_len-1 : 0]   ),
@@ -54,7 +53,8 @@ module oldest_select #(
             );
             oldest_select
             #(
-                .WIDTH (right_len )
+                .WIDTH (right_len ),
+                .dtype (dtype)
             )
             u_oldest_select_right(
                 .i_vld            ( i_vld[WIDTH-1 : left_len]   ),
@@ -65,11 +65,13 @@ module oldest_select #(
             );
             oldest_select
             #(
-                .WIDTH (2)
+                .WIDTH (2),
+                .dtype (dtype)
             )
             u_oldest_select_0(
-                .i_rob_idx        ( {left,right}            ),
-                .i_datas          ( {left_data,right_data}  ),
+                .i_vld            ( {|i_vld[WIDTH-1 : left_len], |i_vld[left_len-1 : 0]}  ),
+                .i_rob_idx        ( {left, right}            ),
+                .i_datas          ( {left_data, right_data}  ),
                 .o_oldest_rob_idx ( o_oldest_rob_idx        ),
                 .o_oldest_data    ( o_oldest_data           )
             );

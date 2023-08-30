@@ -2,7 +2,7 @@
 #include <verilated_vcd_c.h>
 #include <string>
 #include <random>
-#include "Vtb.h"
+#include Vheader
 #include "cmdline.hpp"
 #include "dpic_util.hpp"
 

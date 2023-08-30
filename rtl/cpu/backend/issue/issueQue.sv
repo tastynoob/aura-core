@@ -98,8 +98,11 @@ module issueQue #(
     //spec wakeup source
     wire[`WDEF(wakeup_source_num)] wakeup_src_vld;
     iprIdx_t wakeup_rdIdx[wakeup_source_num];
+
+
+    wire[`WDEF(DEPTH)] entry_ready;
     generate
-        for (i=0;i<wakeup_source_num;i=i+1) begin: gen_for
+        for (i=0;i<wakeup_source_num;i=i+1) begin: gen_for0
             if ((INTERNAL_WAKEUP==1) && (i < INOUTPORT_NUM)) begin : gen_internal_wakeup
                 //internal wakeup source
                 assign wakeup_src_vld[i] = deq_find_ready[i] && buffer[deq_idx[i]].info.rd_wen;
@@ -113,9 +116,17 @@ module issueQue #(
             `ASSERT(wakeup_src_vld[i] ? wakeup_rdIdx[i] < `IPHYREG_NUM : 1);
         end
         //export internal wakeup signal
-        for (i=0;i<INOUTPORT_NUM;i=i+1) begin:gen_for
+        for (i=0;i<INOUTPORT_NUM;i=i+1) begin:gen_for1
             assign o_export_wakeup_vld[i] = buffer[deq_idx[i]].vld && deq_find_ready[i] && buffer[deq_idx[i]].info.rd_wen;
             assign o_export_wakeup_rdIdx[i] = buffer[deq_idx[i]].info.iprd_idx;
+        end
+
+        for(i=0;i<DEPTH;i=i+1) begin : gen_for2
+            assign entry_ready[i] = buffer[i].vld && (&(buffer[i].src_rdy | buffer[i].src_spec_rdy)) && (buffer[i].issued == 0);
+        end
+
+        for (i=0;i<INOUTPORT_NUM;i=i+1) begin:gen_for4
+            assign o_issue_exeInfo[i] = buffer[saved_deq_idx[i]].info;
         end
     endgenerate
 
@@ -179,25 +190,15 @@ module issueQue #(
     //TODO: now the issue scheduler is random-select
     //we need to replace this to age-select
     logic[`WDEF(DEPTH)] free_entry_selected[INOUTPORT_NUM];
-    logic[`WDEF(DEPTH)] ready_entry_selected[INOUTPORT_NUM];
-    wire[`WDEF(DEPTH)] entry_ready;
-
-    generate
-        for(i=0;i<DEPTH;i=i+1) begin:gen_for
-            assign entry_ready[i] = buffer[i].vld && (&(buffer[i].src_rdy | buffer[i].src_spec_rdy)) && (buffer[i].issued == 0);
-        end
-    endgenerate
 
     //select
     always_comb begin
         int ca,cb;
         free_entry_selected[0] = 0;
-        ready_entry_selected[0] = 0;
         for (ca=0;ca<INOUTPORT_NUM;ca=ca+1) begin
             enq_idx[ca]=0;
             enq_find_free[ca]=0;
             deq_idx[ca]=0;
-            deq_find_ready[ca]=0;
 
             if (ca==0) begin
                 for (cb=DEPTH-1;cb>=0;cb=cb-1) begin
@@ -206,42 +207,46 @@ module issueQue #(
                         enq_idx[ca] = cb;
                         enq_find_free[ca] = 1;
                     end
-                    //select ready entry
-                    if (entry_ready[cb]) begin
-                        deq_idx[ca] = cb;
-                        deq_find_ready[ca] = 1;
-                    end
                 end
                 free_entry_selected[ca][enq_idx[ca]] = enq_find_free[ca];
-                ready_entry_selected[ca][deq_idx[ca]] = deq_find_ready[ca];
+                //ready_entry_selected[ca][deq_idx[ca]] = deq_find_ready[ca];
             end
             else begin
                 free_entry_selected[ca] = free_entry_selected[ca-1];
-                ready_entry_selected[ca] = ready_entry_selected[ca-1];
                 for (cb=DEPTH-1;cb>=0;cb=cb-1) begin
                     //select free entry
                     if ((free_entry_selected[ca-1][cb] == 0) && (!buffer[cb].vld)) begin
                         enq_idx[ca] = cb;
                         enq_find_free[ca] = 1;
                     end
-                    //select ready entry
-                    if ((ready_entry_selected[ca-1][cb] == 0) && entry_ready[cb]) begin
-                        deq_idx[ca] = cb;
-                        deq_find_ready[ca] = 1;
-                    end
                 end
                 free_entry_selected[ca][enq_idx[ca]] = enq_find_free[ca];
-                ready_entry_selected[ca][deq_idx[ca]] = deq_find_ready[ca];
             end
         end
     end
 
+
+    robIdx_t ages[DEPTH];
     generate
-        for (i=0;i<INOUTPORT_NUM;i=i+1) begin:gen_for
-            assign o_issue_exeInfo[i] = buffer[saved_deq_idx[i]].info;
+        for (i=0;i<DEPTH;i=i+1) begin : gen_for3
+            assign ages[i] = buffer[i].info.rob_idx;
         end
     endgenerate
-
+`SET_TRACE_OFF
+    age_schedule
+    #(
+        .WIDTH ( DEPTH ),
+        .OUTS  ( INOUTPORT_NUM  )
+    )
+    u_age_schedule(
+        .clk       ( clk ),
+        .rst       ( rst ),
+        .i_vld     ( entry_ready ),
+        .i_ages    ( ages    ),
+        .o_vld     ( deq_find_ready     ),
+        .o_sel_idx ( deq_idx )
+    );
+`SET_TRACE_ON
     `ASSERT((i_issue_finished_vec & i_issue_replay_vec) == 0);
     `ASSERT(wakeup_source_num <= WBPORT_NUM  );
 

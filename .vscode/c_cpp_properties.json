@@ -11,7 +11,8 @@
             "defines": [
                 "USE_TRACE",
                 "VTOP=Vtb",
-                "Vname=\"tb\""
+                "Vname=\"tb\"",
+                "Vheader=\"Vtb.h\""
             ],
             "compilerPath": "/usr/bin/gcc",
             "cStandard": "c17",

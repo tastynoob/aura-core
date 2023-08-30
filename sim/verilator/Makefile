@@ -1,11 +1,11 @@
 TOP ?= tb
 seed ?= 123
 
-ADDITIONAL_PARAM = --x-assign unique --x-initial unique --assert
+ADDITIONAL_PARAM = --x-assign unique --x-initial unique --assert -O3
 
 EMU_DEFINES = -DSIMULATION -DDEBUG
 WARNING_OFF = -Wno-WIDTH -Wno-PINMISSING -Wno-TIMESCALEMOD -Wno-ENUMVALUE
-CXX_FLAGS = -DVTOP=V$(TOP) -DVname=\\\"$(TOP)\\\"
+CXX_FLAGS = -DVTOP=V$(TOP) -DVname=\\\"$(TOP)\\\" -DVheader=\\\"V$(TOP).h\\\"
 
 TB_PATH = $(AURA_HOME)/sim/verilator/tb
 CXX_SOURCES := $(shell find $(AURA_HOME)/sim/verilator/src -type f -name "*.cpp")
@@ -45,7 +45,7 @@ aura:
 	fi
 
 	@echo "**********make building**********"
-	@make -C $(AURA_HOME)/build -f Vtb.mk
+	@make -C $(AURA_HOME)/build -f V$(TOP).mk
 
 	@if [ $$? -ne 0 ]; then \
 		echo "**********make build failed**********"; \
