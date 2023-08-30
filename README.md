@@ -1,5 +1,9 @@
 # aura-core
 
+## Architecture
+
+![](doc/aura.drawio.png)
+
 
 ## develop-env
 - vscode
