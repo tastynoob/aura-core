@@ -117,20 +117,19 @@ module fetcher (
     reg s1_fetch_vld;
     ftqIdx_t s1_ftqIdx;
     reg[`XDEF] s1_startAddr;
-    reg[`WDEF($clog2(`FTB_PREDICT_WIDTH))] s1_fetchblock_size;
+    reg[`SDEF(`FTB_PREDICT_WIDTH)] s1_fetchblock_size;
 
     reg s2_fetch_vld;
     ftqIdx_t s2_ftqIdx;
     reg[`WDEF($clog2(`CACHELINE_SIZE))] s2_start_shift;
-    reg[`WDEF($clog2(`FTB_PREDICT_WIDTH))] s2_end_offset;
+    reg[`SDEF(`FTB_PREDICT_WIDTH)] s2_max_inst_num;
 
     wire[`WDEF(`FTB_PREDICT_WIDTH/2)] fetched_inst_OH, reordered_inst_OH;// which region is a valid inst
     /* verilator lint_off UNOPTFLAT */
     wire[`WDEF(`FTB_PREDICT_WIDTH/2)] fetched_32i_OH;// which region is a 32bit inst
-    wire[`IDEF] fetched_insts[`FTB_PREDICT_WIDTH/2], reordered_insts[`FTB_PREDICT_WIDTH/2];
     ftqOffset_t reordered_ftqOffset[`FTB_PREDICT_WIDTH/2];
-    wire[`WDEF(`CACHELINE_SIZE*8*2)] icacheline_merge;
-    assign icacheline_merge = ({if_core_fetch.line1, if_core_fetch.line0} >> (s2_start_shift*8)) & ((512'd256<<(s2_end_offset*8)) - 1);
+
+
 
     // generate new fetch entry
     reg[`WDEF(`FTB_PREDICT_WIDTH/2)] new_inst_vld;
@@ -160,7 +159,7 @@ module fetcher (
                 s2_ftqIdx <= s1_ftqIdx;
             end
             s2_start_shift <= s1_startAddr[$clog2(`CACHELINE_SIZE)-1:0];
-            s2_end_offset <= s1_fetchblock_size;
+            s2_max_inst_num <= (s1_fetchblock_size>>1); // if no RVC, should left shift 2
 
             // s3: cacheline shift and align, generate new fetchEntry
             if (!i_backend_stall) begin
@@ -177,20 +176,26 @@ module fetcher (
             end
         end
     end
-
     assign stall_recovery_ftqIdx = s2_fetch_vld ? s2_ftqIdx : s1_fetch_vld ? s1_ftqIdx : toIcache_ftqIdx;
+
+
+    wire[`WDEF(`CACHELINE_SIZE*8*2)] icacheline_merge;
+    assign icacheline_merge = ({if_core_fetch.line1, if_core_fetch.line0} >> (s2_start_shift*8));
+
+    wire[`IDEF] fetched_insts[`FTB_PREDICT_WIDTH/2];
+    wire[`IDEF] reordered_insts[`FTB_PREDICT_WIDTH/2];
 
     generate
         for(i=0; i < `FTB_PREDICT_WIDTH/2; i=i+1) begin:gen_for
+            assign fetched_insts[i] = {icacheline_merge[i*16 + 31 : i*16]};
             if (i == 0) begin : gen_if
-                assign fetched_32i_OH[i] = icacheline_merge[i*16 + 1 : i*16]==2'b11;
+                assign fetched_32i_OH[i] = fetched_insts[i][1:0]==2'b11;
                 assign fetched_inst_OH[i] = 1;
             end
             else begin : gen_else
-                assign fetched_32i_OH[i] = (icacheline_merge[i*16 + 1 : i*16]==2'b11) && (!fetched_32i_OH[i-1]);
-                assign fetched_inst_OH[i] = fetched_32i_OH[i-1] ? 0 : 1;
+                assign fetched_32i_OH[i] = (fetched_insts[i][1:0]==2'b11) && (!fetched_32i_OH[i-1]);
+                assign fetched_inst_OH[i] = (fetched_32i_OH[i-1] ? 0 : 1) && (i < s2_max_inst_num);
             end
-            assign fetched_insts[i] = {icacheline_merge[i*16 + 31 : i*16]};
         end
     endgenerate
 

@@ -129,7 +129,7 @@ module BPU (
 
     assign o_pred_ftqInfo = '{
         startAddr : s2_base_pc,
-        endAddr : s2_ftbPred_use ? ftbFuncs::calcFallthruAddr(s2_base_pc, s2_ftb_lookup_info) - 1 : s2_ftb_unhit_fallthruAddr - 1,
+        endAddr : s2_ftbPred_use ? ftbFuncs::calcFallthruAddr(s2_base_pc, s2_ftb_lookup_info) : s2_ftb_unhit_fallthruAddr,
         taken : s2_taken,
         targetAddr : ftbFuncs::calcTargetAddr(s2_base_pc, s2_ftb_lookup_info),
         // ftb meta

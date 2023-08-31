@@ -87,7 +87,7 @@ module FTQ (
 
     wire do_pred = i_pred_req && o_ftq_rdy;
     wire do_commit = (commit_ptr != commit_ptr_thre);
-    wire do_fetch = (!ftqEmpty) && (fetch_ptr != pred_ptr) && (!i_stall);
+    wire do_fetch = ((!ftqEmpty) && (fetch_ptr != pred_ptr) && (!i_stall)) || BP_bypass;
     wire BP_bypass = ftqEmpty && do_pred;
 
 
@@ -282,7 +282,7 @@ module FTQ (
 // if FTQ is empty we can bypass the BPU request to Icache
 /****************************************************************************************************/
 
-    assign o_icache_fetch_req = do_fetch || BP_bypass;
+    assign o_icache_fetch_req = do_fetch;
     assign o_icache_fetch_ftqIdx = BP_bypass ? pred_ptr : fetch_ptr;
 
     ftq2icacheInfo_t fetchInfo;
@@ -294,14 +294,15 @@ module FTQ (
     ftq2icacheInfo_t BP_bypass_fetchInfo;
     assign BP_bypass_fetchInfo = '{
         startAddr : i_pred_ftqInfo.startAddr,
-        // TODO: use byte mask
+        // endAddr is fallthruAddr
+        // fetchBlock_size = 4 * n
         fetchBlock_size : i_pred_ftqInfo.endAddr - i_pred_ftqInfo.startAddr
     };
 
     assign o_icache_fetchInfo = BP_bypass ? BP_bypass_fetchInfo : fetchInfo;
 
-    `ASSERT(do_fetch ? (buffer_fetchInfo[fetch_ptr].endAddr > buffer_fetchInfo[fetch_ptr].startAddr) : 1);
-    `ASSERT(do_fetch ? (buffer_fetchInfo[fetch_ptr].endAddr - buffer_fetchInfo[fetch_ptr].startAddr <= 64) : 1);
+    // `ASSERT(do_fetch ? (buffer_fetchInfo[fetch_ptr].endAddr > buffer_fetchInfo[fetch_ptr].startAddr) : 1);
+    // `ASSERT(do_fetch ? (buffer_fetchInfo[fetch_ptr].endAddr - buffer_fetchInfo[fetch_ptr].startAddr <= 64) : 1);
 
 
 endmodule

@@ -50,7 +50,7 @@ typedef struct packed {
 
 typedef struct packed {
     logic[`XDEF] startAddr;
-    logic[`WDEF($clog2(`FTB_PREDICT_WIDTH))] fetchBlock_size;
+    logic[`SDEF(`FTB_PREDICT_WIDTH)] fetchBlock_size;
 } ftq2icacheInfo_t;
 
 
