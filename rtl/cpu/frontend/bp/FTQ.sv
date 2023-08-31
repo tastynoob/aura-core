@@ -220,8 +220,9 @@ module FTQ (
             // write by backend
             for(fa=0;fa<`BRU_NUM;fa=fa+1) begin
                 //FIXME: should write the oldest branch
-                if (i_backend_branchwb_vld[fa]) begin
+                if (i_backend_branchwb_vld[fa] && (branchwbInfo[fa].rob_idx < buffer_branchInfo[branchwbInfo[fa].ftq_idx].robIdx)) begin
                     buffer_branchInfo[branchwbInfo[fa].ftq_idx] <= '{
+                        robIdx         : branchwbInfo[fa].rob_idx,
                         mispred        : branchwbInfo[fa].has_mispred,
                         taken          : branchwbInfo[fa].branch_taken,
                         fallthruOffset : branchwbInfo[fa].fallthruOffset,
