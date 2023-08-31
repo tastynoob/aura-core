@@ -8,6 +8,7 @@ typedef struct {
 } ftqFetchInfo_t;
 
 typedef struct {
+    logic vld;
     robIdx_t robIdx;
     logic mispred;
     logic taken;
@@ -70,16 +71,28 @@ module FTQ (
     ftqIdx_t commit_ptr; // from rob
     ftqIdx_t commit_ptr_thre;// commit_ptr -> commit_ptr_thre
     reg pptr_flipped, fptr_flipped, cptr_flipped;
-
+`SET_TRACE_OFF
     ftqFetchInfo_t buffer_fetchInfo[`FTQ_SIZE];
     ftqBranchInfo_t buffer_branchInfo[`FTQ_SIZE];
     ftqMetaInfo_t buffer_metaInfo[`FTQ_SIZE];
+`SET_TRACE_ON
     reg[`WDEF(`FTQ_SIZE)] buffer_vld;
+    wire[`WDEF(`FTQ_SIZE)] buffer_mispred;
 
     wire ftqEmpty = (commit_ptr == pred_ptr) && (cptr_flipped == pptr_flipped);
     wire ftqFull = (commit_ptr == pred_ptr) && (cptr_flipped != pptr_flipped);
-    // wire fetch_finished = (fetch_ptr == pred_ptr) && (cptr_flipped == fptr_flipped);
+    wire[`SDEF(`FTQ_SIZE)] push,pop;
+    assign push = (i_pred_req && (!ftqFull) ? 1 : 0);
+    assign pop = ((do_commit && (need_update_ftb ? i_bpu_update_finished : 1)) ? 1 : 0);
     assign o_ftq_rdy = (!ftqFull);
+
+    wire need_update_ftb;
+    assign need_update_ftb = (buffer_metaInfo[commit_ptr].hit_on_ftb || buffer_mispred[commit_ptr]) && (!train_stop) && do_commit;
+    generate
+        for(i=0;i<`FTQ_SIZE;i=i+1) begin : gen_for
+            assign buffer_mispred[i] = buffer_branchInfo[i].vld && buffer_branchInfo[i].mispred;
+        end
+    endgenerate
 
 /****************************************************************************************************/
 // do update for ptr
@@ -93,9 +106,7 @@ module FTQ (
     wire BP_bypass = (!ftqFull) && (fetch_ptr == pred_ptr) && do_pred;
     wire do_fetch = ((!ftqEmpty) && (fetch_ptr != pred_ptr) && (!i_stall)) || BP_bypass;
 
-    wire[`SDEF(`FTQ_SIZE)] push,pop;
-    assign push = (i_pred_req && (!ftqFull) ? 1 : 0);
-    assign pop = ((do_commit && (need_update_ftb ? i_bpu_update_finished : 1)) ? 1 : 0);
+
 
     always_ff @( posedge clk ) begin
         if (rst) begin
@@ -138,13 +149,12 @@ module FTQ (
             end
 
             // do commit
-            // TODO: make commit and ftb commit separate
             if (do_commit) begin
                 if (need_update_ftb ? i_bpu_update_finished : 1) begin
                     // FIXME: repeating mispred assert faild
                     assert(buffer_vld[commit_ptr]);
-                    if (buffer_branchInfo[commit_ptr].mispred) begin
-                        $display("mispred %b : %h", buffer_branchInfo[commit_ptr].mispred, commit_ptr);
+                    if (buffer_mispred[commit_ptr]) begin
+                        $display("mispred %b : %h", buffer_mispred[commit_ptr], commit_ptr);
                     end
                     buffer_vld[commit_ptr] <= 0;
                     commit_ptr <= (commit_ptr == (`FTQ_SIZE - 1)) ? 0 : commit_ptr + 1;
@@ -195,13 +205,14 @@ module FTQ (
 // writeback/read from backend
 /****************************************************************************************************/
 
+    wire[`WDEF(`BRU_NUM)] can_wb;
     branchwbInfo_t branchwbInfo[`BRU_NUM];
     generate
         for(i=0;i<`BRU_NUM;i=i+1) begin:gen_for
+            assign can_wb[i] = i_backend_branchwb_vld[i] && (buffer_branchInfo[branchwbInfo[i].ftq_idx].vld ? (branchwbInfo[i].rob_idx < buffer_branchInfo[branchwbInfo[i].ftq_idx].robIdx) : 1);
             assign branchwbInfo[i] = i_backend_branchwbInfo[i];
         end
     endgenerate
-
 
     reg[`XDEF] read_ftqStartAddr[`BRU_NUM], read_ftqNextAddr[`BRU_NUM];
     assign o_read_ftqStartAddr = read_ftqStartAddr;
@@ -219,9 +230,10 @@ module FTQ (
 
             // write by backend
             for(fa=0;fa<`BRU_NUM;fa=fa+1) begin
-                //FIXME: should write the oldest branch
-                if (i_backend_branchwb_vld[fa] && (branchwbInfo[fa].rob_idx < buffer_branchInfo[branchwbInfo[fa].ftq_idx].robIdx)) begin
+                if (can_wb[fa]) begin
+                    assert(buffer_vld[branchwbInfo[fa].ftq_idx]);
                     buffer_branchInfo[branchwbInfo[fa].ftq_idx] <= '{
+                        vld            : 1,
                         robIdx         : branchwbInfo[fa].rob_idx,
                         mispred        : branchwbInfo[fa].has_mispred,
                         taken          : branchwbInfo[fa].branch_taken,
@@ -230,6 +242,10 @@ module FTQ (
                         branch_type    : branchwbInfo[fa].branch_type
                     };
                 end
+            end
+
+            if (do_pred) begin
+                buffer_branchInfo[pred_ptr].vld <= 0;
             end
 
             // branch wb check assert
@@ -242,10 +258,6 @@ module FTQ (
                     end
                 end
             end
-
-            if (do_pred) begin
-                buffer_branchInfo[pred_ptr].mispred <= 0;
-            end
         end
     end
 
@@ -256,9 +268,7 @@ module FTQ (
 
     wire[`XDEF] temp_fallthruAddr = buffer_fetchInfo[commit_ptr].startAddr + buffer_branchInfo[commit_ptr].fallthruOffset;
     wire train_stop;
-    wire need_update_ftb;
     assign train_stop = ftbFuncs::counterUpdate(buffer_metaInfo[commit_ptr].ftb_counter, buffer_branchInfo[commit_ptr].taken) == buffer_metaInfo[commit_ptr].ftb_counter;
-    assign need_update_ftb = (buffer_metaInfo[commit_ptr].hit_on_ftb || buffer_branchInfo[commit_ptr].mispred) && (!train_stop) && do_commit;
 
     wire update_vld;
     BPupdateInfo_t new_updateInfo;
