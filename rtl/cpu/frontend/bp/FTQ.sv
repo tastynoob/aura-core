@@ -87,9 +87,10 @@ module FTQ (
 
     wire do_pred = i_pred_req && o_ftq_rdy;
     wire do_commit = (commit_ptr != commit_ptr_thre);
-    wire do_fetch = ((!ftqEmpty) && (fetch_ptr != pred_ptr) && (!i_stall)) || BP_bypass;
-    wire BP_bypass = ftqEmpty && do_pred;
 
+    // BPU fetch requet bypass to Icache
+    wire BP_bypass = (!ftqFull) && (fetch_ptr == pred_ptr) && do_pred;
+    wire do_fetch = ((!ftqEmpty) && (fetch_ptr != pred_ptr) && (!i_stall)) || BP_bypass;
 
     wire[`SDEF(`FTQ_SIZE)] push,pop;
     assign push = (i_pred_req && (!ftqFull) ? 1 : 0);
