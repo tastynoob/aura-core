@@ -8,6 +8,7 @@ typedef struct {
 } ftqFetchInfo_t;
 
 typedef struct {
+    robIdx_t robIdx;
     logic mispred;
     logic taken;
     logic[`WDEF($clog2(`FTB_PREDICT_WIDTH) + 1)] fallthruOffset;// in backend: branch's offset + isRVC ? 2:4
@@ -140,7 +141,7 @@ module FTQ (
             // TODO: make commit and ftb commit separate
             if (do_commit) begin
                 if (need_update_ftb ? i_bpu_update_finished : 1) begin
-                    //FIXME: should use ptr flipped
+                    // FIXME: repeating mispred assert faild
                     assert(buffer_vld[commit_ptr]);
                     if (buffer_branchInfo[commit_ptr].mispred) begin
                         $display("mispred %b : %h", buffer_branchInfo[commit_ptr].mispred, commit_ptr);
@@ -218,6 +219,7 @@ module FTQ (
 
             // write by backend
             for(fa=0;fa<`BRU_NUM;fa=fa+1) begin
+                //FIXME: should write the oldest branch
                 if (i_backend_branchwb_vld[fa]) begin
                     buffer_branchInfo[branchwbInfo[fa].ftq_idx] <= '{
                         mispred        : branchwbInfo[fa].has_mispred,

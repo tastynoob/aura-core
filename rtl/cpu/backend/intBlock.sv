@@ -78,6 +78,8 @@ module intBlock #(
     wire IQ0_ready, IQ1_ready;
 
     wire[`WDEF(INPUT_NUM)] select_alu, select_bru;
+    /* verilator lint_off UNOPTFLAT */
+    wire[`WDEF(INPUT_NUM)] select_total;
     wire[`WDEF(INPUT_NUM)] select_toIQ0, select_toIQ1;
 
     generate
@@ -85,9 +87,20 @@ module intBlock #(
             assign select_alu[i] = i_disp_req[i] && (i_disp_info[i].issueQue_id == `ALUIQ_ID);
             assign select_bru[i] = i_disp_req[i] && (i_disp_info[i].issueQue_id == `BRUIQ_ID);
 
-            if (i < 2) begin : gen_if
+            if (i==0) begin : gen_if
+                assign select_total[i] = select_toIQ0[i] || select_toIQ1[i];
+            end
+            else begin : gen_else
+                assign select_total[i] = (select_toIQ0[i] || select_toIQ1[i]) && select_total[i-1];
+            end
+
+            if (i == 0) begin : gen_if
                 assign select_toIQ0[i] = IQ0_ready && select_alu[i];
                 assign select_toIQ1[i] = IQ1_ready && (select_bru[i] || (select_alu[i] && (!select_toIQ0[i])));
+            end
+            else if (i < 2) begin : gen_elif
+                assign select_toIQ0[i] = IQ0_ready && select_alu[i] && select_total[i-1];
+                assign select_toIQ1[i] = IQ1_ready && (select_bru[i] || (select_alu[i] && (!select_toIQ0[i]))) && select_total[i-1];
             end
             else begin : gen_else
                 // IQ0 current has selected
@@ -112,8 +125,8 @@ module intBlock #(
                 );
                 // FIXME: select_toIQ0 | select_toIQ1 must in order
                 // prepare for bru
-                assign select_toIQ0[i] = IQ0_ready && (IQ0_has_selected_num < 2 ? select_alu[i] : 0);
-                assign select_toIQ1[i] = IQ1_ready && (IQ1_has_selected_num < 2 ? select_bru[i] || (select_alu[i] && (!select_toIQ0[i])) : 0);
+                assign select_toIQ0[i] = IQ0_ready && (IQ0_has_selected_num < 2) && select_alu[i] && select_total[i-1];
+                assign select_toIQ1[i] = IQ1_ready && (IQ1_has_selected_num < 2) && (select_bru[i] || (select_alu[i] && (!select_toIQ0[i]))) && select_total[i-1];
             end
         end
     endgenerate
@@ -123,7 +136,7 @@ module intBlock #(
     `ASSERT((select_toIQ0 & select_toIQ1) == 0);
     `ORDER_CHECK((select_toIQ0 | select_toIQ1));
 
-    assign o_disp_vld = select_toIQ0 | select_toIQ1;
+    assign o_disp_vld = select_total;
 
     // FU_NUM*3 : will writeback + writeback bypass + writeback read regfile bypass
     // EXTERNAL_WAKEUP*2 : writeback bypass + writeback read regfile bypass

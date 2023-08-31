@@ -93,6 +93,7 @@ module dispatch (
                 prev_iprd_idx   : i_enq_inst[i].prev_iprd_idx
             };
             assign o_new_robEntry_ftqOffset[i] = i_enq_inst[i].ftqOffset;
+
             assign new_intDQEntry[i] =
             '{
                 ftq_idx    : i_enq_inst[i].ftq_idx,

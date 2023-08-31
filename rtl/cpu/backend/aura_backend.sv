@@ -58,7 +58,13 @@ module aura_backend (
 
     wire[`WDEF(`BRU_NUM)] exeBlock_branchwb_vld;
     branchwbInfo_t exeBlock_branchwbInfo[`BRU_NUM];
-    wire toCtrl_branchwb_vld = |exeBlock_branchwb_vld;
+    // to ftq
+    wire[`WDEF(`BRU_NUM)] toFTQ_branchwb_vld;
+    branchwbInfo_t toFTQ_branchwbInfo[`BRU_NUM];
+    assign toFTQ_branchwbInfo = exeBlock_branchwbInfo;
+    // to rob
+    wire toCtrl_branchwb_vld;
+    assign toCtrl_branchwb_vld = exeBlock_branchwb_vld;
     branchwbInfo_t toCtrl_branchwbInfo;
 
     wire toCtrl_except_vld;
@@ -111,8 +117,8 @@ module aura_backend (
     );
 
 
-    assign o_branchwb_vld = exeBlock_branchwb_vld;
-    assign o_branchwbInfo = exeBlock_branchwbInfo;
+    assign o_branchwb_vld = toFTQ_branchwb_vld;
+    assign o_branchwbInfo = toFTQ_branchwbInfo;
     assign o_squash_vld = squash_vld;
     assign o_squashInfo = squashInfo;
 
@@ -165,6 +171,16 @@ module aura_backend (
         end
     endgenerate
 
+    wire write_the_same_ftqEntry = (&exeBlock_branchwb_vld) && (exeBlock_branchwbInfo[0].ftq_idx == exeBlock_branchwbInfo[1].ftq_idx);
+    robIdx_t brwb_robIdx0,brwb_robIdx1;
+    assign brwb_robIdx0 = exeBlock_branchwbInfo[0].rob_idx;
+    assign brwb_robIdx1 = exeBlock_branchwbInfo[1].rob_idx;
+
+    wire age_0_larger_1 =
+    (brwb_robIdx0.flipped == brwb_robIdx1.flipped) ?
+    (brwb_robIdx0.idx <= brwb_robIdx1) :
+    (brwb_robIdx0.idx > brwb_robIdx1);
+    assign toFTQ_branchwb_vld = write_the_same_ftqEntry ? (age_0_larger_1 ? 2'b01:2'b10) : exeBlock_branchwb_vld;
 
     oldest_select
     #(
