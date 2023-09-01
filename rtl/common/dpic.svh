@@ -3,7 +3,7 @@
 
 import "DPI-C" function int check_flag(int flag);
 import "DPI-C" function byte read_rom(longint addr);
-
+import "DPI-C" function void perfAccumulate(string name, longint value);
 
 package DEBUF_FLAGS;
     typedef enum int {

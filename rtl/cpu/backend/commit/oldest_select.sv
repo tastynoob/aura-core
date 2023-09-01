@@ -22,17 +22,13 @@ module oldest_select #(
         else if (WIDTH==2) begin:gen_if
             assign o_oldest_rob_idx =
             (&i_vld) ?
-            ((i_rob_idx[0].flipped == i_rob_idx[1].flipped) ?
-            (i_rob_idx[0].idx <= i_rob_idx[1].idx ? i_rob_idx[0] : i_rob_idx[1]) :
-            (i_rob_idx[0].idx > i_rob_idx[1].idx ? i_rob_idx[0] : i_rob_idx[1]))
+            (i_rob_idx[0] <= i_rob_idx[1] ? i_rob_idx[0] : i_rob_idx[1])
             :
             (i_vld[0] ? i_rob_idx[0] : i_rob_idx[1]);
 
             assign o_oldest_data =
             (&i_vld) ?
-            ((i_rob_idx[0].flipped == i_rob_idx[1].flipped) ?
-            (i_rob_idx[0].idx <= i_rob_idx[1].idx ? i_datas[0] : i_datas[1]) :
-            (i_rob_idx[0].idx > i_rob_idx[1].idx ? i_datas[0] : i_datas[1]))
+            (i_rob_idx[0] <= i_rob_idx[1] ? i_datas[0] : i_datas[1])
             :
             (i_vld[0] ? i_datas[0] : i_datas[1]);
         end

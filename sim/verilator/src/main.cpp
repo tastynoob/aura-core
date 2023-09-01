@@ -9,8 +9,8 @@
 uint64_t max_simTime = 1000;
 uint64_t main_time = 0;
 VTOP *top;
-
 char buffer[100];
+
 
 int main(int argc, char **argv)
 {
@@ -145,6 +145,9 @@ int main(int argc, char **argv)
 
     delete top;
 
-    std::cout << "**** END EMULATION TICK: " << main_time << " ****\n";
+    std::cout << "**** END EMULATION, START DUMP" << main_time << " ****\n";
+    dumpStats();
+
+
     return 0;
 }

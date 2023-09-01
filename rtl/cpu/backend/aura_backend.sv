@@ -177,9 +177,8 @@ module aura_backend (
     assign brwb_robIdx1 = exeBlock_branchwbInfo[1].rob_idx;
 
     wire age_0_larger_1 =
-    (brwb_robIdx0.flipped == brwb_robIdx1.flipped) ?
-    (brwb_robIdx0.idx <= brwb_robIdx1) :
-    (brwb_robIdx0.idx > brwb_robIdx1);
+    (brwb_robIdx0.idx <= brwb_robIdx1);
+
     assign toFTQ_branchwb_vld = write_the_same_ftqEntry ? (age_0_larger_1 ? 2'b01:2'b10) : exeBlock_branchwb_vld;
 
     oldest_select

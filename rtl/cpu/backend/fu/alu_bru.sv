@@ -151,7 +151,7 @@ module alu_bru (
             comwbInfo.use_imm <= saved_fuInfo.use_imm;
             comwbInfo.rd_wen <= saved_fuInfo.rd_wen;
             comwbInfo.iprd_idx <= saved_fuInfo.iprd_idx;
-            comwbInfo.result <= calc_data;
+            comwbInfo.result <= (saved_fuInfo.issueQue_id == `BRUIQ_ID) ? fallthru : calc_data;
 
             branchwb_vld <= saved_vld && (saved_fuInfo.issueQue_id == `BRUIQ_ID);
             branchwb_info <= '{

@@ -1,6 +1,6 @@
 `include "core_define.svh"
 `include "funcs.svh"
-
+`include "dpic.svh"
 
 typedef struct {
     robIdx_t rob_idx;
@@ -439,12 +439,14 @@ module ROB(
     assign last_commit_pc = i_read_ftqStartAddr + ftqOffset;
     assign trap_ret_pc = last_commit_pc + (last_commit_isRVC ? 2:4);
 
+    // for debug
     int AAA_committedInst;
     always @(posedge clk) begin
         if (rst) begin
             AAA_committedInst <= 0;
         end
         else if ((!squash_vld) && (!commit_stall)) begin
+            perfAccumulate("committedInst", funcs::count_one(canCommit_vld));
             AAA_committedInst <= AAA_committedInst + funcs::count_one(canCommit_vld);
         end
     end

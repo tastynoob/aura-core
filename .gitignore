@@ -5,3 +5,4 @@ slpp_all
 *.vcd
 temp.v
 log.txt
+stats.txt
