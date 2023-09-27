@@ -2,13 +2,8 @@
 `include "funcs.svh"
 
 
-
-// backend may read/write some info from frontend
-// one instruction pc used for branch and trap
-// branch writeback info: branch offset in ftq, branch target pc, branch mispred, branch taken
-
-
-
+// FIXME:
+// we need to check false predict (non-branch inst was predicted taken)
 module fetcher (
     input wire clk,
     input wire rst,
@@ -39,18 +34,26 @@ module fetcher (
 
     genvar i;
 
+    // false predict, need to squash frontend
+    wire s2_falsepred;
+    wire[`XDEF] s2_falsepred_arch_pc;
+    reg falsepred;
+    reg[`XDEF] falsepred_arch_pc;
+
+    wire toBPU_squash = i_squash_vld || falsepred;
+    wire toBPU_squash_arch_pc = i_squash_vld ? i_squashInfo.arch_pc : falsepred_arch_pc;
+
     wire toBPU_update_vld;
     wire toFTQ_update_finished;
     BPupdateInfo_t toBPU_updateInfo;
-
     wire toBPU_ftq_rdy;
     wire toFTQ_pred_vld;
     ftqInfo_t toFTQ_pred_ftqInfo;
     BPU u_BPU(
         .clk               ( clk ),
         .rst               ( rst ),
-        .i_squash_vld      ( i_squash_vld ),
-        .i_squashInfo      ( i_squashInfo ),
+        .i_squash_vld      ( toBPU_squash ),
+        .i_squash_arch_pc  ( toBPU_squash_arch_pc ),
 
         .i_update_vld      ( toBPU_update_vld      ),
         .o_update_finished ( toFTQ_update_finished ),
@@ -68,8 +71,9 @@ module fetcher (
     ftqIdx_t toIcache_ftqIdx;
     wire toFTQ_icache_rdy;
     ftq2icacheInfo_t toIcache_info;
-
-    ftqIdx_t stall_recovery_ftqIdx;
+    // need to recovery ftq pred_ptr and fetch_ptr
+    ftqIdx_t recovery_ftqIdx;
+    branchwbInfo_t preDecwbInfo;
     FTQ u_FTQ(
         .clk                    ( clk ),
         .rst                    ( rst ),
@@ -78,7 +82,9 @@ module fetcher (
         .i_squashInfo           ( i_squashInfo ),
 
         .i_stall                ( i_backend_stall  ),
-        .i_recovery_idx         ( stall_recovery_ftqIdx  ),
+        .i_falsepred            ( falsepred        ),
+        .i_recovery_idx         ( recovery_ftqIdx  ),
+        .i_preDecodewbInfo      ( preDecwbInfo      ),
 
         .i_pred_req             ( toFTQ_pred_vld     ),
         .o_ftq_rdy              ( toBPU_ftq_rdy      ),
@@ -114,54 +120,76 @@ module fetcher (
     assign if_core_fetch.get2 = toIcache_info.startAddr[$clog2(`CACHELINE_SIZE)-1 : 0] >= `CACHELINE_SIZE/2;
     assign if_core_fetch.addr = toIcache_info.startAddr[`BLK_RANGE];
 
+    wire[`WDEF(`FTB_PREDICT_WIDTH/2)] validInst_vec;
+    wire[`WDEF(`FTB_PREDICT_WIDTH/2)] fetched_inst_OH;// which region is a valid inst
+    /* verilator lint_off UNOPTFLAT */
+    wire[`WDEF(`FTB_PREDICT_WIDTH/2)] fetched_32i_OH;// which region is a 32bit inst
+
     reg s1_fetch_vld;
     ftqIdx_t s1_ftqIdx;
     reg[`XDEF] s1_startAddr;
+    reg[`XDEF] s1_nextAddr;
     reg[`SDEF(`FTB_PREDICT_WIDTH)] s1_fetchblock_size;
+    reg s1_predTaken;
 
     reg s2_fetch_vld;
     ftqIdx_t s2_ftqIdx;
     reg[`WDEF($clog2(`CACHELINE_SIZE))] s2_start_shift;
+    reg[`XDEF] s2_nextAddr;
     reg[`SDEF(`FTB_PREDICT_WIDTH)] s2_max_inst_num;
-
-    wire[`WDEF(`FTB_PREDICT_WIDTH/2)] fetched_inst_OH, reordered_inst_OH;// which region is a valid inst
-    /* verilator lint_off UNOPTFLAT */
-    wire[`WDEF(`FTB_PREDICT_WIDTH/2)] fetched_32i_OH;// which region is a 32bit inst
-    ftqOffset_t reordered_ftqOffset[`FTB_PREDICT_WIDTH/2];
-
-
+    reg s2_predTaken;
+    reg[`XDEF] s2_inst_pcs[`FTB_PREDICT_WIDTH/2];
+    branchwbInfo_t s2_preDecwbInfo;
 
     // generate new fetch entry
+    ftqIdx_t s3_ftqIdx;
+    wire[`WDEF(`FTB_PREDICT_WIDTH/2)] reordered_inst_OH;
+    ftqOffset_t reordered_ftqOffset[`FTB_PREDICT_WIDTH/2];
+    wire[`IDEF] reordered_insts[`FTB_PREDICT_WIDTH/2];
+
     reg[`WDEF(`FTB_PREDICT_WIDTH/2)] new_inst_vld;
     fetchEntry_t new_inst[`FTB_PREDICT_WIDTH/2];
     always_ff @( posedge clk ) begin
         int fa;
-        if (rst || i_squash_vld) begin
+        if (rst || i_squash_vld || falsepred) begin
             new_inst_vld <= 0;
             s1_fetch_vld <= 0;
             s2_fetch_vld <= 0;
             stall_dueto_pcUnaligned <= 0;
+            falsepred <= 0;
         end
         else begin
-            // s1
+            // s0: ftq send fetch request
+            // s1:
             s1_fetch_vld <= toIcache_req && if_core_fetch.gnt&& (!pcUnaligned)  && (!i_backend_stall);
             stall_dueto_pcUnaligned <= toIcache_req ? pcUnaligned : 0;
             if (!i_backend_stall) begin
                 s1_ftqIdx <= toIcache_ftqIdx;
             end
-
             s1_startAddr <= toIcache_info.startAddr;
+            s1_nextAddr <= toIcache_info.nextAddr;
             s1_fetchblock_size <= toIcache_info.fetchBlock_size;
+            s1_predTaken <= toIcache_info.taken;
 
-            // s2: icache output 2 cachelines
-            s2_fetch_vld <= s1_fetch_vld && (!i_backend_stall) ;
+            // s2: icache output 2 cachelines, do preDecode
+            s2_fetch_vld <= s1_fetch_vld && (!i_backend_stall);
             if (!i_backend_stall) begin
                 s2_ftqIdx <= s1_ftqIdx;
             end
+            s2_nextAddr <= s1_nextAddr;
             s2_start_shift <= s1_startAddr[$clog2(`CACHELINE_SIZE)-1:0];
             s2_max_inst_num <= (s1_fetchblock_size>>1); // if no RVC, should left shift 2
+            s2_predTaken <= s1_predTaken;
+            assert(s2_fetch_vld ? s2_max_inst_num <= (`FTB_PREDICT_WIDTH/2) : 1);
+            for (fa=0;fa<`FTB_PREDICT_WIDTH/2;fa=fa+1) begin
+                s2_inst_pcs[fa] <= s1_startAddr + fa * 2;
+            end
 
-            // s3: cacheline shift and align, generate new fetchEntry
+            // s3: generate new fetchEntry. and check false predict
+            s3_ftqIdx <= s2_ftqIdx;
+            falsepred <= s2_falsepred;
+            preDecwbInfo <= s2_preDecwbInfo;
+            falsepred_arch_pc <= s2_falsepred_arch_pc;
             if (!i_backend_stall) begin
                 new_inst_vld <= stall_dueto_pcUnaligned ? 1 : ((if_core_fetch.rsp && s2_fetch_vld) ? reordered_inst_OH : 0);
                 for (fa = 0; fa < `FETCH_WIDTH; fa=fa+1) begin
@@ -176,29 +204,86 @@ module fetcher (
             end
         end
     end
-    assign stall_recovery_ftqIdx = s2_fetch_vld ? s2_ftqIdx : s1_fetch_vld ? s1_ftqIdx : toIcache_ftqIdx;
 
+    assign recovery_ftqIdx =
+    s2_fetch_vld ? s2_ftqIdx :
+    s1_fetch_vld ? s1_ftqIdx :
+    toIcache_ftqIdx;
 
     wire[`WDEF(`CACHELINE_SIZE*8*2)] icacheline_merge;
     assign icacheline_merge = ({if_core_fetch.line1, if_core_fetch.line0} >> (s2_start_shift*8));
 
-    wire[`IDEF] fetched_insts[`FTB_PREDICT_WIDTH/2];
-    wire[`IDEF] reordered_insts[`FTB_PREDICT_WIDTH/2];
+    preDecInfo_t predecInfo[`FTB_PREDICT_WIDTH/2];
+    preDecInfo_t predecInfo_end;
+    logic[`SDEF(`FTB_PREDICT_WIDTH/2)] fallthruOffset_end;
 
+    // if nonbranch falsepred, set branchtype = condbranch, ste not taken
+    assign s2_preDecwbInfo = '{
+        branch_type     : predecInfo_end.isDirect ? BranchType::isDirect : predecInfo_end.isIndirect ? BranchType::isIndirect : BranchType::isCond,
+        rob_idx : 0, // dont care
+        ftq_idx         : s2_ftqIdx,
+        has_mispred     : 1,
+        branch_taken    : predecInfo_end.isBr, // if condBr falsepred, set taken
+        fallthruOffset  : fallthruOffset_end,
+        target_pc       : predecInfo_end.target,
+        branch_npc      : predecInfo_end.target
+    };
+
+    // if predecInfo_end == jal, s2_nextAddr must equal to jal target
+    // if predecInfo_end == bxx, s2_nextAddr must equal to bxx target or fallthru
+    // if predecInfo_end == nonBranch, s2_nextAddr must equal to fallthru
+    assign s2_falsepred = s2_fetch_vld &&
+    !(predecInfo_end.isDirect   ? predecInfo_end.target == s2_nextAddr :
+    predecInfo_end.isCond       ? ((predecInfo_end.target == s2_nextAddr) || (predecInfo_end.fallthru == s2_nextAddr)) :
+    predecInfo_end.isIndirect   ? 1 :
+    (predecInfo_end.fallthru == s2_nextAddr));
+    assign s2_falsepred_arch_pc = predecInfo_end.isDirect ? predecInfo_end.target : predecInfo_end.fallthru;
+
+    wire[`IDEF] fetched_insts[`FTB_PREDICT_WIDTH/2];
+    ftqOffset_t temp_ftqOffset[`FTB_PREDICT_WIDTH/2];
+    wire[`WDEF(`FTB_PREDICT_WIDTH/2)] fetched_inst_mask; // 1 | 1 | 1(jal or jalr) | 0 | 0
+    wire[`WDEF(`FTB_PREDICT_WIDTH/2)] predec_invalidbranch;
     generate
-        for(i=0; i < `FTB_PREDICT_WIDTH/2; i=i+1) begin:gen_for
+        for(i=0; i < `FTB_PREDICT_WIDTH/2; i=i+1) begin : gen_for
             assign fetched_insts[i] = {icacheline_merge[i*16 + 31 : i*16]};
             if (i == 0) begin : gen_if
                 assign fetched_32i_OH[i] = fetched_insts[i][1:0]==2'b11;
                 assign fetched_inst_OH[i] = 1;
+                assign fetched_inst_mask[i] = 1;
             end
             else begin : gen_else
                 assign fetched_32i_OH[i] = (fetched_insts[i][1:0]==2'b11) && (!fetched_32i_OH[i-1]);
                 assign fetched_inst_OH[i] = (fetched_32i_OH[i-1] ? 0 : 1) && (i < s2_max_inst_num);
+                assign fetched_inst_mask[i] = (!(predecInfo[i-1].isDirect || predecInfo[i-1].isIndirect)) && fetched_inst_mask[i-1];
             end
+
+            preDecode u_preDecode(
+                .i_inst           ( fetched_insts[i] ),
+                .i_pc             ( s2_inst_pcs[i]     ),
+                .o_info           ( predecInfo[i] )
+            );
+        end
+    endgenerate
+    generate
+        for(i=0;i<`FTB_PREDICT_WIDTH/2;i=i+1) begin:gen_for
+            assign temp_ftqOffset[i] = 2 * i;
         end
     endgenerate
 
+    assign validInst_vec = fetched_inst_OH & fetched_inst_mask;
+
+    // preDecode and check falsepred
+    always_comb begin
+        int ca;
+        predecInfo_end = predecInfo[0];
+        fallthruOffset_end = temp_ftqOffset[0];
+        for (ca=0; ca<`FTB_PREDICT_WIDTH/2; ca=ca+1) begin
+            if (validInst_vec[ca]) begin
+                predecInfo_end = predecInfo[ca];
+                fallthruOffset_end = temp_ftqOffset[ca] + fetched_32i_OH[ca] ? 4 : 2;
+            end
+        end
+    end
 
     reorder
     #(
@@ -206,33 +291,28 @@ module fetcher (
         .NUM   ( `FTB_PREDICT_WIDTH/2 )
     )
     u_reorder_0(
-        .i_data_vld      ( fetched_inst_OH      ),
+        .i_data_vld      ( validInst_vec      ),
         .i_datas         ( fetched_insts        ),
         .o_data_vld      ( reordered_inst_OH    ),
         .o_reorder_datas ( reordered_insts      )
     );
 
-    ftqOffset_t temp_ftqOffset[`FTB_PREDICT_WIDTH/2];
-    generate
-        for(i=0;i<`FTB_PREDICT_WIDTH/2;i=i+1) begin:gen_for
-            assign temp_ftqOffset[i] = 2 * i;
-        end
-    endgenerate
+
     reorder
     #(
         .dtype ( ftqOffset_t          ),
         .NUM   ( `FTB_PREDICT_WIDTH/2 )
     )
     u_reorder_1(
-        .i_data_vld      ( fetched_inst_OH      ),
+        .i_data_vld      ( validInst_vec      ),
         .i_datas         ( temp_ftqOffset       ),
-        .o_data_vld      (),
         .o_reorder_datas ( reordered_ftqOffset  )
     );
 
     assign o_fetch_inst_vld = new_inst_vld;
     assign o_fetch_inst = new_inst;
 
+// debug
     wire AAA_s0_vld = toIcache_req;
     ftqIdx_t AAA_s0_ftqIdx = toIcache_ftqIdx;
     wire AAA_s1_vld = s1_fetch_vld;

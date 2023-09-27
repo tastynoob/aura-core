@@ -43,16 +43,34 @@ typedef struct {
     logic[`WDEF(2)] ftb_counter;
 } ftqInfo_t;
 
-typedef struct packed {
+typedef struct {
     logic[`XDEF] startAddr;
     ftbInfo_t ftb_update;
 } BPupdateInfo_t;
 
-typedef struct packed {
+typedef struct {
     logic[`XDEF] startAddr;
     logic[`SDEF(`FTB_PREDICT_WIDTH)] fetchBlock_size;
+    logic taken;
+    logic[`XDEF] nextAddr;
 } ftq2icacheInfo_t;
 
+
+typedef struct {
+    logic[`XDEF] fallthru;
+    logic isCond;
+    logic isDirect;
+    logic isIndirect;
+    logic isBr;
+    logic[`XDEF] target;
+} preDecInfo_t;
+
+typedef struct {
+    ftqIdx_t ftq_idx;
+    logic[`XDEF] new_npc;
+    logic[`SDEF(`FTB_PREDICT_WIDTH)] fallthruOffset;
+    logic isDirectBr;
+} preDecodewb_t;
 
 package ftbFuncs;
     function automatic logic[`XDEF] calcFallthruAddr(logic[`XDEF] base_pc, ftbInfo_t ftbInfo);

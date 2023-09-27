@@ -170,7 +170,8 @@ module aura_backend (
             assign toCtrl_clear_irob_idx[i] = toCtrl_comwbInfo[i].irob_idx;
         end
     endgenerate
-
+    // when 2 branch writeback the same ftqentry
+    // FIXME: should write the oldest mispred branch
     wire write_the_same_ftqEntry = (&exeBlock_branchwb_vld) && (exeBlock_branchwbInfo[0].ftq_idx == exeBlock_branchwbInfo[1].ftq_idx);
     robIdx_t brwb_robIdx0,brwb_robIdx1;
     assign brwb_robIdx0 = exeBlock_branchwbInfo[0].rob_idx;

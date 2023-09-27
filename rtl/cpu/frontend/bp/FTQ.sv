@@ -4,15 +4,16 @@
 typedef struct {
     logic[`XDEF] startAddr;
     logic[`XDEF] endAddr;
+    logic taken;
     logic[`XDEF] nextAddr;
 } ftqFetchInfo_t;
 
 typedef struct {
-    logic vld;
+    logic preDecodewb;
     robIdx_t robIdx;
     logic mispred;
     logic taken;
-    logic[`WDEF($clog2(`FTB_PREDICT_WIDTH) + 1)] fallthruOffset;// in backend: branch's offset + isRVC ? 2:4
+    logic[`SDEF(`FTB_PREDICT_WIDTH)] fallthruOffset;// in backend: branch's offset + isRVC ? 2:4
     logic[`XDEF] targetAddr;
     BranchType::_ branch_type;
     //we need fallthruAddr to update ftb
@@ -25,7 +26,8 @@ typedef struct {
 } ftqMetaInfo_t;
 
 // DESIGN:
-// when squash, the ftq[commit_ftqIdx] is mispred fetch block
+//  if preDecode found falsepred and correct fetch stream
+// we need to writeback the new npc
 module FTQ (
     input wire clk,
     input wire rst,
@@ -33,7 +35,9 @@ module FTQ (
     input squashInfo_t i_squashInfo,
 
     input wire i_stall,
+    input wire i_falsepred,
     input ftqIdx_t i_recovery_idx,
+    input branchwbInfo_t i_preDecodewbInfo,// from preDecode writeback
 
     // from BPU
     input wire i_pred_req,
@@ -72,9 +76,9 @@ module FTQ (
     ftqIdx_t commit_ptr_thre;// commit_ptr -> commit_ptr_thre
     reg pptr_flipped, fptr_flipped, cptr_flipped;
 `SET_TRACE_OFF
-    ftqFetchInfo_t buffer_fetchInfo[`FTQ_SIZE];
-    ftqBranchInfo_t buffer_branchInfo[`FTQ_SIZE];
-    ftqMetaInfo_t buffer_metaInfo[`FTQ_SIZE];
+    ftqFetchInfo_t buf_baseInfo[`FTQ_SIZE];
+    ftqBranchInfo_t buf_brInfo[`FTQ_SIZE];
+    ftqMetaInfo_t buf_metaInfo[`FTQ_SIZE];
 `SET_TRACE_ON
     reg[`WDEF(`FTQ_SIZE)] buffer_vld;
     wire[`WDEF(`FTQ_SIZE)] buffer_mispred;
@@ -87,10 +91,10 @@ module FTQ (
     assign o_ftq_rdy = (!ftqFull);
 
     wire need_update_ftb;
-    assign need_update_ftb = (buffer_metaInfo[commit_ptr].hit_on_ftb || buffer_mispred[commit_ptr]) && (!train_stop) && do_commit;
+    assign need_update_ftb = (buf_metaInfo[commit_ptr].hit_on_ftb || buffer_mispred[commit_ptr]) && (!train_stop) && do_commit;
     generate
         for(i=0;i<`FTQ_SIZE;i=i+1) begin : gen_for
-            assign buffer_mispred[i] = buffer_branchInfo[i].vld && buffer_branchInfo[i].mispred;
+            assign buffer_mispred[i] = buf_brInfo[i].mispred;
         end
     endgenerate
 
@@ -99,7 +103,7 @@ module FTQ (
 // NOTE: we need to commit mispred ftq entry quickly
 /****************************************************************************************************/
 
-    wire do_pred = i_pred_req && o_ftq_rdy;
+    wire do_pred = i_pred_req && o_ftq_rdy && (!i_falsepred);
     wire do_commit = (commit_ptr != commit_ptr_thre);
 
     // BPU fetch requet bypass to Icache
@@ -132,7 +136,9 @@ module FTQ (
                 fptr_flipped <= (!cptr_flipped);
             end
             for (int fa=0;fa<`FTQ_SIZE;fa=fa+1) begin
-                if ((fa >= commit_ptr) && (fa < commit_ptr_thre)) begin
+                if ((commit_ptr <= commit_ptr_thre) && (fa >= commit_ptr) && (fa < commit_ptr_thre)) begin
+                end
+                else if ((commit_ptr > commit_ptr_thre) && ((fa >= commit_ptr) || (fa < commit_ptr_thre))) begin
                 end
                 else begin
                     buffer_vld[fa] <= 0;
@@ -140,12 +146,34 @@ module FTQ (
             end
         end
         else begin
-
-            if (do_pred) begin
+            // do pred
+            if (i_falsepred) begin
+                pred_ptr <= i_recovery_idx;
+                pptr_flipped <= (i_recovery_idx > pred_ptr) ? ~pptr_flipped : pptr_flipped;
+                for (int fa=0;fa<`FTQ_SIZE;fa=fa+1) begin
+                    if ((i_recovery_idx > pred_ptr) && ((fa >= i_recovery_idx) || (fa < pred_ptr))) begin
+                        buffer_vld[fa] <= 0;
+                    end
+                    else if ((i_recovery_idx <= pred_ptr) && ((fa >= i_recovery_idx) && (fa < pred_ptr))) begin
+                        buffer_vld[fa] <= 0;
+                    end
+                end
+            end
+            else if (do_pred) begin
                 assert(buffer_vld[pred_ptr] == 0);
                 buffer_vld[pred_ptr] <= 1;
                 pred_ptr <= (pred_ptr == (`FTQ_SIZE - 1)) ? 0 : pred_ptr + 1;
                 pptr_flipped <= (pred_ptr == (`FTQ_SIZE - 1)) ? ~pptr_flipped : pptr_flipped;
+            end
+
+            // do fetch
+            if (i_stall || i_falsepred) begin
+                fetch_ptr <= i_recovery_idx;
+                fptr_flipped <= (i_recovery_idx > pred_ptr) ? ~pptr_flipped : pptr_flipped;
+            end
+            else if (do_fetch && i_icache_fetch_rdy) begin
+                fetch_ptr <= (fetch_ptr == (`FTQ_SIZE - 1)) ? 0 : fetch_ptr + 1;
+                fptr_flipped <= (fetch_ptr == (`FTQ_SIZE - 1)) ? ~fptr_flipped : fptr_flipped;
             end
 
             // do commit
@@ -160,15 +188,6 @@ module FTQ (
                     commit_ptr <= (commit_ptr == (`FTQ_SIZE - 1)) ? 0 : commit_ptr + 1;
                     cptr_flipped <= (commit_ptr == (`FTQ_SIZE - 1)) ? ~cptr_flipped : cptr_flipped;
                 end
-            end
-
-            if (do_fetch && i_icache_fetch_rdy) begin
-                fetch_ptr <= (fetch_ptr == (`FTQ_SIZE - 1)) ? 0 : fetch_ptr + 1;
-                fptr_flipped <= (fetch_ptr == (`FTQ_SIZE - 1)) ? ~fptr_flipped : fptr_flipped;
-            end
-            else if (i_stall) begin
-                fetch_ptr <= i_recovery_idx;
-                fptr_flipped <= (i_recovery_idx > pred_ptr) ? ~pptr_flipped : pptr_flipped;
             end
 
             if (i_commit_vld) begin
@@ -186,16 +205,20 @@ module FTQ (
         end
         else begin
             if (do_pred) begin
-                buffer_fetchInfo[pred_ptr] <= '{
+                buf_baseInfo[pred_ptr] <= '{
                     startAddr : i_pred_ftqInfo.startAddr,
                     endAddr   : i_pred_ftqInfo.endAddr,
-                    nextAddr  : i_pred_ftqInfo.taken ? i_pred_ftqInfo.targetAddr : i_pred_ftqInfo.endAddr+1
+                    taken     : i_pred_ftqInfo.taken,
+                    nextAddr  : i_pred_ftqInfo.taken ? i_pred_ftqInfo.targetAddr : i_pred_ftqInfo.endAddr
                 };
 
-                buffer_metaInfo[pred_ptr] <= '{
+                buf_metaInfo[pred_ptr] <= '{
                     hit_on_ftb  : i_pred_ftqInfo.hit_on_ftb,
                     ftb_counter : i_pred_ftqInfo.ftb_counter
                 };
+            end
+            if (i_falsepred) begin
+                buf_baseInfo[i_preDecodewbInfo.ftq_idx].nextAddr <= i_preDecodewbInfo.branch_npc;
             end
         end
     end
@@ -209,7 +232,7 @@ module FTQ (
     branchwbInfo_t branchwbInfo[`BRU_NUM];
     generate
         for(i=0;i<`BRU_NUM;i=i+1) begin:gen_for
-            assign can_wb[i] = i_backend_branchwb_vld[i] && (buffer_branchInfo[branchwbInfo[i].ftq_idx].vld ? (branchwbInfo[i].rob_idx < buffer_branchInfo[branchwbInfo[i].ftq_idx].robIdx) : 1);
+            assign can_wb[i] = i_backend_branchwb_vld[i] && ((buf_brInfo[branchwbInfo[i].ftq_idx].mispred ? (branchwbInfo[i].rob_idx < buf_brInfo[branchwbInfo[i].ftq_idx].robIdx) : 1) || buf_brInfo[branchwbInfo[i].ftq_idx].preDecodewb);
             assign branchwbInfo[i] = i_backend_branchwbInfo[i];
         end
     endgenerate
@@ -224,16 +247,16 @@ module FTQ (
         else begin
             // read
             for(fa=0;fa<`BRU_NUM;fa=fa+1) begin
-                read_ftqStartAddr[fa] <= buffer_fetchInfo[i_read_ftqIdx[fa]].startAddr;
-                read_ftqNextAddr[fa] <= buffer_fetchInfo[i_read_ftqIdx[fa]].nextAddr;
+                read_ftqStartAddr[fa] <= buf_baseInfo[i_read_ftqIdx[fa]].startAddr;
+                read_ftqNextAddr[fa] <= buf_baseInfo[i_read_ftqIdx[fa]].nextAddr;
             end
 
             // write by backend
             for(fa=0;fa<`BRU_NUM;fa=fa+1) begin
                 if (can_wb[fa]) begin
                     assert(buffer_vld[branchwbInfo[fa].ftq_idx]);
-                    buffer_branchInfo[branchwbInfo[fa].ftq_idx] <= '{
-                        vld            : 1,
+                    buf_brInfo[branchwbInfo[fa].ftq_idx] <= '{
+                        preDecodewb    : 0,
                         robIdx         : branchwbInfo[fa].rob_idx,
                         mispred        : branchwbInfo[fa].has_mispred,
                         taken          : branchwbInfo[fa].branch_taken,
@@ -245,7 +268,29 @@ module FTQ (
             end
 
             if (do_pred) begin
-                buffer_branchInfo[pred_ptr].vld <= 0;
+                // buf_brInfo[pred_ptr].vld <= 0;
+                // set default value
+                buf_brInfo[branchwbInfo[fa].ftq_idx] <= '{
+                    preDecodewb    : 0,
+                    robIdx         : 0,
+                    mispred        : 0,// default set false
+                    taken          : i_pred_ftqInfo.taken,
+                    fallthruOffset : i_pred_ftqInfo.endAddr - i_pred_ftqInfo.startAddr,
+                    targetAddr     : i_pred_ftqInfo.targetAddr,
+                    branch_type    : i_pred_ftqInfo.branch_type
+                };
+            end
+
+            if (i_falsepred) begin
+                buf_brInfo[i_preDecodewbInfo.ftq_idx] <= '{
+                    preDecodewb    : 1,
+                    robIdx         : 0,
+                    mispred        : i_preDecodewbInfo.has_mispred,// default set false
+                    taken          : i_preDecodewbInfo.branch_taken,
+                    fallthruOffset : i_preDecodewbInfo.fallthruOffset,
+                    targetAddr     : i_preDecodewbInfo.target_pc,
+                    branch_type    : i_preDecodewbInfo.branch_type
+                };
             end
 
             // branch wb check assert
@@ -266,25 +311,25 @@ module FTQ (
 // commit and update ftq entry
 /****************************************************************************************************/
 
-    wire[`XDEF] temp_fallthruAddr = buffer_fetchInfo[commit_ptr].startAddr + buffer_branchInfo[commit_ptr].fallthruOffset;
+    wire[`XDEF] temp_fallthruAddr = buf_baseInfo[commit_ptr].startAddr + buf_brInfo[commit_ptr].fallthruOffset;
     wire train_stop;
-    assign train_stop = ftbFuncs::counterUpdate(buffer_metaInfo[commit_ptr].ftb_counter, buffer_branchInfo[commit_ptr].taken) == buffer_metaInfo[commit_ptr].ftb_counter;
+    assign train_stop = ftbFuncs::counterUpdate(buf_metaInfo[commit_ptr].ftb_counter, buf_brInfo[commit_ptr].taken) == buf_metaInfo[commit_ptr].ftb_counter;
 
     wire update_vld;
     BPupdateInfo_t new_updateInfo;
 
     assign update_vld = need_update_ftb;
     assign new_updateInfo = '{
-        startAddr : buffer_fetchInfo[commit_ptr].startAddr,
+        startAddr : buf_baseInfo[commit_ptr].startAddr,
         // generate new ftb entry
         // TODO: optimize it
         ftb_update : '{
-            carry        : temp_fallthruAddr[`FTB_FALLTHRU_WIDTH+1] != buffer_fetchInfo[commit_ptr].startAddr[`FTB_FALLTHRU_WIDTH+1],
+            carry        : temp_fallthruAddr[`FTB_FALLTHRU_WIDTH+1] != buf_baseInfo[commit_ptr].startAddr[`FTB_FALLTHRU_WIDTH+1],
             fallthruAddr : temp_fallthruAddr[`FTB_FALLTHRU_WIDTH:1],
-            tarStat      : ftbFuncs::calcuTarStat(buffer_fetchInfo[commit_ptr].startAddr, buffer_branchInfo[commit_ptr].targetAddr),
-            targetAddr   : buffer_branchInfo[commit_ptr].targetAddr[`FTB_TARGET_WIDTH:1],
-            branch_type  : buffer_branchInfo[commit_ptr].branch_type,
-            counter      : ftbFuncs::counterUpdate(buffer_metaInfo[commit_ptr].ftb_counter, buffer_branchInfo[commit_ptr].taken)
+            tarStat      : ftbFuncs::calcuTarStat(buf_baseInfo[commit_ptr].startAddr, buf_brInfo[commit_ptr].targetAddr),
+            targetAddr   : buf_brInfo[commit_ptr].targetAddr[`FTB_TARGET_WIDTH:1],
+            branch_type  : buf_brInfo[commit_ptr].branch_type,
+            counter      : ftbFuncs::counterUpdate(buf_metaInfo[commit_ptr].ftb_counter, buf_brInfo[commit_ptr].taken)
         }
     };
 
@@ -299,24 +344,31 @@ module FTQ (
     assign o_icache_fetch_req = do_fetch;
     assign o_icache_fetch_ftqIdx = BP_bypass ? pred_ptr : fetch_ptr;
 
+    // from ftq
     ftq2icacheInfo_t fetchInfo;
     assign fetchInfo = '{
-        startAddr : buffer_fetchInfo[fetch_ptr].startAddr,
+        startAddr : buf_baseInfo[fetch_ptr].startAddr,
         // TODO: use byte mask
-        fetchBlock_size : buffer_fetchInfo[fetch_ptr].endAddr - buffer_fetchInfo[fetch_ptr].startAddr
+        fetchBlock_size : buf_baseInfo[fetch_ptr].endAddr - buf_baseInfo[fetch_ptr].startAddr,
+        taken : buf_baseInfo[fetch_ptr].taken,
+        nextAddr : buf_baseInfo[fetch_ptr].nextAddr
     };
+
+    // from bpu bypass
     ftq2icacheInfo_t BP_bypass_fetchInfo;
     assign BP_bypass_fetchInfo = '{
         startAddr : i_pred_ftqInfo.startAddr,
         // endAddr is fallthruAddr
         // fetchBlock_size = 4 * n
-        fetchBlock_size : i_pred_ftqInfo.endAddr - i_pred_ftqInfo.startAddr
+        fetchBlock_size : i_pred_ftqInfo.endAddr - i_pred_ftqInfo.startAddr,
+        taken : i_pred_ftqInfo.taken,
+        nextAddr : i_pred_ftqInfo.taken ? i_pred_ftqInfo.targetAddr : i_pred_ftqInfo.endAddr
     };
 
     assign o_icache_fetchInfo = BP_bypass ? BP_bypass_fetchInfo : fetchInfo;
 
-    // `ASSERT(do_fetch ? (buffer_fetchInfo[fetch_ptr].endAddr > buffer_fetchInfo[fetch_ptr].startAddr) : 1);
-    // `ASSERT(do_fetch ? (buffer_fetchInfo[fetch_ptr].endAddr - buffer_fetchInfo[fetch_ptr].startAddr <= 64) : 1);
+    // `ASSERT(do_fetch ? (buf_baseInfo[fetch_ptr].endAddr > buf_baseInfo[fetch_ptr].startAddr) : 1);
+    // `ASSERT(do_fetch ? (buf_baseInfo[fetch_ptr].endAddr - buf_baseInfo[fetch_ptr].startAddr <= 64) : 1);
 
 
 endmodule

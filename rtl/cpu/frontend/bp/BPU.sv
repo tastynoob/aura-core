@@ -12,7 +12,7 @@ module BPU (
     input wire rst,
 
     input wire i_squash_vld,
-    input squashInfo_t i_squashInfo,
+    input wire[`XDEF] i_squash_arch_pc,
 
     input wire i_update_vld,
     output wire o_update_finished,
@@ -101,7 +101,7 @@ module BPU (
         end
         else begin
             if (squash_dueToBackend) begin
-                base_pc <= i_squashInfo.arch_pc;
+                base_pc <= i_squash_arch_pc;
             end
             else if (i_update_vld) begin
                 base_pc <= s2_ftb_lookup_hit_rdy ? s2_base_pc : s1_req ? s1_base_pc : base_pc;
@@ -127,6 +127,7 @@ module BPU (
 
     assign o_pred_vld = s2_ftb_lookup_hit_rdy;
 
+    // the fetch range: [start, end)
     assign o_pred_ftqInfo = '{
         startAddr : s2_base_pc,
         endAddr : s2_ftbPred_use ? ftbFuncs::calcFallthruAddr(s2_base_pc, s2_ftb_lookup_info) : s2_ftb_unhit_fallthruAddr,

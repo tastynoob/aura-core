@@ -153,14 +153,17 @@ module alu_bru (
             comwbInfo.iprd_idx <= saved_fuInfo.iprd_idx;
             comwbInfo.result <= (saved_fuInfo.issueQue_id == `BRUIQ_ID) ? fallthru : calc_data;
 
-            branchwb_vld <= saved_vld && (saved_fuInfo.issueQue_id == `BRUIQ_ID);
+            // jal must be not mispred
+            assert(saved_vld && (saved_fuInfo.issueQue_id == `BRUIQ_ID) && mispred ? (saved_fuInfo.micOp != MicOp_t::jal) : 1);
+            // only writeback when mispred
+            branchwb_vld <= saved_vld && (saved_fuInfo.issueQue_id == `BRUIQ_ID) && mispred;
             branchwb_info <= '{
                 branch_type : branch_type,
                 rob_idx : saved_fuInfo.rob_idx,
                 ftq_idx : saved_fuInfo.ftq_idx,
                 has_mispred : mispred,
                 branch_taken : taken,
-                //FIXME: fallthruAddr should always point to branch_pc + 4
+                //FIXME: fallthruAddr should always point to branch_pc + 4/2
                 fallthruOffset : saved_fuInfo.ftqOffset + 4,
                 target_pc : target,
                 branch_npc : npc
