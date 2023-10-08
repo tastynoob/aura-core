@@ -27,6 +27,10 @@
 `define FLTBLOCK_ID 2
 `define UNKOWNBLOCK_ID 3
 
+`define ENABLE_MEMPRED 1
+
+`define STORE_ISSUE_WIDTH 2
+
 // issue
 //used for dispQue into RS
 `define ALUIQ_ID 0
@@ -55,6 +59,9 @@
 // cache region fast define
 `define BLKDEF `WDEF(`XLEN - $clog2(`CACHELINE_SIZE))
 `define BLK_RANGE `XLEN - 1 : $clog2(`CACHELINE_SIZE)
+
+`define BLOCKADDR(x) ((``x``)>>$clog2(`CACHELINE_SIZE))
+`define PADDR(x) ``x``[`PALEN-1:0]
 
 //int logic register index def
 `define ILRIDX_DEF `WDEF($clog2(32))

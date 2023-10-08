@@ -62,6 +62,7 @@ module decode (
             decinfo_vld <= i_inst_vld;
             for(fa=0;fa<`DECODE_WIDTH;fa=fa+1) begin
                 decinfo[fa] <= '{
+                    foldpc      : i_inst[fa].foldpc,
                     ftq_idx     : i_inst[fa].ftq_idx,
                     ftqOffset   : i_inst[fa].ftqOffset,
                     has_except  : (unKnown_inst[fa] || temp_val[fa]),
@@ -76,7 +77,8 @@ module decode (
                     use_imm     : temp[fa].use_imm,
                     dispQue_id  : temp[fa].dispQue_id,
                     issueQue_id : temp[fa].issueQue_id,
-                    micOp_type  : temp[fa].micOp_type
+                    micOp_type  : temp[fa].micOp_type,
+                    isStore     : temp[fa].isStore
                 };
             end
         end

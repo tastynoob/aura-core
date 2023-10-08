@@ -19,6 +19,7 @@ typedef struct packed{
     logic[`IDEF] inst;
     ftqIdx_t ftq_idx;
     ftqOffset_t ftqOffset;
+    logic[`WDEF(`MEMDEP_FOLDPC_WIDTH)] foldpc;
     logic has_except;
     rv_trap_t::exception except;
 } fetchEntry_t;
@@ -76,8 +77,13 @@ typedef struct packed {
 
 typedef struct {
     logic dueToBranch;
+    logic dueToViolation;
     logic branch_taken;
     logic[`XDEF] arch_pc;
+
+    // violation info
+    logic[`WDEF(`MEMDEP_FOLDPC_WIDTH)] store_foldpc;
+    logic[`WDEF(`MEMDEP_FOLDPC_WIDTH)] load_foldpc;
 } squashInfo_t;
 
 

@@ -18,6 +18,9 @@ module dispatch (
     // from rename
     input wire[`WDEF(`RENAME_WIDTH)] i_enq_vld,
     input renameInfo_t i_enq_inst[`RENAME_WIDTH],
+    // from mem dep predictor
+    input wire[`WDEF(`RENAME_WIDTH)] i_mem_shouldwait,
+    input robIdx_t i_mem_dep_robIdx[`RENAME_WIDTH],
 
     // read immBuffer (clear when writeback)
     input irobIdx_t i_read_irob_idx[`IMMBUFFER_READPORT_NUM],
@@ -43,14 +46,15 @@ module dispatch (
     // to int block
     input wire[`WDEF(`INTDQ_DISP_WID)] i_intDQ_deq_vld,
     output wire[`WDEF(`INTDQ_DISP_WID)] o_intDQ_deq_req,
-    output intDQEntry_t o_intDQ_deq_info[`INTDQ_DISP_WID]
+    output intDQEntry_t o_intDQ_deq_info[`INTDQ_DISP_WID],
 
     // to mem block
-
+    input wire[`WDEF(`INTDQ_DISP_WID)] i_memDQ_deq_vld,
+    output wire[`WDEF(`INTDQ_DISP_WID)] o_memDQ_deq_req,
+    output memDQEntry_t o_memDQ_deq_info[`INTDQ_DISP_WID]
 
 );
     genvar i;
-
 
     //alloc immBubbfer id
     wire[`WDEF(`RENAME_WIDTH)] use_imm_vec;
@@ -58,7 +62,7 @@ module dispatch (
     imm_t imm_vec[`RENAME_WIDTH];
 
     wire can_insert_intDQ;
-    wire can_insert_memDQ = 1;
+    wire can_insert_memDQ;
     wire can_insert_immBuffer;
     // only when can_dispatch is true
     wire can_dispatch = i_can_insert_rob && can_insert_intDQ && can_insert_memDQ && can_insert_immBuffer;
@@ -67,6 +71,7 @@ module dispatch (
     logic[`WDEF(`RENAME_WIDTH)] insert_intDQ_vld;
     logic[`WDEF(`RENAME_WIDTH)] insert_memDQ_vld;
     intDQEntry_t new_intDQEntry[`RENAME_WIDTH];
+    memDQEntry_t new_memDQEntry[`RENAME_WIDTH];
 
     rv_trap_t::exception oldest_except;
 
@@ -93,7 +98,6 @@ module dispatch (
                 prev_iprd_idx   : i_enq_inst[i].prev_iprd_idx
             };
             assign o_new_robEntry_ftqOffset[i] = i_enq_inst[i].ftqOffset;
-
             assign new_intDQEntry[i] =
             '{
                 ftq_idx    : i_enq_inst[i].ftq_idx,
@@ -105,6 +109,20 @@ module dispatch (
                 use_imm    : i_enq_inst[i].use_imm,
                 issueQue_id  : i_enq_inst[i].issueQue_id,
                 micOp_type : i_enq_inst[i].micOp_type
+            };
+            assign new_memDQEntry[i] =
+            '{
+                ftq_idx    : i_enq_inst[i].ftq_idx,
+                rob_idx    : i_alloc_robIdx[i],
+                irob_idx   : irob_alloc_idx[i],
+                rd_wen     : i_enq_inst[i].rd_wen,
+                iprd_idx   : i_enq_inst[i].iprd_idx,
+                iprs_idx   : i_enq_inst[i].iprs_idx,
+                use_imm    : i_enq_inst[i].use_imm,
+                issueQue_id  : i_enq_inst[i].issueQue_id,
+                micOp_type : i_enq_inst[i].micOp_type,
+                shouldwait : i_mem_shouldwait[i],
+                dep_robIdx : i_mem_dep_robIdx[i]
             };
         end
     endgenerate
@@ -182,6 +200,28 @@ module dispatch (
 // mem dispQue
 /****************************************************************************************************/
 
+
+    dispQue
+    #(
+        .DEPTH       ( `MEMDQ_SIZE     ),
+        .INPORT_NUM  ( `RENAME_WIDTH   ),
+        .OUTPORT_NUM ( `INTDQ_DISP_WID ),
+        .dtype       ( memDQEntry_t    )
+    )
+    u_mem_dispQue(
+        .clk        ( clk        ),
+        .rst        ( rst        ),
+        .i_flush    ( i_squash_vld    ),
+
+        .o_can_enq  ( can_insert_memDQ    ),
+        .i_enq_vld  ( can_dispatch ),
+        .i_enq_req  ( insert_memDQ_vld    ),
+        .i_enq_data ( new_memDQEntry      ),
+
+        .o_can_deq  ( o_memDQ_deq_req  ),
+        .i_deq_req  ( i_memDQ_deq_vld  ),
+        .o_deq_data ( o_memDQ_deq_info )
+    );
 
 
 /****************************************************************************************************/

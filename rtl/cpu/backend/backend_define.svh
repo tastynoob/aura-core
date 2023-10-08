@@ -5,6 +5,7 @@
 `include "core_define.svh"
 
 typedef struct {
+    logic[`WDEF(`MEMDEP_FOLDPC_WIDTH)] foldpc;
     ftqIdx_t ftq_idx;
     ftqOffset_t ftqOffset;
     logic has_except;
@@ -22,8 +23,8 @@ typedef struct {
     logic[`WDEF(2)] dispQue_id;
     //which IQ should go
     logic[`WDEF(2)] issueQue_id;
-
     MicOp_t::_u micOp_type;
+    logic isStore;
 }decInfo_t;
 
 typedef struct {
@@ -47,8 +48,8 @@ typedef struct {
     logic[`WDEF(2)] dispQue_id;
     //which RS should go
     logic[`WDEF(2)] issueQue_id;
-
     MicOp_t::_u micOp_type;
+    logic isStore;
 } renameInfo_t;
 
 typedef struct {
@@ -64,21 +65,28 @@ typedef struct {
     MicOp_t::_u micOp_type;
 } intDQEntry_t;// to exeIntBlock
 
+typedef intDQEntry_t intExeInfo_t;
 
-typedef intDQEntry_t exeInfo_t;
+typedef struct {
+    ftqIdx_t ftq_idx;
+    robIdx_t rob_idx;
+    irobIdx_t irob_idx;
 
-// typedef struct {
-//     ftqIdx_t ftq_idx;
-//     robIdx_t rob_idx;
-//     irobIdx_t irob_idx; // the immbuffer idx (immOp-only)
+    logic rd_wen;
+    iprIdx_t iprd_idx;
+    iprIdx_t iprs_idx[`NUMSRCS_INT];
+    logic use_imm;
+    logic[`WDEF(2)] issueQue_id;
+    MicOp_t::_u micOp_type;
+    // memdep
+    logic shouldwait;
+    robIdx_t dep_robIdx;
+} memDQEntry_t;
 
-//     logic rd_wen;
-//     iprIdx_t rdIdx;
-//     iprIdx_t rsIdx[`NUMSRCS_INT]; // reg src idx
-//     logic use_imm;
-//     logic[`WDEF(2)] issueQue_id;
-//     MicOp_t::_u micOp_type;
-// } exeInfo_t;
+
+typedef struct {
+    robIdx_t rob_idx;
+} loadQueEntry_t;
 
 
 typedef struct {
@@ -133,6 +141,16 @@ typedef struct {
     iprIdx_t iprd_idx;
     iprIdx_t prev_iprd_idx;
 } renameCommitInfo_t;
+
+
+typedef struct {
+    logic[`WDEF(`MEMDEP_FOLDPC_WIDTH)] store_foldpc;
+    logic[`WDEF(`MEMDEP_FOLDPC_WIDTH)] load_foldpc;
+} squashMemVio_t;
+
+
+
+
 
 
 

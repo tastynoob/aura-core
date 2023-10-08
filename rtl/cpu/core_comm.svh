@@ -2,10 +2,10 @@
 `define __CORE_COMM_SVH__
 
 `include "base.svh"
+`include "core_priv.svh"
 
 `define FTB_PREDICT_WIDTH 16 // byte (up to 8 RVC inst)
-
-`define CACHELINE_SIZE 32
+`define CACHELINE_SIZE 32 // Byte
 `define XLEN 64
 `define XLEN_64
 `define INIT_PC 64'h0000000000000000
@@ -19,6 +19,17 @@
 `define IMMBUFFER_SIZE 40
 `define ROB_SIZE 128
 `define INTDQ_SIZE 16
+`define MEMDQ_SIZE 16
+`define LQSIZE 64
+`define SQSIZE 64
+
+`define SSIT_SIZE 1024
+`define MEMDEP_FOLDPC_WIDTH $clog2(`SSIT_SIZE)
+`define LFST_SIZE 32
+
+
+
+typedef logic[`WDEF(`PALEN)] paddr_t;
 
 typedef logic[`WDEF($clog2(`FTQ_SIZE))] ftqIdx_t;
 typedef logic[`WDEF($clog2(`FTB_PREDICT_WIDTH))] ftqOffset_t;
@@ -36,6 +47,8 @@ typedef logic [`WDEF(12)] csrIdx_t;//the csr regfile idx
 
 typedef logic [`IMMDEF] imm_t;
 
+typedef logic[`WDEF($clog2(`LQSIZE))] lqIdx_t;
+typedef logic[`WDEF($clog2(`SQSIZE))] sqIdx_t;
 
 package rv_trap_t;
 //mtvec mode:

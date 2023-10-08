@@ -16,7 +16,9 @@ typedef enum logic {
 
 `define ASSERT(x) always_ff @(posedge clk) if (!rst) assert((``x``))
 `define ORDER_CHECK(x) `ASSERT(funcs::continuous_one(``x``) == funcs::count_one(``x``))
-// `define ORDER_CHECK(x)
+
+`define DEBUG_EXP(x) ``x``
+`undef DEBUG_EXP
 
 `define SET_TRACE_OFF /*verilator tracing_off*/
 `define SET_TRACE_ON /*verilator tracing_on*/

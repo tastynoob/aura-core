@@ -62,7 +62,6 @@ module ctrlBlock (
 
 );
     genvar i;
-    int j;
 
 /****************************************************************************************************/
 // fetch inst buffer
@@ -129,6 +128,14 @@ module ctrlBlock (
 // rename
 //
 /****************************************************************************************************/
+    wire[`WDEF(`MEMDEP_FOLDPC_WIDTH)] toMemDep_foldpc[`RENAME_WIDTH];
+    generate
+        for (i=0;i<`RENAME_WIDTH;i=i+1) begin:gen_for
+            assign toMemDep_foldpc[i] = toRename_decInfo[i].foldpc;
+        end
+    endgenerate
+
+
     wire toRename_stall;
     wire[`WDEF(`RENAME_WIDTH)] toDIspatch_vld;
     renameInfo_t toDIspatch_renameInfo[`RENAME_WIDTH];
@@ -157,6 +164,46 @@ module ctrlBlock (
         .o_specRenameMapping (o_specRenameMapping)
     );
 
+/****************************************************************************************************/
+// memory dependcy predictor
+//
+/****************************************************************************************************/
+    wire violation;
+    wire[`WDEF(`RENAME_WIDTH)] toMemDep_insert_store;
+    robIdx_t toMemDep_alloc_robIdx[`RENAME_WIDTH];
+    assign violation = o_squash_vld && o_squashInfo.dueToViolation;
+
+    wire[`WDEF(`RENAME_WIDTH)] mem_shouldWait;
+    robIdx_t mem_dep_robIdx[`RENAME_WIDTH];
+
+    generate
+        for (i=0;i<`RENAME_WIDTH;i=i+1) begin : gen_for
+            assign toMemDep_insert_store[i] = toDIspatch_vld[i] && toDIspatch_renameInfo[i].isStore;
+        end
+    endgenerate
+
+    memDepPred u_memDepPred(
+        .clk                ( clk                ),
+        .rst                ( rst                ),
+        .i_stall            ( toRename_stall    ),
+        // s1
+        .i_lookup_ssit_vld  ( (~0)  ),// dont care
+        .i_foldpc           ( toMemDep_foldpc           ),
+        // s2
+        .i_insert_store     ( toMemDep_insert_store     ),
+        .i_allocated_robIdx ( toMemDep_alloc_robIdx ),
+        .o_shouldwait       ( mem_shouldWait       ),
+        .o_dep_robIdx       ( mem_dep_robIdx       ),
+
+        .i_store_issued     (      ),
+        .i_issue_foldpc     (      ),
+        .i_store_robIdx     (      ),
+
+        .i_violation        ( violation        ),
+        .i_vio_store_foldpc ( o_squashInfo.store_foldpc ),
+        .i_vio_load_foldpc  ( o_squashInfo.load_foldpc  )
+    );
+
 
 /****************************************************************************************************/
 // dispatch and rob
@@ -173,6 +220,8 @@ module ctrlBlock (
     wire toROB_disp_exceptwb_vld;
     exceptwbInfo_t toROB_disp_exceptwb_info;
 
+    assign toMemDep_alloc_robIdx = toDispatch_alloc_robIdx;
+
     dispatch u_dispatch(
         .clk                      ( clk                 ),
         .rst                      ( rst || o_squash_vld ),
@@ -184,8 +233,8 @@ module ctrlBlock (
         .i_enq_inst               ( toDIspatch_renameInfo   ),
 
         .i_read_irob_idx          ( i_read_irob_idx       ),
-        .o_read_irob_data         ( o_read_irob_data        ),
-        .i_clear_irob_vld         ( i_clear_irob_vld         ),
+        .o_read_irob_data         ( o_read_irob_data      ),
+        .i_clear_irob_vld         ( i_clear_irob_vld      ),
         .i_clear_irob_idx         ( i_clear_irob_idx      ),
 
         .i_can_insert_rob         ( toDispatch_can_insert   ),
@@ -197,10 +246,10 @@ module ctrlBlock (
         .i_alloc_robIdx           ( toDispatch_alloc_robIdx   ),
 
         .o_exceptwb_vld           ( toROB_disp_exceptwb_vld         ),
-        .o_exceptwb_info          ( toROB_disp_exceptwb_info         ),
+        .o_exceptwb_info          ( toROB_disp_exceptwb_info        ),
         // to intBlock
         .i_intDQ_deq_vld          ( i_intDQ_deq_vld          ),
-        .o_intDQ_deq_req          ( o_intDQ_deq_req         ),
+        .o_intDQ_deq_req          ( o_intDQ_deq_req          ),
         .o_intDQ_deq_info         ( o_intDQ_deq_info         )
     );
 
@@ -237,7 +286,7 @@ module ctrlBlock (
         .i_exceptwb_vld        ( i_exceptwb_vld || toROB_disp_exceptwb_vld ),
         .i_exceptwb_info       ( i_exceptwb_vld ? i_exceptwb_info : toROB_disp_exceptwb_info ),
 
-        .o_commit_vld          ( o_commit_vld         ),
+        .o_commit_vld          ( o_commit_vld      ),
         .o_commit_rob_idx      ( o_commit_rob_idx  ),
         .o_commit_ftq_idx      ( o_commit_ftq_idx  ),
 

@@ -202,7 +202,7 @@ module intBlock #(
 
     wire[`WDEF(2)] IQ0_inst_vld;
     wire[`WDEF($clog2(`IQ0_SIZE))] IQ0_inst_iqIdx[2];
-    exeInfo_t IQ0_inst_info[2];
+    intExeInfo_t IQ0_inst_info[2];
 
     wire[`WDEF(2)] IQ0_issue_finished;
     wire[`WDEF(2)] IQ0_issue_failed;
@@ -265,7 +265,7 @@ module intBlock #(
     reg[`WDEF($clog2(`IQ0_SIZE))] s1_IQ0_inst_iqIdx[2];
 
     iprIdx_t s1_IQ0_iprs_idx[2][`NUMSRCS_INT];
-    exeInfo_t s1_IQ0_inst_info[2];
+    intExeInfo_t s1_IQ0_inst_info[2];
     always_ff @( posedge clk ) begin
         int fa;
         if (rst || i_squash_vld) begin
@@ -485,7 +485,7 @@ endgenerate
 
     wire[`WDEF(2)] IQ1_inst_vld;
     wire[`WDEF($clog2(`IQ1_SIZE))] IQ1_inst_iqIdx[2];
-    exeInfo_t IQ1_inst_info[2];
+    intExeInfo_t IQ1_inst_info[2];
 
     wire[`WDEF(2)] IQ1_issue_finished;
     wire[`WDEF(2)] IQ1_issue_failed;
@@ -551,7 +551,7 @@ endgenerate
     reg[`WDEF(2)] s1_IQ1_inst_vld;
     reg[`WDEF($clog2(`IQ1_SIZE))] s1_IQ1_inst_iqIdx[2];
     iprIdx_t s1_IQ1_iprs_idx[2][`NUMSRCS_INT];
-    exeInfo_t s1_IQ1_inst_info[2];
+    intExeInfo_t s1_IQ1_inst_info[2];
     always_ff @( posedge clk ) begin
         int fa;
         if (rst || i_squash_vld) begin

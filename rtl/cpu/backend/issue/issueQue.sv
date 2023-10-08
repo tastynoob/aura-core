@@ -7,7 +7,7 @@ typedef struct {
     logic[`WDEF(`NUMSRCS_INT)] src_rdy; // which src is ready
     logic[`WDEF(`NUMSRCS_INT)] src_spec_rdy; // which src is speculative ready
 
-    exeInfo_t info;
+    intExeInfo_t info;
 } IQEntry;
 
 //use uncompressed scheme
@@ -47,13 +47,13 @@ module issueQue #(
     //enq
     output wire o_can_enq,
     input wire[`WDEF(INOUTPORT_NUM)] i_enq_req,
-    input exeInfo_t i_enq_exeInfo[INOUTPORT_NUM],
+    input intExeInfo_t i_enq_exeInfo[INOUTPORT_NUM],
     input wire[`WDEF(`NUMSRCS_INT)] i_enq_iprs_rdy[INOUTPORT_NUM],
 
     //output INOUTPORT_NUM entrys with the highest priority which is ready
     output wire[`WDEF(INOUTPORT_NUM)] o_can_issue,//find can issued entry
     output wire[`WDEF($clog2(DEPTH))] o_issue_idx[INOUTPORT_NUM],
-    output exeInfo_t o_issue_exeInfo[INOUTPORT_NUM],
+    output intExeInfo_t o_issue_exeInfo[INOUTPORT_NUM],
 
     // clear entry's vld bit (issue successed)
     input wire[`WDEF(INOUTPORT_NUM)] i_issue_finished_vec,

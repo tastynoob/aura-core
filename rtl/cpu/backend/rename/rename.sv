@@ -1,4 +1,4 @@
-`include "core_define.svh"
+`include "backend_define.svh"
 
 //
 module rename(
@@ -103,8 +103,9 @@ module rename(
 
                     use_imm     : i_decinfo[fa].use_imm,
                     dispQue_id  : i_decinfo[fa].dispQue_id,
-                    issueQue_id   : i_decinfo[fa].issueQue_id,
-                    micOp_type  : i_decinfo[fa].micOp_type
+                    issueQue_id : i_decinfo[fa].issueQue_id,
+                    micOp_type  : i_decinfo[fa].micOp_type,
+                    isStore     : i_decinfo[fa].isStore
                 };
             end
         end

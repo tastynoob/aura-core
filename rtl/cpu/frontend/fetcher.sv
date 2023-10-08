@@ -197,6 +197,7 @@ module fetcher (
                         inst        : reordered_insts[fa],
                         ftq_idx     : s2_ftqIdx,
                         ftqOffset   : reordered_ftqOffset[fa],
+                        foldpc      : (s2_inst_pcs[fa] >> 1),
                         has_except  : stall_dueto_pcUnaligned,
                         except      : rv_trap_t::pcUnaligned
                     };

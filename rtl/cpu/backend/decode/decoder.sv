@@ -410,6 +410,6 @@ module decoder (
     use_mdu ? mduop_type :
     0;
 
-
+    assign o_decinfo.isStore = isStore;
 
 endmodule
