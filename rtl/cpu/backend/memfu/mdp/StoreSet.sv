@@ -106,8 +106,8 @@ module StoreSet #(
                 // s2: insert store
                 for(fa=0; fa<`RENAME_WIDTH; fa=fa+1) begin
                     if (s1_found_vld[fa] && i_insert_store[fa]) begin
-                        lfst_vld[s1_found_ssid] <= 1;
-                        lfst[s1_found_ssid] <= i_allocated_robIdx[fa];
+                        lfst_vld[s1_found_ssid[fa]] <= 1;
+                        lfst[s1_found_ssid[fa]] <= i_allocated_robIdx[fa];
                     end
                 end
 

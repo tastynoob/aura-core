@@ -22,7 +22,7 @@ typedef struct {
     //which dispQue should go
     logic[`WDEF(2)] dispQue_id;
     //which IQ should go
-    logic[`WDEF(2)] issueQue_id;
+    logic[`WDEF(3)] issueQue_id;
     MicOp_t::_u micOp_type;
     logic isStore;
 }decInfo_t;
@@ -47,7 +47,7 @@ typedef struct {
     //which dispQue should go
     logic[`WDEF(2)] dispQue_id;
     //which RS should go
-    logic[`WDEF(2)] issueQue_id;
+    logic[`WDEF(3)] issueQue_id;
     MicOp_t::_u micOp_type;
     logic isStore;
 } renameInfo_t;
@@ -61,7 +61,7 @@ typedef struct {
     iprIdx_t iprd_idx;
     iprIdx_t iprs_idx[`NUMSRCS_INT];
     logic use_imm;
-    logic[`WDEF(2)] issueQue_id;
+    logic[`WDEF(3)] issueQue_id;
     MicOp_t::_u micOp_type;
 } intDQEntry_t;// to exeIntBlock
 
@@ -76,13 +76,15 @@ typedef struct {
     iprIdx_t iprd_idx;
     iprIdx_t iprs_idx[`NUMSRCS_INT];
     logic use_imm;
-    logic[`WDEF(2)] issueQue_id;
+    logic[`WDEF(3)] issueQue_id;
     MicOp_t::_u micOp_type;
     // memdep
     logic shouldwait;
     robIdx_t dep_robIdx;
 } memDQEntry_t;
 
+
+typedef memDQEntry_t memExeInfo_t;
 
 typedef struct {
     robIdx_t rob_idx;
@@ -103,9 +105,27 @@ typedef struct {
     logic[`XDEF] npc;
     imm_t imm20;
 
-    logic[`WDEF(2)] issueQue_id;
+    logic[`WDEF(3)] issueQue_id;
     MicOp_t::_u micOp;
 } fuInfo_t;
+
+typedef struct {
+    ftqIdx_t ftq_idx;
+    robIdx_t rob_idx;
+    irobIdx_t irob_idx;
+    lqIdx_t lq_idx; // only for loadpipe
+    sqIdx_t sq_idx;
+    logic use_imm;
+    logic rd_wen;
+    iprIdx_t iprd_idx;
+    logic[`XDEF] srcs[2];
+
+    logic[`WDEF(3)] issueQue_id;
+    MicOp_t::_u micOp;
+} lsfuInfo_t;
+
+
+
 
 typedef struct {
     robIdx_t rob_idx;

@@ -4,7 +4,7 @@
 
 `define SV39_SUPPORT 1
 
-`define PALEN 56 // SV39: 39 bits virtual addr, 56 bits physical addr
+`define PALEN 36
 
 `define VADDR(x) ``x``[39-1:0]
 

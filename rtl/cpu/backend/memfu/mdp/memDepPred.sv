@@ -25,15 +25,69 @@ module memDepPred (
     output robIdx_t o_dep_robIdx[`RENAME_WIDTH],
 
     // store issued
-    input wire i_store_issued[`STORE_ISSUE_WIDTH],
+    input wire[`WDEF(`STORE_ISSUE_WIDTH)] i_store_issued,
     input wire[`WDEF(`MEMDEP_FOLDPC_WIDTH)] i_issue_foldpc[`STORE_ISSUE_WIDTH],
     input robIdx_t i_store_robIdx[`STORE_ISSUE_WIDTH],
 
     // violation update
     input wire i_violation,
     input wire[`WDEF(`MEMDEP_FOLDPC_WIDTH)] i_vio_store_foldpc,
-    input wire[`WDEF(`MEMDEP_FOLDPC_WIDTH)] i_vio_load_foldpc
+    input wire[`WDEF(`MEMDEP_FOLDPC_WIDTH)] i_vio_load_foldpc,
+
+    // dispatch->IQ,  read busytable
+    input robIdx_t i_read_robIdx[`MEMDQ_DISP_WID],
+    output wire[`WDEF(`MEMDQ_DISP_WID)] o_memdep_rdy
 );
+
+    genvar i;
+
+    logic[`WDEF(`ROB_SIZE)] nxt_rdy_bits;
+    reg[`WDEF(`ROB_SIZE)] rdy_bits;
+
+    always_ff @( posedge clk ) begin
+        int fa, fb;
+        if (rst || i_violation) begin
+            for (fa=0;fa<`ROB_SIZE;fa=fa+1) begin
+                rdy_bits[fa] <= 1;
+            end
+        end
+        else begin
+            for (fa=0;fa<`RENAME_WIDTH;fa=fa+1) begin
+                if (i_insert_store[fa]) begin
+                    assert(rdy_bits[i_allocated_robIdx[fa].idx]);
+                    rdy_bits[i_allocated_robIdx[fa].idx] <= 0;
+                end
+            end
+            for (fa=0;fa<`STORE_ISSUE_WIDTH;fa=fa+1) begin
+                if (i_store_issued[fa]) begin
+                    assert(rdy_bits[i_store_robIdx[fa].idx] == 0);
+                    rdy_bits[i_store_robIdx[fa].idx] <= 1;
+
+                    // assert check
+                    for (fb=0;fb<`RENAME_WIDTH;fb=fb+1) begin
+                        if (i_insert_store[fb]) begin
+                            assert(i_allocated_robIdx[fa].idx != i_store_robIdx[fa]);
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    always_comb begin
+        int ca;
+        nxt_rdy_bits = rdy_bits;
+        for (ca=0;ca<`STORE_ISSUE_WIDTH;ca=ca+1) begin
+            nxt_rdy_bits[i_store_robIdx[ca].idx] = 1;
+        end
+    end
+
+    generate
+        for (i=0;i<`MEMDQ_DISP_WID;i=i+1) begin
+            assign o_memdep_rdy[i] = nxt_rdy_bits[i_read_robIdx[i].idx];
+        end
+    endgenerate
+
 
 
 `ifdef ENABLE_MEMPRED

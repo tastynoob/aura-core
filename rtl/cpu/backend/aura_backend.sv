@@ -47,6 +47,10 @@ module aura_backend (
     wire[`WDEF(`INTDQ_DISP_WID)] toExe_intDQ_deq_req;
     intDQEntry_t toExe_intDQ_deq_info[`INTDQ_DISP_WID];
 
+    wire[`WDEF(`MEMDQ_DISP_WID)] toCtrl_memDQ_deq_vld;
+    wire[`WDEF(`MEMDQ_DISP_WID)] toExe_memDQ_deq_req;
+    intDQEntry_t toExe_memDQ_deq_info[`MEMDQ_DISP_WID];
+
 
     wire rob_read_ftq_vld;
     ftqIdx_t rob_read_ftqIdx;
@@ -101,6 +105,9 @@ module aura_backend (
         .i_intDQ_deq_vld       ( toCtrl_intDQ_deq_vld      ),
         .o_intDQ_deq_req       ( toExe_intDQ_deq_req       ),
         .o_intDQ_deq_info      ( toExe_intDQ_deq_info      ),
+        .i_memDQ_deq_vld       ( toCtrl_memDQ_deq_vld      ),
+        .o_memDQ_deq_req       ( toExe_memDQ_deq_req       ),
+        .o_memDQ_deq_info      ( toExe_memDQ_deq_info      ),
 
         .o_commit_vld          ( o_commit_vld       ),
         .o_commit_rob_idx      ( commit_robIdx      ),

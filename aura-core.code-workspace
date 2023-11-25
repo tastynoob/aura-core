@@ -6,6 +6,7 @@
 	],
 	"settings": {
 		"verilog.linting.linter": "verilator",
+		"verilog.ctags.path": "ctags",
 		"verilog.linting.verilator.arguments": "-sv -f test/verilator/tb.sv $(python3 tools/getlist_of_rtl.py -p rtl) ",
 		"verilog.formatting.systemVerilog.formatter":"verible-verilog-format",
 		"verilog.formatting.veribleVerilogFormatter.path": "verible-verilog-format",

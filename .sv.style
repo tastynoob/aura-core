@@ -5,3 +5,4 @@
 -no-tabs=false
 -explicit-function-lifetime=false
 -parameter-name-style
+-generate-label=false

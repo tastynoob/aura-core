@@ -20,6 +20,7 @@
 `define ROB_SIZE 128
 `define INTDQ_SIZE 16
 `define MEMDQ_SIZE 16
+`define LDIQ_SIZE 16
 `define LQSIZE 64
 `define SQSIZE 64
 
@@ -27,7 +28,8 @@
 `define MEMDEP_FOLDPC_WIDTH $clog2(`SSIT_SIZE)
 `define LFST_SIZE 32
 
-
+// the pointer of instMeta
+typedef logic[`XDEF] instMeta_p;
 
 typedef logic[`WDEF(`PALEN)] paddr_t;
 
@@ -47,8 +49,15 @@ typedef logic [`WDEF(12)] csrIdx_t;//the csr regfile idx
 
 typedef logic [`IMMDEF] imm_t;
 
-typedef logic[`WDEF($clog2(`LQSIZE))] lqIdx_t;
-typedef logic[`WDEF($clog2(`SQSIZE))] sqIdx_t;
+typedef struct packed {
+    logic flipped;
+    logic[`WDEF($clog2(`LQSIZE))] idx;
+} lqIdx_t;
+
+typedef struct packed {
+    logic flipped;
+    logic[`WDEF($clog2(`SQSIZE))] idx;
+} sqIdx_t;
 
 package rv_trap_t;
 //mtvec mode:
@@ -58,7 +67,7 @@ package rv_trap_t;
     // mcause (actually, 16bits mcause reg is enough)
     typedef enum logic[`WDEF(16)]{
         //instruction fetch and decode
-        pcUnaligned=0, // instruction address misaligned
+        pcMisaligned=0, // instruction address misaligned
         fetchFault=1, // instruction access fault
         instIllegal=2,// Illegal instruction
         breakpoint=3,

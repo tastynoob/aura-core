@@ -9,13 +9,17 @@ module exeBlock(
     input wire i_squash_vld,
     input squashInfo_t i_squashInfo,
 
-    // from dispatch
+    // from dispatch, mark the ipreg as not ready
     input wire[`WDEF(`RENAME_WIDTH)] i_disp_mark_notready_vld,
     input iprIdx_t i_disp_mark_notready_iprIdx[`RENAME_WIDTH],
 
     output wire[`WDEF(`INTDQ_DISP_WID)] o_intDQ_deq_vld,
     input wire[`WDEF(`INTDQ_DISP_WID)] i_intDQ_deq_req,
     input intDQEntry_t i_intDQ_deq_info[`INTDQ_DISP_WID],
+
+    output wire[`WDEF(`MEMDQ_DISP_WID)] o_memDQ_deq_vld,
+    input wire[`WDEF(`MEMDQ_DISP_WID)] i_memDQ_deq_req,
+    input intDQEntry_t i_memDQ_deq_info[`MEMDQ_DISP_WID],
 
     output irobIdx_t o_read_irob_idx[`ALU_NUM],
     input imm_t i_read_irob_data[`ALU_NUM],

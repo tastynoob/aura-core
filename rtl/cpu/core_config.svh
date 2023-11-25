@@ -37,6 +37,8 @@
 `define BRUIQ_ID 1
 `define MDUIQ_ID 2
 `define SCUIQ_ID 3
+`define LDUIQ_ID 4
+`define STUIQ_ID 5
 
 
 // execute and write back

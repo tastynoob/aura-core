@@ -152,12 +152,12 @@ package MicOp_t;
     }_mdu;
     typedef enum logic[`WDEF(`MICOP_WIDTH)]{
         lb = 5'b01_000,
-        lbu,
         lh,
-        lhu,
         lw,
-        lwu,
-        ld
+        ld,
+        lbu = 5'b10_000,
+        lhu,
+        lwu
     }_ldu;
     typedef enum logic[`WDEF(`MICOP_WIDTH)]{
         sb = 5'b01_000,

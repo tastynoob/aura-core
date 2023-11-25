@@ -141,7 +141,7 @@ module dispatch (
 
 
 /****************************************************************************************************/
-// frontend exception process ( instIllegal/pcUnaligned )
+// frontend exception process ( instIllegal/pcMisaligned )
 // delay it by one cycle
 /****************************************************************************************************/
 

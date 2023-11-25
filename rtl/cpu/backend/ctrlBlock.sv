@@ -45,6 +45,10 @@ module ctrlBlock (
     output wire[`WDEF(`INTDQ_DISP_WID)] o_intDQ_deq_req,
     output intDQEntry_t o_intDQ_deq_info[`INTDQ_DISP_WID],
 
+    input wire[`WDEF(`MEMDQ_DISP_WID)] i_memDQ_deq_vld,
+    output wire[`WDEF(`MEMDQ_DISP_WID)] o_memDQ_deq_req,
+    output intDQEntry_t o_memDQ_deq_info[`MEMDQ_DISP_WID],
+
     // notify ftq and storeQue
     output wire o_commit_vld,
     output wire[`WDEF($clog2(`ROB_SIZE))] o_commit_rob_idx,
@@ -250,7 +254,11 @@ module ctrlBlock (
         // to intBlock
         .i_intDQ_deq_vld          ( i_intDQ_deq_vld          ),
         .o_intDQ_deq_req          ( o_intDQ_deq_req          ),
-        .o_intDQ_deq_info         ( o_intDQ_deq_info         )
+        .o_intDQ_deq_info         ( o_intDQ_deq_info         ),
+        // to memBlock
+        .i_memDQ_deq_vld          ( i_memDQ_deq_vld        ),
+        .o_memDQ_deq_req          ( o_memDQ_deq_req        ),
+        .o_memDQ_deq_info         ( o_memDQ_deq_info       )
     );
 
     generate

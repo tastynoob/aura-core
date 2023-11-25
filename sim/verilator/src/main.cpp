@@ -11,6 +11,8 @@ uint64_t main_time = 0;
 VTOP *top;
 char buffer[100];
 
+uint64_t curTick() { return main_time; }
+
 
 int main(int argc, char **argv)
 {

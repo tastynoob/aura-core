@@ -65,7 +65,7 @@ module fetcher (
     );
 
 
-    reg stall_dueto_pcUnaligned;
+    reg stall_dueto_pcMisaligned;
 
     wire toIcache_req;
     ftqIdx_t toIcache_ftqIdx;
@@ -96,7 +96,7 @@ module fetcher (
 
         .o_icache_fetch_req     ( toIcache_req    ),
         .o_icache_fetch_ftqIdx  ( toIcache_ftqIdx ),
-        .i_icache_fetch_rdy     ( stall_dueto_pcUnaligned ? 0 : if_core_fetch.gnt     ),
+        .i_icache_fetch_rdy     ( stall_dueto_pcMisaligned ? 0 : if_core_fetch.gnt     ),
         .o_icache_fetchInfo     ( toIcache_info   ),
 
         .i_read_ftqIdx          ( i_read_ftqIdx       ),
@@ -114,7 +114,7 @@ module fetcher (
 // icache port
 // 3 stage icache
 /****************************************************************************************************/
-    wire pcUnaligned = toIcache_info.startAddr[0] == 1;
+    wire pcMisaligned = toIcache_info.startAddr[0] == 1;
 
     assign if_core_fetch.req = toIcache_req;
     assign if_core_fetch.get2 = toIcache_info.startAddr[$clog2(`CACHELINE_SIZE)-1 : 0] >= `CACHELINE_SIZE/2;
@@ -155,14 +155,14 @@ module fetcher (
             new_inst_vld <= 0;
             s1_fetch_vld <= 0;
             s2_fetch_vld <= 0;
-            stall_dueto_pcUnaligned <= 0;
+            stall_dueto_pcMisaligned <= 0;
             falsepred <= 0;
         end
         else begin
             // s0: ftq send fetch request
             // s1:
-            s1_fetch_vld <= toIcache_req && if_core_fetch.gnt&& (!pcUnaligned)  && (!i_backend_stall);
-            stall_dueto_pcUnaligned <= toIcache_req ? pcUnaligned : 0;
+            s1_fetch_vld <= toIcache_req && if_core_fetch.gnt&& (!pcMisaligned)  && (!i_backend_stall);
+            stall_dueto_pcMisaligned <= toIcache_req ? pcMisaligned : 0;
             if (!i_backend_stall) begin
                 s1_ftqIdx <= toIcache_ftqIdx;
             end
@@ -191,15 +191,15 @@ module fetcher (
             preDecwbInfo <= s2_preDecwbInfo;
             falsepred_arch_pc <= s2_falsepred_arch_pc;
             if (!i_backend_stall) begin
-                new_inst_vld <= stall_dueto_pcUnaligned ? 1 : ((if_core_fetch.rsp && s2_fetch_vld) ? reordered_inst_OH : 0);
+                new_inst_vld <= stall_dueto_pcMisaligned ? 1 : ((if_core_fetch.rsp && s2_fetch_vld) ? reordered_inst_OH : 0);
                 for (fa = 0; fa < `FETCH_WIDTH; fa=fa+1) begin
                     new_inst[fa] <= '{
                         inst        : reordered_insts[fa],
                         ftq_idx     : s2_ftqIdx,
                         ftqOffset   : reordered_ftqOffset[fa],
                         foldpc      : (s2_inst_pcs[fa] >> 1),
-                        has_except  : stall_dueto_pcUnaligned,
-                        except      : rv_trap_t::pcUnaligned
+                        has_except  : stall_dueto_pcMisaligned,
+                        except      : rv_trap_t::pcMisaligned
                     };
                 end
             end
