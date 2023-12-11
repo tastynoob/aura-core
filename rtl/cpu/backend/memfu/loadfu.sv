@@ -111,6 +111,7 @@ module loadfu (
     wire s1_tlbhit;
     wire s1_addrMisaligned;// addr misaligned should be check by tlb, because it may be mmio access
     wire s1_cachehit;
+    wire s1_stfwd_data_nrdy;
     paddr_t s1_paddr;
     always_ff @( posedge clk ) begin
         if (rst) begin
@@ -137,8 +138,10 @@ module loadfu (
     assign s1_cachehit = if_load2cache.s1_cachehit;
     assign s1_paddr = if_load2cache.s1_paddr;
 
+    assign s1_stfwd_data_nrdy = if_stfwd.s1_vaddr_match && if_stfwd.s1_data_nrdy;
+
     assign s1_continue = s1_vld && ((s1_tlbhit && !s1_conflict));
-    assign s1_replay = s1_vld && (!s1_tlbhit || s1_cachehit || s1_conflict);
+    assign s1_replay = s1_vld && (!s1_tlbhit || s1_cachehit || s1_conflict || s1_stfwd_data_nrdy);
 
     // if s0 cache was gnt
     // s1 must access for this request
@@ -164,7 +167,7 @@ module loadfu (
     lsfuInfo_t s2_fuInfo;
     reg s2_vld;
     reg s2_cachemiss;
-    wire s2_replay;
+    wire s2_need_squash;
     lqIdx_t s2_lqIdx;
     always_ff @( posedge clk ) begin
         if (rst) begin
@@ -193,7 +196,7 @@ module loadfu (
     assign if_load2que.s2_fwd_data = if_stfwd.s2_fwd_data;
 
 
-    assign s2_replay = if_stfwd.s2_match && if_stfwd.s2_data_nrdy;
+    assign s2_need_squash = if_stfwd.s2_match_failed;
 
 
     /********************/

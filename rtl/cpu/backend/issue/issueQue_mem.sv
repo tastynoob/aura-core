@@ -3,7 +3,9 @@
 
 
 // load IQ only have 1 src
-module issueQue_ld #(
+// store data have 1 src
+// store addr have 1 src
+module issueQue_mem #(
     parameter int DEPTH = 8,
     parameter int INOUTPORT_NUM = 2,
     parameter int EXTERNAL_WAKEUPNUM = 2,
@@ -17,7 +19,7 @@ module issueQue_ld #(
     input wire clk,
     input wire rst,
 
-    input i_stall,
+    // input i_stall, // no need
 
     //enq
     output wire o_can_enq,
@@ -27,6 +29,7 @@ module issueQue_ld #(
     input wire i_enq_memdep_rdy[INOUTPORT_NUM],
 
     //output INOUTPORT_NUM entrys with the highest priority which is ready
+    input wire[`WDEF(INOUTPORT_NUM)] i_fu_busy,// cannot issue
     output wire[`WDEF(INOUTPORT_NUM)] o_can_issue,//find can issued entry
     output wire[`WDEF($clog2(DEPTH))] o_issue_idx[INOUTPORT_NUM],
     output memExeInfo_t o_issue_exeInfo[INOUTPORT_NUM],
@@ -132,9 +135,6 @@ module issueQue_ld #(
             end
         end
         else begin
-            //save selected entry's Idx
-            saved_deq_find_ready <= deq_find_ready;
-            saved_deq_idx <= deq_idx;
 
             for (fa=0;fa<INOUTPORT_NUM;fa=fa+1) begin
                 //enq
@@ -147,24 +147,27 @@ module issueQue_ld #(
                     buffer[enq_idx[fa]].src_rdy <= i_enq_iprs_rdy[fa];
                     buffer[enq_idx[fa]].src_spec_rdy <= i_enq_iprs_rdy[fa];
                 end
-                if (!i_stall) begin
+                if (!i_fu_busy[fa]) begin
+                    //save selected entry's Idx
+                    saved_deq_find_ready[fa] <= deq_find_ready[fa];
+                    saved_deq_idx[fa] <= deq_idx[fa];
                     //select and issue(set issued)
                     if (deq_find_ready[fa]==true) begin
                         buffer[deq_idx[fa]].issued <= true;
                     end
+                end
 
-                    //deq
-                    if (i_issue_finished_vec[fa]) begin
-                        assert(buffer[i_feedback_idx[fa]].vld);
-                        buffer[i_feedback_idx[fa]].vld <= false;
-                    end
-                    //replay
-                    else if ((!SINGLEEXE) && i_issue_replay_vec[fa]) begin
-                        assert(buffer[i_feedback_idx[fa]].vld);
-                        assert(buffer[i_feedback_idx[fa]].src_spec_rdy == {NUMSRCS{1'b1}});
-                        buffer[deq_idx[fa]].issued <= false;
-                        buffer[i_feedback_idx[fa]].src_spec_rdy <= buffer[i_feedback_idx[fa]].src_rdy;
-                    end
+                //deq
+                if (i_issue_finished_vec[fa]) begin
+                    assert(buffer[i_feedback_idx[fa]].vld);
+                    buffer[i_feedback_idx[fa]].vld <= false;
+                end
+                //replay
+                else if ((!SINGLEEXE) && i_issue_replay_vec[fa]) begin
+                    assert(buffer[i_feedback_idx[fa]].vld);
+                    assert(buffer[i_feedback_idx[fa]].src_spec_rdy == {NUMSRCS{1'b1}});
+                    buffer[deq_idx[fa]].issued <= false;
+                    buffer[i_feedback_idx[fa]].src_spec_rdy <= buffer[i_feedback_idx[fa]].src_rdy;
                 end
                 assert(SINGLEEXE ? !(|i_issue_replay_vec) : 1);
             end

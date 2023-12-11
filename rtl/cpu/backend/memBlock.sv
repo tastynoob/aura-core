@@ -8,7 +8,7 @@
 
 // IQ0: load
 // IQ1: store data
-// IQ1.1: store addr
+// IQ2: store addr
 
 
 module memBlock #(
@@ -28,6 +28,7 @@ module memBlock #(
     input wire[`WDEF(INPUT_NUM)] i_disp_req,
     input memDQEntry_t i_disp_info[INPUT_NUM],
     input wire[`WDEF(`NUMSRCS_INT)] i_enq_iprs_rdy[INPUT_NUM],
+    input wire i_enq_memdep_rdy[INPUT_NUM],
 
     // regfile read
     output iprIdx_t o_iprs_idx[FU_NUM][`NUMSRCS_INT],// read regfile
@@ -165,9 +166,119 @@ module memBlock #(
 
 
 
+/****************************************************************************************************/
+// load unit
+//
+/****************************************************************************************************/
+
+    wire[`WDEF(INPUT_NUM)] IQ0_has_selected;
+    intDQEntry_t IQ0_selected_info[INPUT_NUM];
+    wire[`WDEF(`NUMSRCS_INT)] IQ0_enq_iprs_rdy[INPUT_NUM];
+    reorder
+    #(
+        .dtype ( intDQEntry_t ),
+        .NUM   ( 4   )
+    )
+    u_reorder_0(
+        .i_data_vld      ( select_toIQ0      ),
+        .i_datas         ( i_disp_info       ),
+        .o_data_vld      ( IQ0_has_selected  ),
+        .o_reorder_datas ( IQ0_selected_info )
+    );
+    reorder
+    #(
+        .dtype ( logic[`WDEF(`NUMSRCS_INT)] ),
+        .NUM   ( 4   )
+    )
+    u_reorder_1(
+        .i_data_vld      ( select_toIQ0   ),
+        .i_datas         ( i_enq_iprs_rdy ),
+        .o_reorder_datas ( IQ0_enq_iprs_rdy   )
+    );
+
+    wire[`WDEF(2)] IQ0_inst_vld;
+    wire[`WDEF($clog2(`IQ0_SIZE))] IQ0_inst_iqIdx[2];
+    intExeInfo_t IQ0_inst_info[2];
+
+    wire[`WDEF(2)] IQ0_issue_finished;
+    wire[`WDEF(2)] IQ0_issue_failed;
+    wire[`WDEF($clog2(16))] IQ0_issue_iqIdx[2];
+
+    // IQ0 external wakeup from IQ1(2xalu+2xbru)
+    wire[`WDEF(2)] IQ0_ext_wake_vld = IQ1_export_wake_vld;
+    iprIdx_t IQ0_ext_wake_rdIdx[2];
+    assign IQ0_ext_wake_rdIdx = IQ1_export_wake_rdIdx;
+
+    issueQue
+    #(
+        .DEPTH              ( `IQ0_SIZE    ),
+        .INOUTPORT_NUM      ( 2     ),
+        .EXTERNAL_WAKEUPNUM ( 2     ),
+        .WBPORT_NUM         ( FU_NUM + EXTERNAL_WRITEBACK     ),
+        .INTERNAL_WAKEUP    ( 1     ),
+        .SINGLEEXE          ( 1     )
+    )
+    u_issueQue_0(
+        .clk                   ( clk ),
+        .rst                   ( rst || i_squash_vld ),
+        .i_stall               ( 0 ),
+
+        .o_can_enq             ( IQ0_ready ),
+        .i_enq_req             ( IQ0_has_selected[1:0] ),
+        .i_enq_exeInfo         ( {IQ0_selected_info[0], IQ0_selected_info[1]} ),
+        .i_enq_iprs_rdy        ( {IQ0_enq_iprs_rdy[0], IQ0_enq_iprs_rdy[1]} ),
+
+        .o_can_issue           ( IQ0_inst_vld   ),
+        .o_issue_idx           ( IQ0_inst_iqIdx ),
+        .o_issue_exeInfo       ( IQ0_inst_info  ),
+
+        .i_issue_finished_vec  ( IQ0_issue_finished ),
+        .i_issue_replay_vec    ( IQ0_issue_failed   ),
+        .i_feedback_idx        ( IQ0_issue_iqIdx    ),
+
+        .o_export_wakeup_vld   ( IQ0_export_wake_vld   ),
+        .o_export_wakeup_rdIdx ( IQ0_export_wake_rdIdx   ),
+
+        .i_ext_wakeup_vld      ( IQ0_ext_wake_vld  ),
+        .i_ext_wakeup_rdIdx    ( IQ0_ext_wake_rdIdx   ),
+
+        .i_wb_vld              ( global_wb_vld   ),
+        .i_wb_rdIdx            ( global_wb_rdIdx   )
+    );
 
 
+    generate
+        for(i=0;i<`NUMSRCS_INT;i=i+1) begin : gen_for
+            assign o_iprs_idx[0][i] = IQ0_inst_info[0].iprs_idx[i];
+            assign o_iprs_idx[1][i] = IQ0_inst_info[1].iprs_idx[i];
+        end
+    endgenerate
 
+    assign o_immB_idx[0] = IQ0_inst_info[0].irob_idx;
+    assign o_immB_idx[1] = IQ0_inst_info[1].irob_idx;
+
+    reg[`WDEF(2)] s1_IQ0_inst_vld;
+    reg[`WDEF($clog2(`IQ0_SIZE))] s1_IQ0_inst_iqIdx[2];
+
+    iprIdx_t s1_IQ0_iprs_idx[2][`NUMSRCS_INT];
+    intExeInfo_t s1_IQ0_inst_info[2];
+    always_ff @( posedge clk ) begin
+        int fa;
+        if (rst || i_squash_vld) begin
+            s1_IQ0_inst_vld <= 0;
+        end
+        else begin
+            // s0: read regfile
+            // s1: bypass
+            s1_IQ0_inst_vld <= IQ0_inst_vld;
+            for (fa=0;fa<`NUMSRCS_INT;fa=fa+1) begin
+                s1_IQ0_iprs_idx[0][fa] <= IQ0_inst_info[0].iprs_idx[fa];
+                s1_IQ0_iprs_idx[1][fa] <= IQ0_inst_info[1].iprs_idx[fa];
+            end
+            s1_IQ0_inst_iqIdx <= IQ0_inst_iqIdx;
+            s1_IQ0_inst_info <= IQ0_inst_info;
+        end
+    end
 
 
 

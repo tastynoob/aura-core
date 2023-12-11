@@ -5,6 +5,7 @@
 // use physical addr check
 // master: loadpipe
 // slave: storeQue/sbuffer
+
 interface stfwd_if;
     // s0: send forward request
     // m->s
@@ -20,13 +21,15 @@ interface stfwd_if;
     lqIdx_t s1_lqIdx;
     sqIdx_t s1_sqIdx;
     paddr_t s1_paddr;
+    logic s1_vaddr_match;
+    logic s1_data_nrdy; // match but data not ready
 
     // s2: send forward response
     // m<-s
     logic s2_rdy;
     lqIdx_t s2_lqIdx;
-    logic s2_match;
-    logic s2_data_nrdy; // match but data not ready
+    logic s2_paddr_match;
+    logic s2_match_failed;
     logic[`WDEF(`XLEN/8)] s2_match_vec; // which bit was forward matched
     logic[`XDEF] s2_fwd_data;
 
@@ -40,11 +43,13 @@ interface stfwd_if;
         output s1_lqIdx,
         output s1_sqIdx,
         output s1_paddr,
+        input s1_vaddr_match,
+        input s1_data_nrdy,
 
         input s2_rdy,
         input s2_lqIdx,
-        input s2_match,
-        input s2_data_nrdy,
+        input s2_paddr_match,
+        input s2_match_failed,
         input s2_match_vec,
         input s2_fwd_data
     );
@@ -59,11 +64,13 @@ interface stfwd_if;
         input s1_lqIdx,
         input s1_sqIdx,
         input s1_paddr,
+        output s1_vaddr_match,
+        output s1_data_nrdy,
 
         output s2_rdy,
         output s2_lqIdx,
-        output s2_match,
-        output s2_data_nrdy,
+        output s2_paddr_match,
+        output s2_match_failed,
         output s2_match_vec,
         output s2_fwd_data
     );
