@@ -78,7 +78,9 @@ module memDepPred (
         int ca;
         nxt_rdy_bits = rdy_bits;
         for (ca=0;ca<`STORE_ISSUE_WIDTH;ca=ca+1) begin
-            nxt_rdy_bits[i_store_robIdx[ca].idx] = 1;
+            if (i_store_issued[ca]) begin
+                nxt_rdy_bits[i_store_robIdx[ca].idx] = 1;
+            end
         end
     end
 

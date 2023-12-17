@@ -23,4 +23,8 @@ typedef enum logic {
 `define SET_TRACE_OFF /*verilator tracing_off*/
 `define SET_TRACE_ON /*verilator tracing_on*/
 
+typedef longint unsigned uint64_t;
+
+`include "difftest_def.svh"
+
 `endif

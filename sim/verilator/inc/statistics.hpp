@@ -1,14 +1,14 @@
+#pragma once
 #include <bits/stdc++.h>
+#include <format>
 
 #include <verilated.h>
 #include <svdpi.h>
 
 extern uint64_t curTick();
 
-
-
 enum InstPos {
-    AT_fetchQue,
+    AT_fetch,
     AT_decode,
     AT_rename,
     AT_dispQue,
@@ -19,33 +19,46 @@ enum InstPos {
     NUMPOS
 };
 
+enum MetaKeys {
+    META_ISBRANCH,
+    META_ISLOAD,
+    META_ISSTORE,
+    META_NPC,// branch only
+    META_VADDR,// load/store only
+    META_PADDR,// load/store only
+    NUM_META,
+};
+
 struct InstMeta
 {
-    uint64_t seq;
-    uint64_t pc;
-
-    uint64_t fetch_tick;
-    uint64_t decode_tick;
-    uint64_t rename_tick;
-    uint64_t dispatch_tick;
-    uint64_t ready_tick;
+    uint64_t seq = ~0;
+    uint64_t pc = ~0;
+    
+    // pos
+    uint64_t issue_tick = ~0;
+    uint64_t finished_tick = ~0;
+    uint64_t commit_tick = ~0;
+    uint64_t ready_tick = ~0;
     bool is_first_issue = false;
-    uint64_t issue_tick;
-    uint64_t execute_tick;
-    uint64_t finished_tick;
-    uint64_t commit_tick;
-
     std::vector<bool> pos;
+    std::vector<uint64_t> active_tick;
+
+    // meta
+    std::vector<uint64_t> meta;
 
     std::list<InstMeta*>::iterator it;
-    InstMeta() : pos(InstPos::NUMPOS, false) {}
+    InstMeta() : pos(InstPos::NUMPOS, false), active_tick(InstPos::NUMPOS, 0), meta(MetaKeys::NUM_META, 0) {}
+
+    std::string base() { return std::format("[sn {:d} pc {:x}]", seq, pc); }
 
     void print();
 };
 
 
 
+void dumpStats();
 
+InstMeta* read_instmeta(uint64_t ptr);
 
 
 

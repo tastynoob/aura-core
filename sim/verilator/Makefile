@@ -5,7 +5,7 @@ ADDITIONAL_PARAM = --x-assign unique --x-initial unique --assert -O3
 
 EMU_DEFINES = -DSIMULATION -DDEBUG
 WARNING_OFF = -Wno-WIDTH -Wno-PINMISSING -Wno-TIMESCALEMOD -Wno-ENUMVALUE
-CXX_FLAGS = -DVTOP=V$(TOP) -DVname=\\\"$(TOP)\\\" -DVheader=\\\"V$(TOP).h\\\"
+CXX_FLAGS = -std=c++20 -DVTOP=V$(TOP) -DVname=\\\"$(TOP)\\\" -DVheader=\\\"V$(TOP).h\\\"
 
 TB_PATH = $(AURA_HOME)/sim/verilator/tb
 CXX_SOURCES := $(shell find $(AURA_HOME)/sim/verilator/src -type f -name "*.cpp")

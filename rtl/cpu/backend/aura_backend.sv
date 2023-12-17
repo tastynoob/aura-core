@@ -49,7 +49,7 @@ module aura_backend (
 
     wire[`WDEF(`MEMDQ_DISP_WID)] toCtrl_memDQ_deq_vld;
     wire[`WDEF(`MEMDQ_DISP_WID)] toExe_memDQ_deq_req;
-    intDQEntry_t toExe_memDQ_deq_info[`MEMDQ_DISP_WID];
+    memDQEntry_t toExe_memDQ_deq_info[`MEMDQ_DISP_WID];
 
 
     wire rob_read_ftq_vld;

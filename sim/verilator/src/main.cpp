@@ -4,7 +4,8 @@
 #include <random>
 #include Vheader
 #include "cmdline.hpp"
-#include "dpic_util.hpp"
+#include "statistics.hpp"
+#include "flags.hpp"
 
 uint64_t max_simTime = 1000;
 uint64_t main_time = 0;
@@ -13,6 +14,8 @@ char buffer[100];
 
 uint64_t curTick() { return main_time; }
 
+extern void diff_init(const char* ref_path);
+extern void init_workload(std::string path);
 
 int main(int argc, char **argv)
 {
@@ -22,13 +25,15 @@ int main(int argc, char **argv)
     }
     std::cout << std::endl;
     cmdline::parser parser;
-    parser.add<std::string>("exec-file", 'f', "the riscv executable binary file path", false);
+    parser.add<std::string>("exec-file", 'f', "the riscv executable binary file path", true);
     parser.add<std::string>("end", 'e', "end simulation by specific conditions\n"
                                         "       e.g\n"
                                         "           -e i100t25\n"
                                         "       end simulation at 100th instruction or 25th tick",
                             false);
     parser.add<uint32_t>("seed", 's', "the seed of x-assign random init", false);
+    parser.add<std::string>("diff-so", 'd', "the so of difftest ref", false);
+    parser.add<std::string>("debug-flags", 0, "the debug flags", false);
 #ifdef USE_TRACE
     parser.add<std::string>("trace", 0, "enable trace by specific conditions\n"
                                         "       e.g\n"
@@ -39,27 +44,17 @@ int main(int argc, char **argv)
 
     parser.parse_check(argc, argv);
 
+    if (parser.exist("debug-flags")) {
+        debugChecker.enableFlags(parser.get<std::string>("debug-flags"));
+    }
     if (parser.exist("exec-file"))
     {
         std::string workload_path = parser.get<std::string>("exec-file");
-        std::ifstream workload_fs(workload_path, std::ios::in | std::ios::binary);
-        if (workload_fs.is_open())
-        {
-            std::cout << "load binary file to rom" << std::endl;
-            workload_fs.seekg(0, workload_fs.end);
-            uint64_t filesize = workload_fs.tellg();
-            workload_fs.seekg(0, workload_fs.beg);
-            workload_binary = new char[filesize];
-            workload_fs.read(workload_binary, filesize);
-            workload_fs.close();
-            workload_size = filesize;
-            std::cout << "execute binary file size: " << filesize << std::endl;
-            std::cout << "load successed" << std::endl;
-        }
-        else
-        {
-            throw std::invalid_argument("can't open file: " + workload_path + "\n");
-        }
+        init_workload(workload_path);
+    }
+    if (parser.exist("diff-so"))
+    {
+        diff_init(parser.get<std::string>("diff-so").c_str());
     }
 
     int verilated_seed; 
@@ -69,7 +64,7 @@ int main(int argc, char **argv)
     }
     else {
         std::random_device rd;
-        verilated_seed = rd() % 1000;
+        verilated_seed = rd() % 10000;
     }
 
     std::cout << "verilated random seed: " << verilated_seed << std::endl;

@@ -12,7 +12,7 @@ tilelink_if #(
     .SLAVES(1),
     .ADDR_WIDTH(64),
     .DATA_WIDTH(`CACHELINE_SIZE)
-) if_ibus, if_dbus;
+) if_ibus(), if_dbus();
 
 
 aura_core u_aura_core(

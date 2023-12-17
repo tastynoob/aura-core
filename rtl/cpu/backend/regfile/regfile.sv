@@ -1,9 +1,6 @@
 `include "core_define.svh"
 
 
-
-
-
 module regfile #(
     parameter int READPORT_NUM = 10,
     parameter int WBPORT_NUM = 6,
@@ -30,6 +27,8 @@ module regfile #(
     genvar i;
     generate
         if (HAS_ZERO != 0) begin:gen_has_zero
+            import "DPI-C" function void write_int_physicRegfile(uint64_t idx, uint64_t value);
+
             reg[`XDEF] buffer[1:SIZE-1];
             reg[`WDEF(SIZE)] rdy_bit;
             logic[`WDEF(SIZE)] rdy_bit_bypass;
@@ -44,6 +43,7 @@ module regfile #(
                     for (fa=0;fa<WBPORT_NUM;fa=fa+1) begin
                         if (i_write_en[fa]) begin
                             buffer[i_write_idx[fa]] <= i_write_data[fa];
+                            write_int_physicRegfile(i_write_idx[fa], i_write_data[fa]);
                             assert (rdy_bit[i_write_idx[fa]] == 0);
                         end
                     end

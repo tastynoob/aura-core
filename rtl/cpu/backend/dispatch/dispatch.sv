@@ -95,7 +95,9 @@ module dispatch (
                 has_rd          : i_enq_inst[i].rd_wen,
                 ilrd_idx        : i_enq_inst[i].ilrd_idx,
                 iprd_idx        : i_enq_inst[i].iprd_idx,
-                prev_iprd_idx   : i_enq_inst[i].prev_iprd_idx
+                prev_iprd_idx   : i_enq_inst[i].prev_iprd_idx,
+
+                instmeta        : i_enq_inst[i].instmeta
             };
             assign o_new_robEntry_ftqOffset[i] = i_enq_inst[i].ftqOffset;
             assign new_intDQEntry[i] =
@@ -108,7 +110,9 @@ module dispatch (
                 iprs_idx   : i_enq_inst[i].iprs_idx,
                 use_imm    : i_enq_inst[i].use_imm,
                 issueQue_id  : i_enq_inst[i].issueQue_id,
-                micOp_type : i_enq_inst[i].micOp_type
+                micOp_type : i_enq_inst[i].micOp_type,
+
+                instmeta   : i_enq_inst[i].instmeta
             };
             assign new_memDQEntry[i] =
             '{
@@ -122,7 +126,9 @@ module dispatch (
                 issueQue_id  : i_enq_inst[i].issueQue_id,
                 micOp_type : i_enq_inst[i].micOp_type,
                 shouldwait : i_mem_shouldwait[i],
-                dep_robIdx : i_mem_dep_robIdx[i]
+                dep_robIdx : i_mem_dep_robIdx[i],
+
+                instmeta   : i_enq_inst[i].instmeta
             };
         end
     endgenerate

@@ -75,11 +75,11 @@ module FTQ (
     ftqIdx_t commit_ptr; // from rob
     ftqIdx_t commit_ptr_thre;// commit_ptr -> commit_ptr_thre
     reg pptr_flipped, fptr_flipped, cptr_flipped;
-`SET_TRACE_OFF
+
     ftqFetchInfo_t buf_baseInfo[`FTQ_SIZE];
     ftqBranchInfo_t buf_brInfo[`FTQ_SIZE];
     ftqMetaInfo_t buf_metaInfo[`FTQ_SIZE];
-`SET_TRACE_ON
+
     reg[`WDEF(`FTQ_SIZE)] buffer_vld;
     wire[`WDEF(`FTQ_SIZE)] buffer_mispred;
 
@@ -200,10 +200,21 @@ module FTQ (
 // BPU insert into FTQ
 /****************************************************************************************************/
 
+    reg[`XDEF] read_ftqStartAddr[`BRU_NUM], read_ftqNextAddr[`BRU_NUM];
+    assign o_read_ftqStartAddr = read_ftqStartAddr;
+    assign o_read_ftqNextAddr = read_ftqNextAddr;
+
     always_ff @( posedge clk ) begin
+        int fa;
         if (rst) begin
         end
         else begin
+            // read
+            for(fa=0;fa<`BRU_NUM;fa=fa+1) begin
+                read_ftqStartAddr[fa] <= buf_baseInfo[i_read_ftqIdx[fa]].startAddr;
+                read_ftqNextAddr[fa] <= buf_baseInfo[i_read_ftqIdx[fa]].nextAddr;
+            end
+
             if (do_pred) begin
                 buf_baseInfo[pred_ptr] <= '{
                     startAddr : i_pred_ftqInfo.startAddr,
@@ -237,20 +248,11 @@ module FTQ (
         end
     endgenerate
 
-    reg[`XDEF] read_ftqStartAddr[`BRU_NUM], read_ftqNextAddr[`BRU_NUM];
-    assign o_read_ftqStartAddr = read_ftqStartAddr;
-    assign o_read_ftqNextAddr = read_ftqNextAddr;
     always_ff @( posedge clk ) begin
         int fa, fb;
         if (rst) begin
         end
         else begin
-            // read
-            for(fa=0;fa<`BRU_NUM;fa=fa+1) begin
-                read_ftqStartAddr[fa] <= buf_baseInfo[i_read_ftqIdx[fa]].startAddr;
-                read_ftqNextAddr[fa] <= buf_baseInfo[i_read_ftqIdx[fa]].nextAddr;
-            end
-
             // write by backend
             for(fa=0;fa<`BRU_NUM;fa=fa+1) begin
                 if (can_wb[fa]) begin

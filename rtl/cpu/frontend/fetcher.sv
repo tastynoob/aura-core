@@ -1,6 +1,7 @@
 `include "frontend_define.svh"
 `include "funcs.svh"
 
+import "DPI-C" function uint64_t build_instmeta(uint64_t pc, uint64_t inst_code);
 
 // FIXME:
 // we need to check false predict (non-branch inst was predicted taken)
@@ -139,6 +140,7 @@ module fetcher (
     reg[`SDEF(`FTB_PREDICT_WIDTH)] s2_max_inst_num;
     reg s2_predTaken;
     reg[`XDEF] s2_inst_pcs[`FTB_PREDICT_WIDTH/2];
+    reg[`XDEF] s2_reordered_inst_pcs[`FTB_PREDICT_WIDTH/2];
     branchwbInfo_t s2_preDecwbInfo;
 
     // generate new fetch entry
@@ -149,6 +151,9 @@ module fetcher (
 
     reg[`WDEF(`FTB_PREDICT_WIDTH/2)] new_inst_vld;
     fetchEntry_t new_inst[`FTB_PREDICT_WIDTH/2];
+
+    wire[`WDEF(`FTB_PREDICT_WIDTH/2)] new_inst_vld_wire;
+    assign new_inst_vld_wire = stall_dueto_pcMisaligned ? 1 : ((if_core_fetch.rsp && s2_fetch_vld) ? reordered_inst_OH : 0);
     always_ff @( posedge clk ) begin
         int fa;
         if (rst || i_squash_vld || falsepred) begin
@@ -191,16 +196,20 @@ module fetcher (
             preDecwbInfo <= s2_preDecwbInfo;
             falsepred_arch_pc <= s2_falsepred_arch_pc;
             if (!i_backend_stall) begin
-                new_inst_vld <= stall_dueto_pcMisaligned ? 1 : ((if_core_fetch.rsp && s2_fetch_vld) ? reordered_inst_OH : 0);
+                new_inst_vld <= new_inst_vld_wire;
                 for (fa = 0; fa < `FETCH_WIDTH; fa=fa+1) begin
-                    new_inst[fa] <= '{
-                        inst        : reordered_insts[fa],
-                        ftq_idx     : s2_ftqIdx,
-                        ftqOffset   : reordered_ftqOffset[fa],
-                        foldpc      : (s2_inst_pcs[fa] >> 1),
-                        has_except  : stall_dueto_pcMisaligned,
-                        except      : rv_trap_t::pcMisaligned
-                    };
+                    if (new_inst_vld_wire[fa]) begin
+                        new_inst[fa] <= '{
+                            inst        : reordered_insts[fa],
+                            ftq_idx     : s2_ftqIdx,
+                            ftqOffset   : reordered_ftqOffset[fa],
+                            foldpc      : (s2_reordered_inst_pcs[fa] >> 1),
+                            has_except  : stall_dueto_pcMisaligned,
+                            except      : rv_trap_t::pcMisaligned,
+
+                            instmeta    : build_instmeta(s2_reordered_inst_pcs[fa], reordered_insts[fa])
+                        };
+                    end
                 end
             end
         end
@@ -211,7 +220,7 @@ module fetcher (
     s1_fetch_vld ? s1_ftqIdx :
     toIcache_ftqIdx;
 
-    wire[`WDEF(`CACHELINE_SIZE*8*2)] icacheline_merge;
+    wire[`WDEF(`CACHELINE_SIZE*8*2)] icacheline_merge;//s2
     assign icacheline_merge = ({if_core_fetch.line1, if_core_fetch.line0} >> (s2_start_shift*8));
 
     preDecInfo_t predecInfo[`FTB_PREDICT_WIDTH/2];
@@ -240,7 +249,7 @@ module fetcher (
     (predecInfo_end.fallthru == s2_nextAddr));
     assign s2_falsepred_arch_pc = predecInfo_end.isDirect ? predecInfo_end.target : predecInfo_end.fallthru;
 
-    wire[`IDEF] fetched_insts[`FTB_PREDICT_WIDTH/2];
+    wire[`IDEF] fetched_insts[`FTB_PREDICT_WIDTH/2];//s2
     ftqOffset_t temp_ftqOffset[`FTB_PREDICT_WIDTH/2];
     wire[`WDEF(`FTB_PREDICT_WIDTH/2)] fetched_inst_mask; // 1 | 1 | 1(jal or jalr) | 0 | 0
     wire[`WDEF(`FTB_PREDICT_WIDTH/2)] predec_invalidbranch;
@@ -296,6 +305,17 @@ module fetcher (
         .i_datas         ( fetched_insts        ),
         .o_data_vld      ( reordered_inst_OH    ),
         .o_reorder_datas ( reordered_insts      )
+    );
+
+    reorder
+    #(
+        .dtype ( logic[`XDEF]         ),
+        .NUM   ( `FTB_PREDICT_WIDTH/2 )
+    )
+    u_reorder_2(
+        .i_data_vld      ( validInst_vec      ),
+        .i_datas         ( s2_inst_pcs        ),
+        .o_reorder_datas ( s2_reordered_inst_pcs      )
     );
 
 

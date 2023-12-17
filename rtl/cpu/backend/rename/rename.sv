@@ -105,8 +105,14 @@ module rename(
                     dispQue_id  : i_decinfo[fa].dispQue_id,
                     issueQue_id : i_decinfo[fa].issueQue_id,
                     micOp_type  : i_decinfo[fa].micOp_type,
-                    isStore     : i_decinfo[fa].isStore
+                    isStore     : i_decinfo[fa].isStore,
+
+                    instmeta    : i_decinfo[fa].instmeta
                 };
+
+                if (can_rename ? i_decinfo_vld[fa] : 0) begin
+                    update_instPos(i_decinfo[fa].instmeta, difftest_def::AT_rename);
+                end
             end
         end
     end

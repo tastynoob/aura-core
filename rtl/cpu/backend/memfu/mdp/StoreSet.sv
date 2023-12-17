@@ -29,7 +29,7 @@ module StoreSet #(
     output robIdx_t o_dep_robIdx[`RENAME_WIDTH],
 
     // store issued
-    input wire i_store_issued[`STORE_ISSUE_WIDTH],
+    input wire[`WDEF(`STORE_ISSUE_WIDTH)] i_store_issued,
     input wire[`WDEF(`MEMDEP_FOLDPC_WIDTH)] i_issue_foldpc[`STORE_ISSUE_WIDTH],
     input robIdx_t i_store_robIdx[`STORE_ISSUE_WIDTH],
 

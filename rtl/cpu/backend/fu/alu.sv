@@ -31,6 +31,9 @@ module alu (
         else if (!i_wb_stall) begin
             saved_vld <= i_vld;
             saved_fuInfo <= i_fuInfo;
+            if (i_vld) begin
+                update_instPos(i_fuInfo.instmeta, difftest_def::AT_fu);
+            end
         end
     end
 

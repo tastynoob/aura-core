@@ -349,7 +349,9 @@ if (1) begin: gen_intBlock_IQ0_alu0
         npc : 0,
         imm20 : 0,
         issueQue_id : s1_IQ0_inst_info[IQ0_fuID].issueQue_id,
-        micOp : s1_IQ0_inst_info[IQ0_fuID].micOp_type
+        micOp : s1_IQ0_inst_info[IQ0_fuID].micOp_type,
+
+        instmeta : s1_IQ0_inst_info[IQ0_fuID].instmeta
     };
 
     //fu0
@@ -433,7 +435,9 @@ if (1) begin : gen_intBlock_IQ0_alu1
         npc : 0,
         imm20 : 0,
         issueQue_id : s1_IQ0_inst_info[IQ0_fuID].issueQue_id,
-        micOp : s1_IQ0_inst_info[IQ0_fuID].micOp_type
+        micOp : s1_IQ0_inst_info[IQ0_fuID].micOp_type,
+
+        instmeta : s1_IQ0_inst_info[IQ0_fuID].instmeta
     };
 
     //fu1
@@ -635,7 +639,9 @@ if (1) begin: gen_intBlock_IQ1_alu2
         npc : i_read_ftqNextAddr[IQ1_fuID],
         imm20 : s1_irob_imm[intBlock_fuID],
         issueQue_id : s1_IQ1_inst_info[IQ1_fuID].issueQue_id,
-        micOp : s1_IQ1_inst_info[IQ1_fuID].micOp_type
+        micOp : s1_IQ1_inst_info[IQ1_fuID].micOp_type,
+
+        instmeta : s1_IQ1_inst_info[IQ1_fuID].instmeta
     };
 
     //fu2
@@ -721,7 +727,9 @@ if (1) begin : gen_intBlock_IQ1_alu3
         npc : i_read_ftqNextAddr[IQ1_fuID],
         imm20 : s1_irob_imm[intBlock_fuID],
         issueQue_id : s1_IQ1_inst_info[IQ1_fuID].issueQue_id,
-        micOp : s1_IQ1_inst_info[IQ1_fuID].micOp_type
+        micOp : s1_IQ1_inst_info[IQ1_fuID].micOp_type,
+
+        instmeta : s1_IQ1_inst_info[IQ1_fuID].instmeta
     };
 
     //fu3

@@ -2,25 +2,32 @@
 `include "funcs.svh"
 `include "dpic.svh"
 
-typedef struct {
-    robIdx_t rob_idx;
-    logic taken;
-    logic mispred;
-    logic[`XDEF] npc;
-} branch_mispred_handle;
+import "DPI-C" function void arch_commitInst(
+    uint64_t dst_type,
+    uint64_t logic_idx,
+    uint64_t physic_idx,
+    uint64_t instmeta_ptr
+);
+
+const logic[`WDEF(2)] SQUASH_NULL = 0;
+const logic[`WDEF(2)] SQUASH_MISPRED = 1;
+const logic[`WDEF(2)] SQUASH_EXCEPT = 2;
+
 
 typedef struct {
     robIdx_t rob_idx;
-    logic has_except;
+    logic[`WDEF(2)] squash_type;
+    // branch
+    logic branch_taken;
+    logic [`XDEF] npc;
+    // trap
     rv_trap_t::exception except_type;
-} except_handle;
+} squash_handle;
 
 typedef struct packed {
     robIdx_t rob_idx;
     logic[`XDEF] access_addr;
 } lsu_handle;
-
-// TODO: we need to merge the bmhr, ehr and lsu_handle
 
 package commit_status_t;
 
@@ -251,116 +258,58 @@ module ROB(
     assign o_commit_rob_idx = prev_commit_rob_idx;
 
 
-
 /****************************************************************************************************/
-// branch process
-// get the oldest mispred branch
-// writeback and update in one cycle
-// DESIGN: acyually we no need to limit the maximum of fetchBlock
-// branch write back to rob and ftq at the same time
-// rob need to get the oldest mispred branch to squash
-// ftq has the same number of writeback as the number of bju
-// send the last commit ftqIdx to ftq to commit
-// NOTE: if (mispred | except | normal | normal) we do except first
-// if (normal | except | mispred | normal) we do mispred first
-// if (normal | mispred | normal | normal) and has interrupt, we need assign mepc to mispre actuallt target
+// squash reason process
+// if has mispred, the mispred inst can be committed
+// if has except, the except inst can not be committed
 /****************************************************************************************************/
 
-    // we need to store the oldest branch which was mispred
-    // branch mispred handle register
-    branch_mispred_handle bmhr;
+    squash_handle shr;
     always_ff @( posedge clk ) begin
         if (rst || squash_vld) begin
-            bmhr.mispred <= 0;
+            shr.squash_type <= SQUASH_NULL;
         end
         else begin
-            if (i_branchwb_vld && i_branchwb_info.has_mispred) begin
-                if ((!bmhr.mispred) || ((bmhr.rob_idx.flipped == i_branchwb_info.rob_idx.flipped) ? (i_branchwb_info.rob_idx.idx < bmhr.rob_idx.idx) : (i_branchwb_info.rob_idx.idx > bmhr.rob_idx.idx))) begin
-                    bmhr <= '{
-                        rob_idx:i_branchwb_info.rob_idx,
-                        taken:i_branchwb_info.branch_taken,
-                        mispred:i_branchwb_info.has_mispred,
-                        npc:i_branchwb_info.branch_npc
-                    };
+            if ((i_exceptwb_vld && ((i_branchwb_vld && i_branchwb_info.has_mispred) ? i_exceptwb_info.rob_idx <= i_branchwb_info.rob_idx : 1))) begin
+                if ((i_exceptwb_info.rob_idx <= shr.rob_idx) || (shr.squash_type == SQUASH_NULL)) begin
+                    shr.squash_type <= SQUASH_EXCEPT;
+                    shr.except_type <= i_exceptwb_info.except_type;
+                end
+            end
+            else if (i_branchwb_vld && i_branchwb_info.has_mispred) begin
+                if ((i_branchwb_info.rob_idx <= shr.rob_idx) || (shr.squash_type == SQUASH_NULL)) begin
+                    shr.squash_type <= SQUASH_MISPRED;
+                    shr.branch_taken <= i_branchwb_info.branch_taken;
+                    shr.npc <= i_branchwb_info.branch_npc;
                 end
             end
         end
     end
     /* verilator lint_off UNOPTFLAT */
-    wire[`WDEF(`COMMIT_WIDTH)] temp_0;// 0 | 0 | 1(has_mispred) | 1
-    wire[`WDEF(`COMMIT_WIDTH)] temp_1;// 0 | 0 | 1(has_mispred) | 0
+    wire[`WDEF(`COMMIT_WIDTH)] shr_match_vec;
+    wire[`WDEF(`COMMIT_WIDTH)] temp_0;// which inst can be committed
+    wire[`WDEF(`COMMIT_WIDTH)] temp_1;// one hot: which one is the shr handled
     generate
 
         for(i=0;i<`COMMIT_WIDTH;i=i+1) begin:gen_for
+            assign shr_match_vec[i] = willCommit_idx[i] == shr.rob_idx.idx;
             if (i==0) begin:gen_if
-                assign temp_0[i] = willCommit_vld[i];
+                assign temp_0[i] = willCommit_vld[i] && !((shr.squash_type==SQUASH_EXCEPT) && shr_match_vec[i]);
             end
             else begin:gen_else
-                assign temp_0[i] = willCommit_vld[i] && temp_0[i-1] && (bmhr.mispred ? (willCommit_idx[i-1] != bmhr.rob_idx.idx) : 1);
+                assign temp_0[i] = willCommit_vld[i] && temp_0[i-1] && !((shr.squash_type==SQUASH_MISPRED) && shr_match_vec[i-1]);
             end
-            assign temp_1[i] = willCommit_vld[i] && (willCommit_idx[i] == bmhr.rob_idx.idx) && bmhr.mispred;
+            assign temp_1[i] = willCommit_vld[i] && shr_match_vec[i] && (shr.squash_type != SQUASH_NULL);
         end
         `ASSERT(count_one(temp_1) <= 1);
     endgenerate
-    assign has_mispred = (|temp_1);
 
+    assign has_except = (shr.squash_type==SQUASH_EXCEPT) && (|temp_1);
+    assign has_mispred = (shr.squash_type==SQUASH_MISPRED) && (|temp_1);
 
 /****************************************************************************************************/
-// trap process
-// get the oldest exception
-// if :
-// mispred: 0 | 0 | 1 | 0 (temp_1)
-// except:  0 | 1 | 0 | 0 (temp_3)
-// ignore except
-// if :
-// mispred: 0 | 1 | 0 | 0 (temp_1)
-// except:  0 | 0 | 1 | 0 (temp_3)
-// has except
-// if :
-// mispred: 0 | 0 | 1 | 0 (temp_1)
-// except:  0 | 0 | 1 | 0 (temp_3)
-// assert(false)
-/****************************************************************************************************/
 
-    // we need to store the oldest inst whicth has excepted
-    // exception handle register
-    except_handle ehr;
-    always_ff @( posedge clk ) begin
-        if (clk || squash_vld) begin
-            ehr.has_except <= 0;
-        end
-        else begin
-            if (i_exceptwb_vld) begin
-                if ((ehr.rob_idx.flipped == i_exceptwb_info.rob_idx.flipped) ? (i_exceptwb_info.rob_idx.idx < ehr.rob_idx.idx) : (i_exceptwb_info.rob_idx.idx > ehr.rob_idx.idx)) begin
-                    ehr <= '{
-                        rob_idx:i_exceptwb_info.rob_idx,
-                        has_except:1, // if write except, it must be true
-                        except_type:i_exceptwb_info.except_type
-                    };
-                end
-            end
-        end
-    end
-    generate
-        /* verilator lint_off UNOPTFLAT */
-        wire[`WDEF(`COMMIT_WIDTH)] temp_2;// 0 | 0(has_except) | 1 | 1
-        wire[`WDEF(`COMMIT_WIDTH)] temp_3;// 0 | 1(has_except) | 0 | 0
-        for(i=0;i<`COMMIT_WIDTH;i=i+1) begin:gen_for
-            if (i==0) begin :gen_if
-                assign temp_2[i] = willCommit_vld[i] && (ehr.has_except ? (willCommit_idx[i] != ehr.rob_idx.idx) : 1);
-            end
-            else begin:gen_else
-                assign temp_2[i] = willCommit_vld[i] && temp_2[i-1] && (ehr.has_except ? (willCommit_idx[i] != ehr.rob_idx.idx) : 1);
-            end
-            assign temp_3[i] = willCommit_vld[i] && (willCommit_idx[i] == ehr.rob_idx.idx) && ehr.has_except;
-        end
-        `ASSERT(count_one(temp_3) <= 1);
-    endgenerate
-    // mispred robIdx > except robIdx
-    assign has_except = (|temp_3) && (temp_3 < temp_1);
-    `ASSERT ((temp_3 != temp_1) || ((temp_3 == 0) && (temp_1 == 0)));
-
-    assign canCommit_vld = has_except ? temp_2 : temp_0;
+    assign canCommit_vld = temp_0;
     assign o_read_ftqIdx = commit_end_inst.ftq_idx;
 
     always_comb begin
@@ -379,7 +328,7 @@ module ROB(
 // retire
 // send sqush signal
 // DESIGN: when except or interrupt, stall commit/read ftq -> compute the trap return address -> squash
-// if mispred && (has_except || has_interrupt) mepc = bmhr.npc else mecp = ftq[ftq_idx[last_commit]] + offset;
+// if mispred && (has_except || has_interrupt) mepc = shr.npc else mecp = ftq[ftq_idx[last_commit]] + offset;
 // NOTE: the fetchblock start pc read from ftq, the ftqOffset read from ftqOffset_buffer
 // if trap, we need one more cycle to process trap
 // trap process and csr update in one cycle
@@ -418,15 +367,15 @@ module ROB(
                 squashInfo.arch_pc <= has_interrupt ? i_csr_pack.tvec + (0) : i_csr_pack.tvec;
                 // TODO:
                 // if has interrupt, we must wait for a safe cycle
-                // if has trap: mepc = has_mispred ? bmhr.npc : i_read_ftqStartAddr + ftqOffset + isRVC ? 2:4
+                // if has trap: mepc = has_mispred ? shr.npc : i_read_ftqStartAddr + ftqOffset + isRVC ? 2:4
                 // if has interrupt and squash : wait for squash finish
                 // if has interrupt and rob is empty: mepc = last inst pc + ismv 2:4
             end
             else if (has_mispred) begin
                 squash_vld <= true;
                 squashInfo.dueToBranch <= has_mispred;
-                squashInfo.branch_taken <= bmhr.taken;
-                squashInfo.arch_pc <= bmhr.npc;
+                squashInfo.branch_taken <= shr.branch_taken;
+                squashInfo.arch_pc <= shr.npc;
             end
         end
     end
@@ -441,16 +390,26 @@ module ROB(
 
     // for debug
     int AAA_committedInst;
-    always @(posedge clk) begin
+    always_ff @(posedge clk) begin
+        int fa;
         if (rst) begin
             AAA_committedInst <= 0;
         end
         else if ((!squash_vld) && (!commit_stall)) begin
             perfAccumulate("committedInst", funcs::count_one(canCommit_vld));
             AAA_committedInst <= AAA_committedInst + funcs::count_one(canCommit_vld);
+            for (fa =0; fa <`COMMIT_WIDTH; fa=fa+1) begin
+                if (canCommit_vld[fa]) begin
+                    arch_commitInst(
+                        0, // dest type
+                        willCommit_data[fa].ilrd_idx,
+                        willCommit_data[fa].iprd_idx,
+                        willCommit_data[fa].instmeta
+                    );
+                end
+            end
         end
     end
-
 
     // used for debug
     wire[`WDEF(`RENAME_WIDTH)] AAA_inserte_vec = (o_can_enq && i_enq_vld) ? i_enq_req : 0;

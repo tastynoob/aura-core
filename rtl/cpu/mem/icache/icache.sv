@@ -37,7 +37,7 @@ module icache #(
             // s1: read sram
             s1_req <= if_core_fetch.req;
             s1_get2 <= if_core_fetch.get2;
-            s1_addr <= if_core_fetch.addr & 52'hfffffffffffff;
+            s1_addr <= if_core_fetch.addr;
 
             if_core_fetch.rsp <= s1_req;
         end
@@ -49,7 +49,9 @@ generate
         always_ff @( posedge clk ) begin
             if (s1_req) begin
                 if_core_fetch.line0[i*8+7 : i*8] <= read_rom((s1_addr<<$clog2(`CACHELINE_SIZE)) + i);
-                if_core_fetch.line1[i*8+7 : i*8] <= read_rom(((s1_addr+1)<<$clog2(`CACHELINE_SIZE)) + i);
+                if (s1_get2) begin
+                    if_core_fetch.line1[i*8+7 : i*8] <= read_rom(((s1_addr+1)<<$clog2(`CACHELINE_SIZE)) + i);
+                end
             end
             else begin
                 if_core_fetch.line0[i*8+7 : i*8] <= 0;

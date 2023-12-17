@@ -22,6 +22,7 @@ typedef struct packed{
     logic[`WDEF(`MEMDEP_FOLDPC_WIDTH)] foldpc;
     logic has_except;
     rv_trap_t::exception except;
+    logic[`XDEF] instmeta;
 } fetchEntry_t;
 
 

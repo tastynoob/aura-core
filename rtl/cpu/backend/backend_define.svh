@@ -25,6 +25,8 @@ typedef struct {
     logic[`WDEF(3)] issueQue_id;
     MicOp_t::_u micOp_type;
     logic isStore;
+
+    logic[`XDEF] instmeta;
 }decInfo_t;
 
 typedef struct {
@@ -50,6 +52,8 @@ typedef struct {
     logic[`WDEF(3)] issueQue_id;
     MicOp_t::_u micOp_type;
     logic isStore;
+
+    logic[`XDEF] instmeta;
 } renameInfo_t;
 
 typedef struct {
@@ -63,6 +67,8 @@ typedef struct {
     logic use_imm;
     logic[`WDEF(3)] issueQue_id;
     MicOp_t::_u micOp_type;
+
+    logic[`XDEF] instmeta;
 } intDQEntry_t;// to exeIntBlock
 
 typedef intDQEntry_t intExeInfo_t;
@@ -81,6 +87,8 @@ typedef struct {
     // memdep
     logic shouldwait;
     robIdx_t dep_robIdx;
+
+    logic[`XDEF] instmeta;
 } memDQEntry_t;
 
 
@@ -107,6 +115,8 @@ typedef struct {
 
     logic[`WDEF(3)] issueQue_id;
     MicOp_t::_u micOp;
+
+    logic[`XDEF] instmeta;
 } fuInfo_t;
 
 typedef struct {
@@ -122,6 +132,8 @@ typedef struct {
 
     logic[`WDEF(3)] issueQue_id;
     MicOp_t::_u micOp;
+
+    logic[`XDEF] instmeta;
 } lsfuInfo_t;
 
 
@@ -151,6 +163,8 @@ typedef struct {
     ilrIdx_t ilrd_idx;
     iprIdx_t iprd_idx;
     iprIdx_t prev_iprd_idx;
+
+    logic[`XDEF] instmeta;
 } ROBEntry_t;
 
 typedef struct {

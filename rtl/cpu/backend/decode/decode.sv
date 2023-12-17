@@ -78,8 +78,20 @@ module decode (
                     dispQue_id  : temp[fa].dispQue_id,
                     issueQue_id : temp[fa].issueQue_id,
                     micOp_type  : temp[fa].micOp_type,
-                    isStore     : temp[fa].isStore
+                    isStore     : temp[fa].isStore,
+
+                    instmeta    : i_inst[fa].instmeta
                 };
+                if (i_inst_vld[fa]) begin
+                    update_instMeta(i_inst[fa].instmeta, difftest_def::META_ISBRANCH,
+                    (temp[fa].dispQue_id == `INTBLOCK_ID) && (temp[fa].issueQue_id == `BRUIQ_ID) && (temp[fa].micOp_type > MicOp_t::auipc && temp[fa].micOp_type <= MicOp_t::bgeu));
+                    update_instMeta(i_inst[fa].instmeta, difftest_def::META_ISLOAD,
+                    (temp[fa].dispQue_id == `MEMBLOCK_ID) && (temp[fa].issueQue_id == `LDUIQ_ID));
+                    update_instMeta(i_inst[fa].instmeta, difftest_def::META_ISSTORE,
+                    (temp[fa].dispQue_id == `MEMBLOCK_ID) && (temp[fa].issueQue_id == `STUIQ_ID));
+
+                    update_instPos(i_inst[fa].instmeta, difftest_def::AT_decode);
+                end
             end
         end
     end

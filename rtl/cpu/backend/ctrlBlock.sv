@@ -44,10 +44,11 @@ module ctrlBlock (
     input wire[`WDEF(`INTDQ_DISP_WID)] i_intDQ_deq_vld,
     output wire[`WDEF(`INTDQ_DISP_WID)] o_intDQ_deq_req,
     output intDQEntry_t o_intDQ_deq_info[`INTDQ_DISP_WID],
-
+    // to memBlock
     input wire[`WDEF(`MEMDQ_DISP_WID)] i_memDQ_deq_vld,
     output wire[`WDEF(`MEMDQ_DISP_WID)] o_memDQ_deq_req,
-    output intDQEntry_t o_memDQ_deq_info[`MEMDQ_DISP_WID],
+    output memDQEntry_t o_memDQ_deq_info[`MEMDQ_DISP_WID],
+    output wire[`WDEF(`MEMDQ_DISP_WID)] o_memdep_rdy,
 
     // notify ftq and storeQue
     output wire o_commit_vld,
@@ -199,13 +200,16 @@ module ctrlBlock (
         .o_shouldwait       ( mem_shouldWait       ),
         .o_dep_robIdx       ( mem_dep_robIdx       ),
 
-        .i_store_issued     (      ),
+        .i_store_issued     ( 0     ),
         .i_issue_foldpc     (      ),
         .i_store_robIdx     (      ),
 
         .i_violation        ( violation        ),
         .i_vio_store_foldpc ( o_squashInfo.store_foldpc ),
-        .i_vio_load_foldpc  ( o_squashInfo.load_foldpc  )
+        .i_vio_load_foldpc  ( o_squashInfo.load_foldpc  ),
+        // dispQue -> issueQue
+        .i_read_robIdx      (   ),
+        .o_memdep_rdy       (   )
     );
 
 

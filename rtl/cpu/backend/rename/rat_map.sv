@@ -1,8 +1,6 @@
 `include "backend_define.svh"
 
 
-import "DPI-C" function void register_int_archRenameMapping(iprIdx_t mapping[32]);
-
 // use spec-arch rat restore
 // use spec-arch rat mv elim
 
@@ -60,12 +58,6 @@ module rat_map #(
     prIdx_t prevRenamed_prd_idx[WIDTH];
 
     prIdx_t renamed_prd_idx[WIDTH];
-
-
-    initial begin
-        register_int_archRenameMapping(arch_mapping);
-    end
-
 
     generate
         for(i=0;i<WIDTH;i=i+1) begin:gen_for

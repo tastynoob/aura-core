@@ -8,7 +8,7 @@
 `define CACHELINE_SIZE 32 // Byte
 `define XLEN 64
 `define XLEN_64
-`define INIT_PC 64'h0000000000000000
+`define INIT_PC 64'h0000000080000000
 
 `define CSRIDX_DEF `WDEF(12)
 `define PCDEF `WDEF(64)
@@ -27,9 +27,6 @@
 `define SSIT_SIZE 1024
 `define MEMDEP_FOLDPC_WIDTH $clog2(`SSIT_SIZE)
 `define LFST_SIZE 32
-
-// the pointer of instMeta
-typedef logic[`XDEF] instMeta_p;
 
 typedef logic[`WDEF(`PALEN)] paddr_t;
 

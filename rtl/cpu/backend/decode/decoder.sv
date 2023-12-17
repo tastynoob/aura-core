@@ -249,7 +249,7 @@ module decoder (
     wire isIntMath = isAdd | isSub | isShift | isLogic | isCompare;
     // replace rs2 to imm
     wire isImmMath = inst_ADDI | inst_ADDIW | inst_SLLI | inst_SLLIW | inst_SRLI | inst_SRLIW | inst_SRAI | inst_SRAIW;
-    wire use_imm = isImmMath | isCondBranch | inst_JAL;
+    wire use_imm = isImmMath | isCondBranch | inst_JAL | inst_JALR | inst_AUIPC;
 
     wire[`WDEF(5)] ilrd_idx = inst[11:7];
     wire[`WDEF(5)] ilrs1_idx = inst[19:15];
