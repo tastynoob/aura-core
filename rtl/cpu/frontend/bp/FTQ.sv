@@ -181,9 +181,6 @@ module FTQ (
                 if (need_update_ftb ? i_bpu_update_finished : 1) begin
                     // FIXME: repeating mispred assert faild
                     assert(buffer_vld[commit_ptr]);
-                    if (buffer_mispred[commit_ptr]) begin
-                        $display("mispred %b : %h", buffer_mispred[commit_ptr], commit_ptr);
-                    end
                     buffer_vld[commit_ptr] <= 0;
                     commit_ptr <= (commit_ptr == (`FTQ_SIZE - 1)) ? 0 : commit_ptr + 1;
                     cptr_flipped <= (commit_ptr == (`FTQ_SIZE - 1)) ? ~cptr_flipped : cptr_flipped;
@@ -229,6 +226,7 @@ module FTQ (
                 };
             end
             if (i_falsepred) begin
+                // should equal BPU falsepred_arch_pc
                 buf_baseInfo[i_preDecodewbInfo.ftq_idx].nextAddr <= i_preDecodewbInfo.branch_npc;
             end
         end

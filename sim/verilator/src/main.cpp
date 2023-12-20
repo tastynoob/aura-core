@@ -12,7 +12,10 @@ uint64_t main_time = 0;
 VTOP *top;
 char buffer[100];
 
+bool next_cycle_fail = false;
+
 uint64_t curTick() { return main_time; }
+void mark_next_cycle_fail() { next_cycle_fail = true; }
 
 extern void diff_init(const char* ref_path);
 extern void init_workload(std::string path);
@@ -121,7 +124,7 @@ int main(int argc, char **argv)
         main_time++;
         top->rst = 0;
     }
-
+    
     // Simulate until $finish
     while ((main_time < max_simTime) && !Verilated::gotFinish())
     {
@@ -132,6 +135,16 @@ int main(int argc, char **argv)
         tfp->dump(main_time);
 #endif
         ++main_time;
+
+        if (next_cycle_fail) {
+            top->clk = !top->clk;
+            top->eval();
+    #ifdef USE_TRACE
+            tfp->dump(main_time);
+    #endif
+            ++main_time;
+            exit(1);
+        }
     }
 
     top->final();

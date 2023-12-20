@@ -47,7 +47,7 @@ module alu_bru (
 /****************************************************************************************************/
     wire[5:0] shifter = src1[5:0];
 
-    wire[`XDEF] lui = {{32{1'b1}},src1[19:0],12'd0};
+    wire[`XDEF] lui = {{32{src1[19]}},src1[19:0],12'd0};
     wire[`XDEF] add = src0 + src1;
     wire[`XDEF] sub = src0 - src1;
     wire[`XDEF] addw = {{32{add[31]}},add[31:0]};
@@ -92,11 +92,15 @@ module alu_bru (
 /****************************************************************************************************/
 // bru
 /****************************************************************************************************/
+    wire isauipc = (saved_fuInfo.issueQue_id == `BRUIQ_ID) && (saved_fuInfo.micOp == MicOp_t::auipc);
+    wire isbranch = (saved_fuInfo.issueQue_id == `BRUIQ_ID) && (saved_fuInfo.micOp > MicOp_t::auipc && saved_fuInfo.micOp <= MicOp_t::bgeu);
+
 
     wire[`XDEF] pc = saved_fuInfo.pc;
     wire[`XDEF] pred_npc = saved_fuInfo.npc;
     wire[`XDEF] fallthru = saved_fuInfo.pc + 4;
     wire[`XDEF] imm20 = {{44{saved_fuInfo.imm20[19]}}, saved_fuInfo.imm20};
+    wire[`XDEF] auipc = pc + imm20;
 
     wire[`XDEF] jal_target = pc + imm20;
     wire[`XDEF] jalr_target = src0 + imm20;
@@ -128,7 +132,7 @@ module alu_bru (
     wire[`XDEF] npc =
     taken ? target : fallthru;
 
-    wire mispred = npc != pred_npc;
+    wire mispred = isbranch && (npc != pred_npc);
     //TODO: remove it
     BranchType::_ branch_type;
     assign branch_type =
@@ -154,12 +158,12 @@ module alu_bru (
             comwbInfo.use_imm <= saved_fuInfo.use_imm;
             comwbInfo.rd_wen <= saved_fuInfo.rd_wen;
             comwbInfo.iprd_idx <= saved_fuInfo.iprd_idx;
-            comwbInfo.result <= (saved_fuInfo.issueQue_id == `BRUIQ_ID) ? fallthru : calc_data;
+            comwbInfo.result <= o_willwrite_data;
 
             // jal must be not mispred
-            assert(saved_vld && (saved_fuInfo.issueQue_id == `BRUIQ_ID) && mispred ? (saved_fuInfo.micOp != MicOp_t::jal) : 1);
+            assert((saved_vld && mispred) ? (saved_fuInfo.micOp != MicOp_t::jal) : 1);
             // only writeback when mispred
-            branchwb_vld <= saved_vld && (saved_fuInfo.issueQue_id == `BRUIQ_ID) && mispred;
+            branchwb_vld <= saved_vld && mispred;
             branchwb_info <= '{
                 branch_type : branch_type,
                 rob_idx : saved_fuInfo.rob_idx,
@@ -171,12 +175,15 @@ module alu_bru (
                 target_pc : target,
                 branch_npc : npc
             };
+            if (saved_vld && isbranch) begin
+                update_instMeta(saved_fuInfo.instmeta, difftest_def::META_NPC, npc);
+            end
         end
     end
 
     assign o_willwrite_vld = saved_vld && saved_fuInfo.rd_wen;
     assign o_willwrite_rdIdx = saved_fuInfo.iprd_idx;
-    assign o_willwrite_data = calc_data;
+    assign o_willwrite_data = isbranch ? fallthru : isauipc ? auipc : calc_data;
 
     assign o_fu_stall = i_wb_stall;
     assign o_fu_finished = fu_finished;

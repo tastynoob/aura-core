@@ -43,6 +43,13 @@ void DebugChecker::enableFlags(std::string flags)
     }
 }
 
+void DebugChecker::clearFlags()
+{
+    for (auto it = debug_flags.begin(); it!= debug_flags.end(); it++) {
+        (*it) = false;
+    }
+}
+
 bool DebugChecker::checkFlag(DebugFlag flag)
 {
     return debug_flags[flag];

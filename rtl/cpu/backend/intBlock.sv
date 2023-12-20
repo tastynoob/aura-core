@@ -281,6 +281,12 @@ module intBlock #(
             end
             s1_IQ0_inst_iqIdx <= IQ0_inst_iqIdx;
             s1_IQ0_inst_info <= IQ0_inst_info;
+
+            for (fa=0;fa<2;fa=fa+1) begin
+                if (IQ0_inst_vld[fa]) begin
+                    goto_fu(IQ0_inst_info[fa].instmeta, fa + 0);
+                end
+            end
         end
     end
 
@@ -571,6 +577,12 @@ endgenerate
             end
             s1_IQ1_inst_iqIdx <= IQ1_inst_iqIdx;
             s1_IQ1_inst_info <= IQ1_inst_info;
+
+            for (fa=0;fa<2;fa=fa+1) begin
+                if (IQ1_inst_vld[fa]) begin
+                    goto_fu(IQ1_inst_info[fa].instmeta, fa + 2);
+                end
+            end
         end
     end
 

@@ -42,7 +42,7 @@ module fetcher (
     reg[`XDEF] falsepred_arch_pc;
 
     wire toBPU_squash = i_squash_vld || falsepred;
-    wire toBPU_squash_arch_pc = i_squash_vld ? i_squashInfo.arch_pc : falsepred_arch_pc;
+    wire[`XDEF] toBPU_squash_arch_pc = i_squash_vld ? i_squashInfo.arch_pc : falsepred_arch_pc;
 
     wire toBPU_update_vld;
     wire toFTQ_update_finished;
@@ -236,7 +236,7 @@ module fetcher (
         branch_taken    : predecInfo_end.isBr, // if condBr falsepred, set taken
         fallthruOffset  : fallthruOffset_end,
         target_pc       : predecInfo_end.target,
-        branch_npc      : predecInfo_end.target
+        branch_npc      : (predecInfo_end.isBr ? predecInfo_end.target : predecInfo_end.fallthru)
     };
 
     // if predecInfo_end == jal, s2_nextAddr must equal to jal target
@@ -247,7 +247,8 @@ module fetcher (
     predecInfo_end.isCond       ? ((predecInfo_end.target == s2_nextAddr) || (predecInfo_end.fallthru == s2_nextAddr)) :
     predecInfo_end.isIndirect   ? 1 :
     (predecInfo_end.fallthru == s2_nextAddr));
-    assign s2_falsepred_arch_pc = predecInfo_end.isDirect ? predecInfo_end.target : predecInfo_end.fallthru;
+
+    assign s2_falsepred_arch_pc = s2_preDecwbInfo.branch_npc; // should equal FTQ's next pc
 
     wire[`IDEF] fetched_insts[`FTB_PREDICT_WIDTH/2];//s2
     ftqOffset_t temp_ftqOffset[`FTB_PREDICT_WIDTH/2];

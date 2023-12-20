@@ -20,26 +20,41 @@ void InstMeta::print()
 {
 }
 
+
+#define MAX_INSTMETA_NUM 300
 class InstMonitor {
     uint64_t seq_acc = 0;
-    std::list<InstMeta*> insts;
+    std::vector<InstMeta*> insts;
     public:
-    InstMeta* create() {
-        insts.push_back(new InstMeta());
-        insts.back()->it = (--insts.end());
-        if (insts.size() > 500) {
-            insts.pop_front();
-        }
-        insts.back()->seq = seq_acc;
-        seq_acc++;
-        return insts.back();
+    InstMonitor() {
+        insts.resize(MAX_INSTMETA_NUM, nullptr);
     }
+
+    uint64_t hash(uint64_t seq) {
+        return seq % MAX_INSTMETA_NUM;
+    }
+
+    InstMeta* create() {
+        InstMeta* inst = new InstMeta();
+        inst->seq = seq_acc;
+        if (insts[hash(inst->seq)] != nullptr) {
+            delete insts[hash(inst->seq)];
+        }
+        insts[hash(inst->seq)] = inst;
+        inst->it = insts.begin() + hash(inst->seq);
+        seq_acc++;
+        return inst;
+    }
+    InstMeta* read_by_seq(uint64_t seq) {
+        return insts[hash(seq)];
+    }
+
 }instMonitor;
 
-InstMeta* read_instmeta(uint64_t ptr) {
-    InstMeta* instmeta = (InstMeta*)ptr;
+InstMeta* read_instmeta(uint64_t seq) {
+    InstMeta* instmeta = instMonitor.read_by_seq(seq);
     auto it = *(instmeta->it);
-    assert(it->seq != ~0);
+    assert(it->seq == instmeta->seq);
     return it;
 }
 
@@ -55,8 +70,8 @@ extern "C" {
         auto inst = instMonitor.create();
         inst->pc = pc;
         inst->active_tick[InstPos::AT_fetch] = curTick();
-        DPRINTF(FETCH, "%s build inst code: %08lx, instmeta ptr: %p\n", inst->base().c_str(), inst_code, inst);
-        return (uint64_t)inst;
+        DPRINTF(FETCH, "%s build inst code: %08lx, instmeta ptr: %lu\n", inst->base().c_str(), inst_code, inst->seq);
+        return inst->seq;
     }
 
     //
@@ -79,7 +94,7 @@ extern "C" {
             inst->meta[MetaKeys::META_ISBRANCH] ? "branch" :
             inst->meta[MetaKeys::META_ISLOAD] ? "load" :
             inst->meta[MetaKeys::META_ISSTORE] ? "store" :
-            "undefined"
+            "dontCare"
             );
             break;
         case InstPos::AT_rename:
@@ -93,12 +108,10 @@ extern "C" {
     }
 }
 
-extern "C" bool vassert(bool a) {
-    return false;
+extern "C" {
+    void goto_fu(uint64_t instmeta, uint64_t fu_id) {
+        InstMeta* inst = read_instmeta(instmeta);
+        DPRINTF(EXECUTE, "%s going to fu %lu\n", inst->base().c_str(), fu_id);
+    }
 }
-
-extern "C" bool check_flag(uint32_t flag) {
-    return true;
-}
-
 

@@ -17,7 +17,6 @@ enum DEST_TYPE {
 enum { DIFFTEST_TO_DUT, DIFFTEST_TO_REF };
 
 
-
 struct riscv64_CPU_regfile
 {
     union
@@ -147,19 +146,33 @@ void diff_init(const char* ref_path) {
     assert((uint64_t)diffState.ref_reg->pc == PMEM_BASE);
 }
 
+extern void mark_next_cycle_fail();
 
-int arch_int_renameMapping[32] = {-1};
-uint64_t physical_int_regfile[200];
+int arch_int_renameMapping[32] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+uint64_t physical_int_regfile[200] = {0};
 
 uint64_t arch_readIntReg(int index) {
     int physic_index = arch_int_renameMapping[index];
-    assert(physic_index > 0 && physic_index < 200);
+    assert(physic_index >= 0 && physic_index < 200);
     return physical_int_regfile[physic_index];
 }
 
 uint64_t arch_readCSRReg(int index) {
     return 0;
 }
+
+
+void display_reg() {
+    printf("********** dump aura regfile **********\n");
+    for (int i = 0; i < 32; i ++) {
+        printf(" x%02d: %016lx", i, arch_readIntReg(i));
+        if (i % 4 == 3) {
+            printf("\n");
+        }
+    }
+}
+
+
 
 extern "C" void arch_commitInst(
     const uint64_t dst_type,
@@ -174,8 +187,8 @@ extern "C" void arch_commitInst(
     arch_int_renameMapping[logic_idx] = physic_idx;
     diffState.ref_this_pc = diffState.ref_reg->pc;
     refProxy.exec(1);
-    diffState.ref_next_pc = diffState.ref_reg->pc;
     refProxy.regcpy(diffState.ref_reg, DIFFTEST_TO_DUT);
+    diffState.ref_next_pc = diffState.ref_reg->pc;
 
     InstMeta* inst = read_instmeta(instmeta_ptr);
 
@@ -183,11 +196,13 @@ extern "C" void arch_commitInst(
 
     bool difftest_failed = false;
     if (inst->pc != diffState.ref_this_pc) {
-        fprintf(stderr,"diff at pc, this: %lx, ref: %lx\n", inst->pc, diffState.ref_this_pc);
+        printf("diff at pc, this: %lx, ref: %lx\n", inst->pc, diffState.ref_this_pc);
+        difftest_failed = true;
     }
     if (inst->meta[MetaKeys::META_ISBRANCH]) {
         if (inst->meta[MetaKeys::META_NPC] != diffState.ref_next_pc) {
-            fprintf(stderr,"diff at npc, this: %lx, ref: %lx\n", inst->meta[MetaKeys::META_NPC], diffState.ref_next_pc);
+            printf("diff at npc, this: %lx, ref: %lx\n", inst->meta[MetaKeys::META_NPC], diffState.ref_next_pc);
+            difftest_failed = true;
         }
     }
 
@@ -200,14 +215,18 @@ extern "C" void arch_commitInst(
             str = "x";
         }
         if (aura_val != ref_val) {
-            fprintf(stderr,"diff at reg %s%lu, this: %lx, ref: %lx\n", str, logic_idx, aura_val, ref_val);
+            printf("diff at reg %s%lu, this: %lx, ref: %lx\n", str, logic_idx, aura_val, ref_val);
             difftest_failed = true;
         }
     }
     if (difftest_failed) {
-        fprintf(stderr,"difftest failed!\n");\
+        printf("difftest failed!\n");\
+        fflush(stdout);
         refProxy.isa_reg_display();
-        exit(1);
+        display_reg();
+        mark_next_cycle_fail();
+        diffState.enable_diff = false;
+        debugChecker.clearFlags();
     }
 }
 

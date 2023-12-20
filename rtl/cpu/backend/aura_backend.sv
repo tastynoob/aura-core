@@ -68,7 +68,7 @@ module aura_backend (
     assign toFTQ_branchwbInfo = exeBlock_branchwbInfo;
     // to rob
     wire toCtrl_branchwb_vld;
-    assign toCtrl_branchwb_vld = exeBlock_branchwb_vld;
+    assign toCtrl_branchwb_vld = |exeBlock_branchwb_vld;
     branchwbInfo_t toCtrl_branchwbInfo;
 
     wire toCtrl_except_vld;

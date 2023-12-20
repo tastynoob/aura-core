@@ -46,7 +46,7 @@ struct InstMeta
     // meta
     std::vector<uint64_t> meta;
 
-    std::list<InstMeta*>::iterator it;
+    std::vector<InstMeta*>::iterator it;
     InstMeta() : pos(InstPos::NUMPOS, false), active_tick(InstPos::NUMPOS, 0), meta(MetaKeys::NUM_META, 0) {}
 
     std::string base() { return std::format("[sn {:d} pc {:x}]", seq, pc); }

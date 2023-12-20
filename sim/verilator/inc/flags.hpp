@@ -27,6 +27,7 @@ class DebugChecker {
 
     // such as: FETCH,DECODE
     void enableFlags(std::string flags);
+    void clearFlags();
 
     bool checkFlag(DebugFlag flag);
 };

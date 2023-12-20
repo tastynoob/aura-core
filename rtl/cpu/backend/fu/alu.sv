@@ -43,7 +43,7 @@ module alu (
 
 
     wire[5:0] shifter = src1[5:0];
-    wire[`XDEF] lui = {{32{1'b1}},src1[19:0],12'd0};
+    wire[`XDEF] lui = {{32{src1[19]}},src1[19:0],12'd0};
     wire[`XDEF] add = src0 + src1;
     wire[`XDEF] sub = src0 - src1;
     wire[`XDEF] addw = {{32{add[31]}},add[31:0]};

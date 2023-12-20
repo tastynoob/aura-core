@@ -243,13 +243,13 @@ module decoder (
     wire isMul = inst_MUL | inst_MULH | inst_MULHSU | inst_MULHU | inst_MULW;
     wire isDiv = inst_DIV | inst_DIVU | inst_DIVUW | inst_DIVW | inst_REM | inst_REMU | inst_REMUW | inst_REMW;
     wire isCSR = inst_CSRRC | inst_CSRRCI | inst_CSRRS | inst_CSRRSI | inst_CSRRW | inst_CSRRWI;
-    wire isUnknow = !(isAdd | isSub | isShift | isLogic | isCompare | isCondBranch | isUncondBranch | isLoad | isStore | isMul | isDiv | isCSR);
+    wire isUnknow = !(inst_LUI | isAdd | isSub | isShift | isLogic | isCompare | isCondBranch | isUncondBranch | isLoad | isStore | isMul | isDiv | isCSR);
     // TODO: add compressed inst
     // int math (with rs1 rs2)
     wire isIntMath = isAdd | isSub | isShift | isLogic | isCompare;
     // replace rs2 to imm
-    wire isImmMath = inst_ADDI | inst_ADDIW | inst_SLLI | inst_SLLIW | inst_SRLI | inst_SRLIW | inst_SRAI | inst_SRAIW;
-    wire use_imm = isImmMath | isCondBranch | inst_JAL | inst_JALR | inst_AUIPC;
+    wire isImmMath = inst_ADDI | inst_ADDIW | inst_SLLI | inst_SLLIW | inst_SRLI | inst_SRLIW | inst_SRAI | inst_SRAIW | inst_ANDI | inst_ORI | inst_XORI | inst_SLTI | inst_SLTIU ;
+    wire use_imm = isImmMath | isCondBranch | inst_JAL | inst_JALR | inst_AUIPC | inst_LUI;
 
     wire[`WDEF(5)] ilrd_idx = inst[11:7];
     wire[`WDEF(5)] ilrs1_idx = inst[19:15];
@@ -277,7 +277,7 @@ module decoder (
     //{csr_idx,csr_zimm}
     wire [19:0] inst_csr_type_imm = {3'd0, csr_idx ,inst[19:15]};
     //shift
-    wire [19:0] inst_shift_type_imm = {15'h0, inst[24:20]};
+    wire [19:0] inst_shift_type_imm = {15'h0, inst[25:20]}; // RV64 shift imm
 
     wire[19:0] inst_opimm_imm = (inst_SLLI | inst_SLLIW | inst_SRLI | inst_SRLIW | inst_SRAI | inst_SRAIW) ?
                                 inst_shift_type_imm : inst_i_type_imm;
@@ -333,7 +333,7 @@ module decoder (
     0;
     //issueQue select
     wire[`WDEF(2)] issueQue_id =
-    (isIntMath | isImmMath) ? `ALUIQ_ID :
+    (isIntMath | isImmMath | inst_LUI) ? `ALUIQ_ID :
     (isMul | isDiv) ? `MDUIQ_ID :
     `BRUIQ_ID;
 

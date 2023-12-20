@@ -274,6 +274,7 @@ module ROB(
                 if ((i_exceptwb_info.rob_idx <= shr.rob_idx) || (shr.squash_type == SQUASH_NULL)) begin
                     shr.squash_type <= SQUASH_EXCEPT;
                     shr.except_type <= i_exceptwb_info.except_type;
+                    shr.rob_idx <= i_exceptwb_info.rob_idx;
                 end
             end
             else if (i_branchwb_vld && i_branchwb_info.has_mispred) begin
@@ -281,6 +282,7 @@ module ROB(
                     shr.squash_type <= SQUASH_MISPRED;
                     shr.branch_taken <= i_branchwb_info.branch_taken;
                     shr.npc <= i_branchwb_info.branch_npc;
+                    shr.rob_idx <= i_branchwb_info.rob_idx;
                 end
             end
         end
@@ -362,6 +364,7 @@ module ROB(
                 // compute the trap return address
                 squash_vld <= true;
                 squashInfo.dueToBranch <= 0;
+                squashInfo.dueToViolation <= 0;
                 squashInfo.branch_taken <= 0;
                 //// TODO: trap address select
                 squashInfo.arch_pc <= has_interrupt ? i_csr_pack.tvec + (0) : i_csr_pack.tvec;
@@ -374,6 +377,7 @@ module ROB(
             else if (has_mispred) begin
                 squash_vld <= true;
                 squashInfo.dueToBranch <= has_mispred;
+                squashInfo.dueToViolation <= 0;
                 squashInfo.branch_taken <= shr.branch_taken;
                 squashInfo.arch_pc <= shr.npc;
             end

@@ -13,27 +13,50 @@
 - verilator == 5.012 (very important!!)
 - [yosys](https://github.com/YosysHQ/yosys) (with plugin [antmicro/yosys-systemverilog](https://github.com/antmicro/yosys-systemverilog))
 
-## doc
-plz see *.drawio.png in doc
+## doc and architecture
+plz see *.drawio.png in ./doc
 
 
 ## emulation with verilator
+
+aura support a serial of simple options
 ```
 # compile
 export AURA_HOME=`pwd`
-make aura # if enable trace: make aura USE_TRACE=1
+make aura # if enable wave trace: make aura USE_TRACE=1
+
 # for help
 ./build/aura -h
+
+# simple test
+./build/aura -f ready-to-run/simpletest0.bin 
+# if enable difftest
+./build/aura -f ready-to-run/simpletest0.bin -d diff-ref-so/riscv64-spike-so
+
+# enable debug flags
+./build/aura -f ready-to-run/simpletest0.bin -d diff-ref-so/riscv64-spike-so --debug-flags FETCH,DECODE,COMMIT
+# all debug flags can be find at sim/verilator/inc/flags.hpp
 ```
+
+
+## difftest support
+
+now aura use spike to difftest
+```
+git clone https://github.com/tastynoob/riscv-isa-sim.git
+
+cd riscv-isa-sim && git checkout aura-difftest
+
+cd difftest && make CPU=AURA
+
+cp build/riscv64-spike-so $AURA_HOME/diff-ref-so
+```
+
 ## compile for aura firmware
-go to /firmware
-install vscode plugin EIDE
-open firmware.code-workspace
+
+go to ./firmware  
+install vscode plugin EIDE  
+open firmware.code-workspace  
 
 
-# todo list
-
-## backend
-- mul and div unit
-
-## mem subsystem
+# thanks for any help!
