@@ -61,10 +61,7 @@ module ctrlBlock (
     input wire[`XDEF] i_read_ftqStartAddr,
 
     output wire o_squash_vld,
-    output squashInfo_t o_squashInfo,
-
-    output iprIdx_t o_specRenameMapping[32]
-
+    output squashInfo_t o_squashInfo
 );
     genvar i;
 
@@ -164,9 +161,7 @@ module ctrlBlock (
         .i_decinfo     ( toRename_decInfo     ),
 
         .o_rename_vld  ( toDIspatch_vld  ),
-        .o_renameInfo  ( toDIspatch_renameInfo  ),
-
-        .o_specRenameMapping (o_specRenameMapping)
+        .o_renameInfo  ( toDIspatch_renameInfo  )
     );
 
 /****************************************************************************************************/

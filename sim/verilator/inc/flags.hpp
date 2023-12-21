@@ -8,7 +8,9 @@
 enum DebugFlag {
     FETCH,
     DECODE,
+
     RENAME,
+    RENAME_ALLOC,
 
     EXECUTE,
     COMMIT,
@@ -36,6 +38,6 @@ extern DebugChecker debugChecker;
 
 #define DPRINTF(flag, args...) \
 if (debugChecker.checkFlag(DebugFlag::flag)) { \
-    printf("DebugFlag-" #flag " %lu: ", curTick());\
+    printf("%lu " "DebugFlag-" #flag ": ", curTick());\
     printf(args); \
 }

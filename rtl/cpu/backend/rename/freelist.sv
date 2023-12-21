@@ -63,7 +63,7 @@ module freelist(
 
     wire[`WDEF(`RENAME_WIDTH)] can_deq;
     wire can_enq;
-    `ASSERT(reorder_dealloc_req ? (can_enq==true) : 1);
+    `ASSERT((reorder_dealloc_req !=0) ? (can_enq==true) : 1);
     fifo
     #(
         .dtype       ( iprIdx_t       ),

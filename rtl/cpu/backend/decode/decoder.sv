@@ -294,6 +294,8 @@ module decoder (
     0;
 
     wire isnop = (isIntMath) && (ilrd_idx == 0);
+    // addi x1, x2, 0
+    // add x1,x2,x0
     wire ismv = ((inst_ADDI) && (imm == 0)) || ((inst_ADD) && (ilrs2_idx == 0));
 
     /********************************************************/
@@ -397,7 +399,7 @@ module decoder (
     assign o_decinfo.ismv = ismv;
     assign o_decinfo.imm20 = imm;
     assign o_decinfo.rd_wen = rd_wen;
-    assign o_decinfo.ilrd_idx = ilrd_idx;
+    assign o_decinfo.ilrd_idx = (rd_wen ? ilrd_idx : 0);
     assign o_decinfo.ilrs_idx[0] = has_rs1 ? ilrs1_idx : 0;
     assign o_decinfo.ilrs_idx[1] = has_rs2 ? ilrs2_idx : 0;
     assign o_decinfo.use_imm = use_imm;

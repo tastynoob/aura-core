@@ -184,7 +184,10 @@ extern "C" void arch_commitInst(
     if (!diffState.enable_diff) {
         return;
     }
+    
     arch_int_renameMapping[logic_idx] = physic_idx;
+    assert(arch_int_renameMapping[0] == 0);
+
     diffState.ref_this_pc = diffState.ref_reg->pc;
     refProxy.exec(1);
     refProxy.regcpy(diffState.ref_reg, DIFFTEST_TO_DUT);
@@ -199,6 +202,7 @@ extern "C" void arch_commitInst(
         printf("diff at pc, this: %lx, ref: %lx\n", inst->pc, diffState.ref_this_pc);
         difftest_failed = true;
     }
+
     if (inst->meta[MetaKeys::META_ISBRANCH]) {
         if (inst->meta[MetaKeys::META_NPC] != diffState.ref_next_pc) {
             printf("diff at npc, this: %lx, ref: %lx\n", inst->meta[MetaKeys::META_NPC], diffState.ref_next_pc);

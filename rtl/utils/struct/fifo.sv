@@ -35,7 +35,7 @@ module fifo #(
 );
     genvar i;
 
-    wire[`WDEF(INPORT_NUM)] real_enq_vld = o_can_enq && i_enq_vld ? i_enq_req : 0;
+    wire[`WDEF(INPORT_NUM)] real_enq_vld = (o_can_enq && i_enq_vld) ? i_enq_req : 0;
     wire[`WDEF(INPORT_NUM)] real_deq_vld = i_deq_req & o_can_deq;
     wire [`SDEF(DEPTH)] enq_num, real_enq_num, deq_num;
     count_one
@@ -89,6 +89,11 @@ module fifo #(
             else begin
                 arch_count <= arch_count - commit_num + enq_num;
                 arch_deq_ptr <= (arch_deq_ptr + commit_num) < DEPTH ? (arch_deq_ptr + commit_num) : (arch_deq_ptr + commit_num - DEPTH);
+                for (fa=0;fa<INPORT_NUM;fa=fa+1) begin
+                    if (real_enq_vld[fa]) begin
+                        assert(arch_deq_ptr != enq_ptr[fa]);
+                    end
+                end
             end
         end
     end
@@ -115,12 +120,6 @@ module fifo #(
                 deq_ptr[fa] <= fa;
             end
         end
-        else if ((USE_RENAME != 0) && i_resteer_vld) begin
-            count <= arch_count;
-            for (fa = 0; fa < OUTPORT_NUM; fa = fa + 1) begin
-                deq_ptr[fa] <= (arch_deq_ptr + fa) < DEPTH ? (arch_deq_ptr + fa) : (arch_deq_ptr + fa - DEPTH);
-            end
-        end
         else begin
             // enq
             for (fa = 0; fa < INPORT_NUM; fa = fa + 1) begin
@@ -130,11 +129,20 @@ module fifo #(
 
                 enq_ptr[fa] <= (enq_ptr[fa] + real_enq_num) < DEPTH ? (enq_ptr[fa] + real_enq_num) : (enq_ptr[fa] + real_enq_num - DEPTH);
             end
+
             // deq
-            for (fa = 0; fa < OUTPORT_NUM; fa = fa + 1) begin
-                deq_ptr[fa] <= ((deq_ptr[fa] + deq_num) < DEPTH) ? (deq_ptr[fa] + deq_num) : (deq_ptr[fa] + deq_num - DEPTH);
+            if ((USE_RENAME != 0) && i_resteer_vld) begin
+                for (fa = 0; fa < OUTPORT_NUM; fa = fa + 1) begin
+                    deq_ptr[fa] <= (arch_deq_ptr + fa) < DEPTH ? (arch_deq_ptr + fa) : (arch_deq_ptr + fa - DEPTH);
+                end
+                count <= arch_count + real_enq_num;
             end
-            count <= count + real_enq_num - deq_num;
+            else begin
+                for (fa = 0; fa < OUTPORT_NUM; fa = fa + 1) begin
+                    deq_ptr[fa] <= ((deq_ptr[fa] + deq_num) < DEPTH) ? (deq_ptr[fa] + deq_num) : (deq_ptr[fa] + deq_num - DEPTH);
+                end
+                count <= count + real_enq_num - deq_num;
+            end
         end
     end
 

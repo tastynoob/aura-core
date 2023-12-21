@@ -7,6 +7,8 @@
 
 // mv x3,x2 : set rat_map[x3] = rat_map[x2]
 
+import "DPI-C" function void rename_dealloc(uint64_t physcial_idx);
+
 module rat_map #(
     // 0:int regfile, 1: fp regfile
     parameter int COMMIT_WID = `COMMIT_WIDTH,
@@ -38,17 +40,13 @@ module rat_map #(
     // from commit
     input wire i_squash_vld,
     input wire[`WDEF(COMMIT_WID)] i_commit_vld,
-    input renameCommitInfo_t i_commitInfo[COMMIT_WID],
-
-    output prIdx_t o_specRenameMapping[32]
-
+    input renameCommitInfo_t i_commitInfo[COMMIT_WID]
 );
     genvar i,j;
 
     // if is int regfile, the x0 should be fixedmapping
     prIdx_t spec_mapping[32];
     prIdx_t arch_mapping[32];
-    assign o_specRenameMapping = spec_mapping;
 
     //read directly from rat
     prIdx_t renamed0_prs_idx[WIDTH][NUMSRCS];
@@ -256,6 +254,15 @@ module rat_map #(
             else begin
                 dealloc_vld <= bits_dealloc;
                 dealloc_iprd_idx <= real_dealloc_iprd;
+
+                for(fa=0;fa<COMMIT_WID;fa=fa+1) begin
+                    if (bits_dealloc[fa]) begin
+                        rename_dealloc(real_dealloc_iprd[fa]);
+                        for (fb=1;fb < 32; fb=fb+1) begin
+                            assert(real_dealloc_iprd[fa] != arch_mapping[fb]);
+                        end
+                    end
+                end
             end
         end
 

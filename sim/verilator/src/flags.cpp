@@ -6,7 +6,10 @@
 std::map<std::string, DebugFlag> debugflag_name = {
     {"FETCH" , DebugFlag::FETCH},
     {"DECODE" , DebugFlag::DECODE},
+
     {"RENAME" , DebugFlag::RENAME},
+    {"RENAME_ALLOC" , DebugFlag::RENAME_ALLOC},
+
     {"EXECUTE" , DebugFlag::EXECUTE},
     {"COMMIT" , DebugFlag::COMMIT},
     {"ROM" , DebugFlag::ROM}

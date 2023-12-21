@@ -9,6 +9,9 @@ import "DPI-C" function void arch_commitInst(
     uint64_t instmeta_ptr
 );
 
+import "DPI-C" function void squash_pipe(uint64_t isMispred);
+
+
 const logic[`WDEF(2)] SQUASH_NULL = 0;
 const logic[`WDEF(2)] SQUASH_MISPRED = 1;
 const logic[`WDEF(2)] SQUASH_EXCEPT = 2;
@@ -189,49 +192,6 @@ module ROB(
     endgenerate
 
 
-
-`ifdef SIMULATION
-    reg[`XDEF] result_buffer[`ROB_SIZE];
-    always_ff @( posedge clk ) begin
-        int fa;
-        for (fa=0;fa<`WBPORT_NUM;fa=fa+1) begin
-            if (i_fu_finished[fa] && i_comwbInfo[fa].rd_wen) begin
-                result_buffer[i_comwbInfo[fa].rob_idx] <= i_comwbInfo[fa].result;
-            end
-        end
-    end
-
-    logic[`WDEF(`COMMIT_WIDTH)] sim_wb_vld;
-    ilrIdx_t sim_wb_idx[`COMMIT_WIDTH];
-    logic[`XDEF] sim_wb_data[`COMMIT_WIDTH];
-    simRegfile u_simRegfile(
-        .clk       ( clk       ),
-        .rst       ( rst       ),
-        .i_wb_vld  ( sim_wb_vld  ),
-        .i_wb_idx  ( sim_wb_idx  ),
-        .i_wb_data ( sim_wb_data )
-    );
-
-    always_comb begin
-        int ca;
-        sim_wb_vld = squash_vld ? 0 : canCommit_vld;
-        for (ca=0;ca <`COMMIT_WIDTH;ca=ca+1) begin
-            if (!willCommit_data[ca].has_rd) begin
-                sim_wb_vld[ca] = 0;
-            end
-            sim_wb_idx[ca] = willCommit_data[ca].ilrd_idx;
-            sim_wb_data[ca] = result_buffer[willCommit_idx[ca]];
-            if (willCommit_data[ca].ismv) begin
-                sim_wb_data[ca] = 64'haaaaaaaaaaaaaaaa;
-            end
-
-        end
-    end
-
-
-`endif
-
-
 /****************************************************************************************************/
 // commit, update the ftq commit_ptr, rename status, storeQue
 // decoupled front commit can be one cycle later than rob commit (actually both in one cycle)
@@ -245,11 +205,11 @@ module ROB(
     generate
         for(i=0;i<`COMMIT_WIDTH;i=i+1) begin:gen_for
             assign o_rename_commitInfo[i] = '{
-                ismv:willCommit_data[i].ismv,
-                has_rd:willCommit_data[i].has_rd,
-                ilrd_idx:willCommit_data[i].ilrd_idx,
-                iprd_idx:willCommit_data[i].iprd_idx,
-                prev_iprd_idx:willCommit_data[i].prev_iprd_idx
+                ismv        : willCommit_data[i].ismv,
+                has_rd      : willCommit_data[i].has_rd,
+                ilrd_idx    : willCommit_data[i].ilrd_idx,
+                iprd_idx    : willCommit_data[i].iprd_idx,
+                prev_iprd_idx : willCommit_data[i].prev_iprd_idx
             };
         end
     endgenerate
@@ -375,6 +335,7 @@ module ROB(
                 // if has interrupt and rob is empty: mepc = last inst pc + ismv 2:4
             end
             else if (has_mispred) begin
+                squash_pipe(1);
                 squash_vld <= true;
                 squashInfo.dueToBranch <= has_mispred;
                 squashInfo.dueToViolation <= 0;

@@ -166,7 +166,7 @@ module fetcher (
         else begin
             // s0: ftq send fetch request
             // s1:
-            s1_fetch_vld <= toIcache_req && if_core_fetch.gnt&& (!pcMisaligned)  && (!i_backend_stall);
+            s1_fetch_vld <= toIcache_req && if_core_fetch.gnt&& (!pcMisaligned) && (!i_backend_stall);
             stall_dueto_pcMisaligned <= toIcache_req ? pcMisaligned : 0;
             if (!i_backend_stall) begin
                 s1_ftqIdx <= toIcache_ftqIdx;

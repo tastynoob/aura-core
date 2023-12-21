@@ -1,8 +1,7 @@
 build
-firmware
 slpp_all
 *.dot*
 *.vcd
 temp.v
-log.txt
-stats.txt
+*.txt
+run.sh

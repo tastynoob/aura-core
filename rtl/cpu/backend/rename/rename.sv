@@ -1,6 +1,9 @@
 `include "backend_define.svh"
 
-//
+
+import "DPI-C" function void rename_alloc(uint64_t seq, uint64_t logic_idx, uint64_t physcial_idx, uint64_t ismv);
+
+
 module rename(
     input wire rst,
     input wire clk,
@@ -18,9 +21,7 @@ module rename(
     input decInfo_t i_decinfo[`DECODE_WIDTH],
     // to dispatch
     output wire[`WDEF(`RENAME_WIDTH)] o_rename_vld,
-    output renameInfo_t o_renameInfo[`RENAME_WIDTH],
-
-    output iprIdx_t o_specRenameMapping[32]
+    output renameInfo_t o_renameInfo[`RENAME_WIDTH]
 );
     genvar i;
 
@@ -70,8 +71,7 @@ module rename(
 
         .i_squash_vld           ( i_squash_vld           ),
         .i_commit_vld           ( i_commit_vld           ),
-        .i_commitInfo           ( i_commitInfo           ),
-        .o_specRenameMapping (o_specRenameMapping)
+        .i_commitInfo           ( i_commitInfo           )
     );
 
     reg[`WDEF(`RENAME_WIDTH)] rename_vld;
@@ -112,6 +112,12 @@ module rename(
 
                 if (can_rename ? i_decinfo_vld[fa] : 0) begin
                     update_instPos(i_decinfo[fa].instmeta, difftest_def::AT_rename);
+                    if (i_decinfo[fa].ilrd_idx != 0) begin
+                        rename_alloc(i_decinfo[fa].instmeta,
+                                        i_decinfo[fa].ilrd_idx,
+                                        iprd_idx[fa],
+                                        i_decinfo[fa].ismv);
+                    end
                 end
             end
         end

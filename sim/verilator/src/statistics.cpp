@@ -109,9 +109,27 @@ extern "C" {
 }
 
 extern "C" {
+    void rename_alloc(uint64_t seq, uint64_t logic_idx, uint64_t physcial_idx, uint64_t ismv) {
+        InstMeta* inst = read_instmeta(seq);
+        if (ismv) {
+            DPRINTF(RENAME_ALLOC, "%s rename move eliminate x%lu -> p%lu\n", inst->base().c_str(), logic_idx, physcial_idx);
+        }
+        else {
+            DPRINTF(RENAME_ALLOC, "%s rename alloc x%lu -> p%lu\n", inst->base().c_str(), logic_idx, physcial_idx);
+        }
+        
+    }
+    void rename_dealloc(uint64_t physcial_idx) {
+        DPRINTF(RENAME_ALLOC, "rename dealloc p%lu\n", physcial_idx);
+    }
+
     void goto_fu(uint64_t instmeta, uint64_t fu_id) {
         InstMeta* inst = read_instmeta(instmeta);
         DPRINTF(EXECUTE, "%s going to fu %lu\n", inst->base().c_str(), fu_id);
+    }
+
+    void squash_pipe(uint64_t isMispred) {
+        DPRINTF(COMMIT, "squash due to %s\n", "mispred");
     }
 }
 

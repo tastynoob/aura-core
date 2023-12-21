@@ -75,7 +75,7 @@ module aura_backend (
     exceptwbInfo_t toCtrl_exceptwbInfo;
 
     robIdx_t commit_robIdx;
-    iprIdx_t specRenameMapping[32];
+
     ctrlBlock u_ctrlBlock(
         .clk                   ( clk                   ),
         .rst                   ( rst                   ),
@@ -118,9 +118,7 @@ module aura_backend (
         .i_read_ftqStartAddr   ( rob_read_ftqStartAddr ),
 
         .o_squash_vld          ( squash_vld          ),
-        .o_squashInfo          ( squashInfo          ),
-
-        .o_specRenameMapping (specRenameMapping)
+        .o_squashInfo          ( squashInfo          )
     );
 
 

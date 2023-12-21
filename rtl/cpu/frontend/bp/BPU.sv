@@ -104,7 +104,10 @@ module BPU (
                 base_pc <= i_squash_arch_pc;
             end
             else if (i_update_vld) begin
-                base_pc <= s2_ftb_lookup_hit_rdy ? s2_base_pc : s1_req ? s1_base_pc : base_pc;
+                base_pc <=
+                        s2_ftb_lookup_hit_rdy ? (pred_access ? s1_base_pc : s2_base_pc) :
+                        s1_req ? s1_base_pc :
+                        base_pc;
             end
             else if (s2_ftbPred_use) begin
                 base_pc <= s2_predNPC;
