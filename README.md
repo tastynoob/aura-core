@@ -32,12 +32,19 @@ make aura # if enable wave trace: make aura USE_TRACE=1
 ./build/aura -f ready-to-run/simpletest0.bin 
 # if enable difftest
 ./build/aura -f ready-to-run/simpletest0.bin -d diff-ref-so/riscv64-spike-so
+# fully argument
+./build/aura -f ready-to-run/simpletest0.bin -d diff-ref-so/riscv64-spike-so --debug-flags COMMIT -e t2000
 
 # enable debug flags
 ./build/aura -f ready-to-run/simpletest0.bin -d diff-ref-so/riscv64-spike-so --debug-flags FETCH,DECODE,COMMIT
 # all debug flags can be find at sim/verilator/inc/flags.hpp
 ```
 
+## statistics
+
+aura will dump some message when run completed
+
+all statistical keywords can be found at stats.txt
 
 ## difftest support
 

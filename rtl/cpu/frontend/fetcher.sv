@@ -1,6 +1,8 @@
 `include "frontend_define.svh"
 `include "funcs.svh"
 
+
+import "DPI-C" function void fetch_block(uint64_t startAddr, uint64_t endAddr, uint64_t nextAddr, uint64_t falsepred);
 import "DPI-C" function uint64_t build_instmeta(uint64_t pc, uint64_t inst_code);
 
 // FIXME:
@@ -136,6 +138,7 @@ module fetcher (
     reg s2_fetch_vld;
     ftqIdx_t s2_ftqIdx;
     reg[`WDEF($clog2(`CACHELINE_SIZE))] s2_start_shift;
+    reg[`XDEF] s2_startAddr;
     reg[`XDEF] s2_nextAddr;
     reg[`SDEF(`FTB_PREDICT_WIDTH)] s2_max_inst_num;
     reg s2_predTaken;
@@ -165,6 +168,7 @@ module fetcher (
         end
         else begin
             // s0: ftq send fetch request
+
             // s1:
             s1_fetch_vld <= toIcache_req && if_core_fetch.gnt&& (!pcMisaligned) && (!i_backend_stall);
             stall_dueto_pcMisaligned <= toIcache_req ? pcMisaligned : 0;
@@ -181,11 +185,13 @@ module fetcher (
             if (!i_backend_stall) begin
                 s2_ftqIdx <= s1_ftqIdx;
             end
+            s2_startAddr <= s1_startAddr;
             s2_nextAddr <= s1_nextAddr;
             s2_start_shift <= s1_startAddr[$clog2(`CACHELINE_SIZE)-1:0];
             s2_max_inst_num <= (s1_fetchblock_size>>1); // if no RVC, should left shift 2
             s2_predTaken <= s1_predTaken;
             assert(s2_fetch_vld ? s2_max_inst_num <= (`FTB_PREDICT_WIDTH/2) : 1);
+
             for (fa=0;fa<`FTB_PREDICT_WIDTH/2;fa=fa+1) begin
                 s2_inst_pcs[fa] <= s1_startAddr + fa * 2;
             end
@@ -197,6 +203,9 @@ module fetcher (
             falsepred_arch_pc <= s2_falsepred_arch_pc;
             if (!i_backend_stall) begin
                 new_inst_vld <= new_inst_vld_wire;
+                if (new_inst_vld_wire[0]) begin
+                    fetch_block(s2_startAddr, predecInfo_end.fallthru, (s2_falsepred ? s2_falsepred_arch_pc : s2_nextAddr), s2_falsepred);
+                end
                 for (fa = 0; fa < `FETCH_WIDTH; fa=fa+1) begin
                     if (new_inst_vld_wire[fa]) begin
                         new_inst[fa] <= '{
@@ -224,7 +233,7 @@ module fetcher (
     assign icacheline_merge = ({if_core_fetch.line1, if_core_fetch.line0} >> (s2_start_shift*8));
 
     preDecInfo_t predecInfo[`FTB_PREDICT_WIDTH/2];
-    preDecInfo_t predecInfo_end;
+    preDecInfo_t predecInfo_end; // s2
     logic[`SDEF(`FTB_PREDICT_WIDTH/2)] fallthruOffset_end;
 
     // if nonbranch falsepred, set branchtype = condbranch, ste not taken
@@ -242,11 +251,16 @@ module fetcher (
     // if predecInfo_end == jal, s2_nextAddr must equal to jal target
     // if predecInfo_end == bxx, s2_nextAddr must equal to bxx target or fallthru
     // if predecInfo_end == nonBranch, s2_nextAddr must equal to fallthru
+    // if fetched_inst_OH > fetched_inst_mask is falsepred
+
+    wire inst_leak;
+
     assign s2_falsepred = s2_fetch_vld &&
-    !(predecInfo_end.isDirect   ? predecInfo_end.target == s2_nextAddr :
+    (!(predecInfo_end.isDirect   ? predecInfo_end.target == s2_nextAddr :
     predecInfo_end.isCond       ? ((predecInfo_end.target == s2_nextAddr) || (predecInfo_end.fallthru == s2_nextAddr)) :
     predecInfo_end.isIndirect   ? 1 :
-    (predecInfo_end.fallthru == s2_nextAddr));
+    (predecInfo_end.fallthru == s2_nextAddr))
+    || inst_leak);
 
     assign s2_falsepred_arch_pc = s2_preDecwbInfo.branch_npc; // should equal FTQ's next pc
 
@@ -265,7 +279,8 @@ module fetcher (
             else begin : gen_else
                 assign fetched_32i_OH[i] = (fetched_insts[i][1:0]==2'b11) && (!fetched_32i_OH[i-1]);
                 assign fetched_inst_OH[i] = (fetched_32i_OH[i-1] ? 0 : 1) && (i < s2_max_inst_num);
-                assign fetched_inst_mask[i] = (!(predecInfo[i-1].isDirect || predecInfo[i-1].isIndirect)) && fetched_inst_mask[i-1];
+                // one fetch block should only have one branch inst
+                assign fetched_inst_mask[i] = (!(predecInfo[i-1].isBr)) && fetched_inst_mask[i-1];
             end
 
             preDecode u_preDecode(
@@ -275,6 +290,9 @@ module fetcher (
             );
         end
     endgenerate
+
+    assign inst_leak = fetched_inst_OH > fetched_inst_mask;
+
     generate
         for(i=0;i<`FTB_PREDICT_WIDTH/2;i=i+1) begin:gen_for
             assign temp_ftqOffset[i] = 2 * i;

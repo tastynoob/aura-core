@@ -4,7 +4,6 @@
 `include "base.svh"
 
 import "DPI-C" function byte read_rom(uint64_t addr);
-import "DPI-C" function void perfAccumulate(string name, uint64_t value);
 
 // should call update_instMeta first
 import "DPI-C" function void update_instMeta(uint64_t instmeta, uint64_t key, uint64_t value);

@@ -23,10 +23,11 @@ enum MetaKeys {
     META_ISBRANCH,
     META_ISLOAD,
     META_ISSTORE,
+    META_MISPRED,// branch only
     META_NPC,// branch only
     META_VADDR,// load/store only
     META_PADDR,// load/store only
-    NUM_META,
+    NUM_META
 };
 
 struct InstMeta

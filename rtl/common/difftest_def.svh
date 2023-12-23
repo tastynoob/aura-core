@@ -5,7 +5,7 @@
 package difftest_def;
 
 typedef enum int {
-    AT_fetchQue,
+    AT_fetch,
     AT_decode,
     AT_rename,
     AT_dispQue,
@@ -21,9 +21,11 @@ typedef enum int {
     META_ISBRANCH,
     META_ISLOAD,
     META_ISSTORE,
-    META_NPC,
-    META_VADDR,
-    META_PADDR
+    META_MISPRED,// branch only
+    META_NPC,// branch only
+    META_VADDR,// load/store only
+    META_PADDR,// load/store only
+    NUM_META
 }MetaKeys;
 
 endpackage

@@ -106,7 +106,7 @@ module alu_bru (
     wire[`XDEF] jalr_target = src0 + imm20;
     wire[`XDEF] br_target = pc + imm20;
 
-    wire beq_taken = src0 == src1;
+    wire beq_taken = (src0 == src1);
     wire bne_taken = !beq_taken;
     wire blt_taken = slt;
     wire bge_taken = !blt_taken;
@@ -177,6 +177,9 @@ module alu_bru (
             };
             if (saved_vld && isbranch) begin
                 update_instMeta(saved_fuInfo.instmeta, difftest_def::META_NPC, npc);
+            end
+            if (saved_vld && mispred) begin
+                update_instMeta(saved_fuInfo.instmeta, difftest_def::META_MISPRED, 1);
             end
         end
     end

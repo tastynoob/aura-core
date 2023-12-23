@@ -243,7 +243,7 @@ module decoder (
     wire isMul = inst_MUL | inst_MULH | inst_MULHSU | inst_MULHU | inst_MULW;
     wire isDiv = inst_DIV | inst_DIVU | inst_DIVUW | inst_DIVW | inst_REM | inst_REMU | inst_REMUW | inst_REMW;
     wire isCSR = inst_CSRRC | inst_CSRRCI | inst_CSRRS | inst_CSRRSI | inst_CSRRW | inst_CSRRWI;
-    wire isUnknow = !(inst_LUI | isAdd | isSub | isShift | isLogic | isCompare | isCondBranch | isUncondBranch | isLoad | isStore | isMul | isDiv | isCSR);
+    wire isUnknow = !(inst_LUI | inst_AUIPC | isAdd | isSub | isShift | isLogic | isCompare | isCondBranch | isUncondBranch | isLoad | isStore | isMul | isDiv | isCSR);
     // TODO: add compressed inst
     // int math (with rs1 rs2)
     wire isIntMath = isAdd | isSub | isShift | isLogic | isCompare;

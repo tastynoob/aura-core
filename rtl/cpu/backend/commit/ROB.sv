@@ -10,7 +10,7 @@ import "DPI-C" function void arch_commitInst(
 );
 
 import "DPI-C" function void squash_pipe(uint64_t isMispred);
-
+import "DPI-C" function void cycle_step();
 
 const logic[`WDEF(2)] SQUASH_NULL = 0;
 const logic[`WDEF(2)] SQUASH_MISPRED = 1;
@@ -357,11 +357,11 @@ module ROB(
     int AAA_committedInst;
     always_ff @(posedge clk) begin
         int fa;
+        cycle_step();
         if (rst) begin
             AAA_committedInst <= 0;
         end
         else if ((!squash_vld) && (!commit_stall)) begin
-            perfAccumulate("committedInst", funcs::count_one(canCommit_vld));
             AAA_committedInst <= AAA_committedInst + funcs::count_one(canCommit_vld);
             for (fa =0; fa <`COMMIT_WIDTH; fa=fa+1) begin
                 if (canCommit_vld[fa]) begin

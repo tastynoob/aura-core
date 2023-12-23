@@ -155,9 +155,8 @@ int main(int argc, char **argv)
 
     delete top;
 
-    std::cout << "**** END EMULATION, START DUMP" << main_time << " ****\n";
+    std::cout << "**** END EMULATION, START DUMP ****\n";
     dumpStats();
-
 
     return 0;
 }

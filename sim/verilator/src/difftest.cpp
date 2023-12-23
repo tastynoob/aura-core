@@ -172,7 +172,7 @@ void display_reg() {
     }
 }
 
-
+extern void perfAccumulate(const char* name, uint64_t val);
 
 extern "C" void arch_commitInst(
     const uint64_t dst_type,
@@ -181,6 +181,8 @@ extern "C" void arch_commitInst(
     const uint64_t instmeta_ptr) {
     // update arch rename mapping
     assert(logic_idx < 32);
+
+    perfAccumulate("committedInsts", 1);
     if (!diffState.enable_diff) {
         return;
     }
@@ -199,14 +201,18 @@ extern "C" void arch_commitInst(
 
     bool difftest_failed = false;
     if (inst->pc != diffState.ref_this_pc) {
-        printf("diff at pc, this: %lx, ref: %lx\n", inst->pc, diffState.ref_this_pc);
+        printf("%s diff at pc, this: %lx, ref: %lx\n", inst->base().c_str(), inst->pc, diffState.ref_this_pc);
         difftest_failed = true;
     }
 
     if (inst->meta[MetaKeys::META_ISBRANCH]) {
         if (inst->meta[MetaKeys::META_NPC] != diffState.ref_next_pc) {
-            printf("diff at npc, this: %lx, ref: %lx\n", inst->meta[MetaKeys::META_NPC], diffState.ref_next_pc);
+            printf("%s diff at npc, this: %lx, ref: %lx\n", inst->base().c_str(), inst->meta[MetaKeys::META_NPC], diffState.ref_next_pc);
             difftest_failed = true;
+        }
+        perfAccumulate("committedBranches", 1);
+        if (inst->meta[MetaKeys::META_MISPRED]) {
+            perfAccumulate("branchMispred", 1);
         }
     }
 

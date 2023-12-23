@@ -6,6 +6,8 @@
 #include <map>
 
 enum DebugFlag {
+    BPU,
+
     FETCH,
     DECODE,
 

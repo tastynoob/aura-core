@@ -7,6 +7,8 @@
 // we meed to implement BTB
 // TODO: remove counter from FTB, use the independent component to predict conditional branch
 
+import "DPI-C" function void bpu_predict_block(uint64_t startAddr, uint64_t endAddr, uint64_t nextAddr, uint64_t use_ftb);
+
 module BPU (
     input wire clk,
     input wire rst,
@@ -28,10 +30,10 @@ module BPU (
 
 
     reg[`XDEF] base_pc, s1_base_pc, s2_base_pc;
-    wire pred_access;
+    wire pred_accept;
     wire pred_continue;
     assign pred_continue = i_ftq_rdy;
-    assign pred_access = (o_pred_vld && i_ftq_rdy);
+    assign pred_accept = (o_pred_vld && i_ftq_rdy);
 
     wire lookup_req = 1;
 
@@ -64,7 +66,6 @@ module BPU (
     reg s2_ftb_lookup_hit;
     reg s2_ftb_lookup_hit_rdy;
     reg s2_ftbPred_use; // ftb lookup hit
-    reg[`XDEF] s2_ftb_unhit_fallthruAddr;
     always_ff @( posedge clk ) begin
         if (rst) begin
             s2_ftbPred_use <= 0;
@@ -74,16 +75,15 @@ module BPU (
             if (squash_vld || i_update_vld) begin
                 s1_req <= 0;
                 s2_ftbPred_use <= 0;
+                s2_ftb_lookup_hit <= 0;
                 s2_ftb_lookup_hit_rdy <= 0;
             end
             else if (pred_continue) begin
                 s1_req <= lookup_req;
                 s2_ftbPred_use <= (s1_ftb_lookup_hit_rdy && s1_ftb_lookup_hit && s1_req);
-                s2_ftb_lookup_hit <= s1_ftb_lookup_hit;
-                s2_ftb_lookup_hit_rdy <= s1_ftb_lookup_hit_rdy;
+                s2_ftb_lookup_hit <= s1_ftb_lookup_hit && s1_req;
+                s2_ftb_lookup_hit_rdy <= s1_ftb_lookup_hit_rdy && s1_req;
             end
-
-            s2_ftb_unhit_fallthruAddr <= s1_base_pc + (`FTB_PREDICT_WIDTH);
         end
     end
 
@@ -95,6 +95,10 @@ module BPU (
     wire s2_taken = s2_ftb_lookup_info.counter >= 2;
     wire[`XDEF] s2_predNPC = ftbFuncs::calcNPC(s2_base_pc, s2_taken, s2_ftb_lookup_info);
 
+    wire[`XDEF] s2_pred_endAddr = (s2_ftbPred_use ? ftbFuncs::calcFallthruAddr(s2_base_pc, s2_ftb_lookup_info) : s1_base_pc);
+    wire s2_pred_taken = (s2_ftbPred_use ? s2_taken : 0);
+    wire s2_pred_targetAddr = ftbFuncs::calcTargetAddr(s2_base_pc, s2_ftb_lookup_info);
+
     always_ff @( posedge clk ) begin
         if (rst) begin
             base_pc <= `INIT_PC;
@@ -103,20 +107,26 @@ module BPU (
             if (squash_dueToBackend) begin
                 base_pc <= i_squash_arch_pc;
             end
+            else if (s2_ftbPred_use) begin // higher level
+                base_pc <= s2_pred_taken ? s2_pred_targetAddr : s2_pred_endAddr;
+            end
             else if (i_update_vld) begin
                 base_pc <=
-                        s2_ftb_lookup_hit_rdy ? (pred_access ? s1_base_pc : s2_base_pc) :
+                        s2_ftb_lookup_hit_rdy ? (pred_accept ? s1_base_pc : s2_base_pc) :
                         s1_req ? s1_base_pc :
                         base_pc;
-            end
-            else if (s2_ftbPred_use) begin
-                base_pc <= s2_predNPC;
             end
             else if (pred_continue) begin
                 // donot pred when updating
                 base_pc <= base_pc + (`FTB_PREDICT_WIDTH);
                 s1_base_pc <= base_pc;
                 s2_base_pc <= s1_base_pc;
+            end
+
+            if (pred_accept) begin
+                bpu_predict_block(s2_base_pc, s2_pred_endAddr,
+                                 (s2_pred_taken ? s2_pred_targetAddr : s2_pred_endAddr),
+                                 s2_ftbPred_use);
             end
         end
     end
@@ -132,12 +142,12 @@ module BPU (
 
     // the fetch range: [start, end)
     assign o_pred_ftqInfo = '{
-        startAddr : s2_base_pc,
-        endAddr : s2_ftbPred_use ? ftbFuncs::calcFallthruAddr(s2_base_pc, s2_ftb_lookup_info) : s2_ftb_unhit_fallthruAddr,
-        taken : s2_ftbPred_use ? s2_taken : 0,
-        targetAddr : ftbFuncs::calcTargetAddr(s2_base_pc, s2_ftb_lookup_info),
+        startAddr   : s2_base_pc,
+        endAddr     : s2_pred_endAddr,
+        taken       : s2_pred_taken,
+        targetAddr  : s2_pred_targetAddr,
         // ftb meta
-        hit_on_ftb : s2_ftb_lookup_hit,
+        hit_on_ftb  : s2_ftb_lookup_hit,
         branch_type : s2_ftb_lookup_info.branch_type,
         ftb_counter : s2_ftbPred_use ? s2_ftb_lookup_info.counter : 1
         // or more

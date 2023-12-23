@@ -146,7 +146,6 @@ module FTQ (
             end
         end
         else begin
-            // do pred
             if (i_falsepred) begin
                 pred_ptr <= i_recovery_idx;
                 pptr_flipped <= (i_recovery_idx > pred_ptr) ? ~pptr_flipped : pptr_flipped;
@@ -160,6 +159,7 @@ module FTQ (
                 end
             end
             else if (do_pred) begin
+                // do pred
                 assert(buffer_vld[pred_ptr] == 0);
                 buffer_vld[pred_ptr] <= 1;
                 pred_ptr <= (pred_ptr == (`FTQ_SIZE - 1)) ? 0 : pred_ptr + 1;

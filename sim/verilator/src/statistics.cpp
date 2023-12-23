@@ -59,13 +59,17 @@ InstMeta* read_instmeta(uint64_t seq) {
 }
 
 
-extern "C" void perfAccumulate(const char* name, uint64_t val) {
+void perfAccumulate(const char* name, uint64_t val) {
     string na = name;
     statsPerf[na] = statsPerf[na] + val;
 }
 
 
 extern "C" {
+    void cycle_step() {
+        perfAccumulate("runningCycles", 1);
+    }
+
     uint64_t build_instmeta(uint64_t pc, uint64_t inst_code) {
         auto inst = instMonitor.create();
         inst->pc = pc;
@@ -109,6 +113,13 @@ extern "C" {
 }
 
 extern "C" {
+    void bpu_predict_block(uint64_t startAddr, uint64_t endAddr, uint64_t nextAddr, uint64_t use_ftb) {
+        DPRINTF(BPU, "bpu predict block [%lx : %lx) -> %lx by %s\n", startAddr, endAddr, nextAddr, use_ftb ? "FTB" : "NONE");
+    }
+
+    void fetch_block(uint64_t startAddr, uint64_t endAddr, uint64_t nextAddr, uint64_t falsepred) {
+        DPRINTF(FETCH, "fetch block [%lx : %lx) -> %lx%s\n", startAddr, endAddr, nextAddr, (falsepred ? " falsepred" : ""));
+    }
     void rename_alloc(uint64_t seq, uint64_t logic_idx, uint64_t physcial_idx, uint64_t ismv) {
         InstMeta* inst = read_instmeta(seq);
         if (ismv) {
