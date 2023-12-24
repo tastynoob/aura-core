@@ -120,6 +120,7 @@ extern "C" {
     void fetch_block(uint64_t startAddr, uint64_t endAddr, uint64_t nextAddr, uint64_t falsepred) {
         DPRINTF(FETCH, "fetch block [%lx : %lx) -> %lx%s\n", startAddr, endAddr, nextAddr, (falsepred ? " falsepred" : ""));
     }
+
     void rename_alloc(uint64_t seq, uint64_t logic_idx, uint64_t physcial_idx, uint64_t ismv) {
         InstMeta* inst = read_instmeta(seq);
         if (ismv) {
@@ -130,6 +131,7 @@ extern "C" {
         }
         
     }
+
     void rename_dealloc(uint64_t physcial_idx) {
         DPRINTF(RENAME_ALLOC, "rename dealloc p%lu\n", physcial_idx);
     }

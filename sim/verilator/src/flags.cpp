@@ -21,6 +21,7 @@ DebugChecker debugChecker;
 DebugChecker::DebugChecker()
 {
     debug_flags.resize(DebugFlag::NUM_DEBUGFLAGS, false);
+    dprint_buf.resize(DebugFlag::NUM_DEBUGFLAGS);
 }
 
 void DebugChecker::enableFlags(std::string flags)
@@ -37,7 +38,7 @@ void DebugChecker::enableFlags(std::string flags)
                 debug_flags[flag_name->second] = true;
             }
             else {
-                warn("can not find flag: %s!\n", flag);
+                printf("can not find flag: %s!\n", flag);
                 exit(1);
             }
         }
@@ -45,6 +46,7 @@ void DebugChecker::enableFlags(std::string flags)
             flag[pos++] = flags[i];
         }
     }
+    enable_flag = true;
 }
 
 void DebugChecker::clearFlags()
@@ -52,6 +54,7 @@ void DebugChecker::clearFlags()
     for (auto it = debug_flags.begin(); it!= debug_flags.end(); it++) {
         (*it) = false;
     }
+    enable_flag = false;
 }
 
 bool DebugChecker::checkFlag(DebugFlag flag)
@@ -59,5 +62,34 @@ bool DebugChecker::checkFlag(DebugFlag flag)
     return debug_flags[flag];
 }
 
+void DebugChecker::putin(DebugFlag flag, const char * str)
+{
+    dprint_buf[flag] << str;
+}
+
+void DebugChecker::printAll()
+{
+    if (!enable_flag) {
+        return;
+    }
+    for (auto& it : dprint_buf) {
+        std::cout << it.str();
+        it.str("");
+        it.clear();
+    }
+}
 
 
+bool forceExit = false;
+bool runningfail = false;
+
+void mark_exit(bool failed) {
+    runningfail = failed;
+    forceExit = true;
+}
+
+uint32_t force_exit() {
+    uint32_t type = 
+    runningfail ? 1 : 2;
+    return forceExit ? type : 0;
+}

@@ -73,6 +73,7 @@ class RefProxy
 class DiffState {
     public:
     bool enable_diff = false;
+    bool difftest_failed = false;
     uint64_t ref_this_pc;
     uint64_t ref_next_pc;
     riscv64_CPU_regfile* ref_reg;
@@ -146,8 +147,6 @@ void diff_init(const char* ref_path) {
     assert((uint64_t)diffState.ref_reg->pc == PMEM_BASE);
 }
 
-extern void mark_next_cycle_fail();
-
 int arch_int_renameMapping[32] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 uint64_t physical_int_regfile[200] = {0};
 
@@ -182,6 +181,9 @@ extern "C" void arch_commitInst(
     // update arch rename mapping
     assert(logic_idx < 32);
 
+    InstMeta* inst = read_instmeta(instmeta_ptr);
+    DPRINTF(COMMIT, "%s commit\n", inst->base().c_str());
+
     perfAccumulate("committedInsts", 1);
     if (!diffState.enable_diff) {
         return;
@@ -195,18 +197,18 @@ extern "C" void arch_commitInst(
     refProxy.regcpy(diffState.ref_reg, DIFFTEST_TO_DUT);
     diffState.ref_next_pc = diffState.ref_reg->pc;
 
-    InstMeta* inst = read_instmeta(instmeta_ptr);
-
-    DPRINTF(COMMIT, "%s commit\n", inst->base().c_str());
-
     bool difftest_failed = false;
     if (inst->pc != diffState.ref_this_pc) {
         printf("%s diff at pc, this: %lx, ref: %lx\n", inst->base().c_str(), inst->pc, diffState.ref_this_pc);
         difftest_failed = true;
     }
 
+    bool active_exit = false;
     if (inst->meta[MetaKeys::META_ISBRANCH]) {
-        if (inst->meta[MetaKeys::META_NPC] != diffState.ref_next_pc) {
+        if (inst->meta[MetaKeys::META_NPC] == 0x4321 && !difftest_failed) {
+            active_exit = true;
+        }
+        else if (inst->meta[MetaKeys::META_NPC] != diffState.ref_next_pc) {
             printf("%s diff at npc, this: %lx, ref: %lx\n", inst->base().c_str(), inst->meta[MetaKeys::META_NPC], diffState.ref_next_pc);
             difftest_failed = true;
         }
@@ -225,18 +227,27 @@ extern "C" void arch_commitInst(
             str = "x";
         }
         if (aura_val != ref_val) {
-            printf("diff at reg %s%lu, this: %lx, ref: %lx\n", str, logic_idx, aura_val, ref_val);
+            printf("%s diff at reg %s%lu, this: %lx, ref: %lx\n", inst->base().c_str(), str, logic_idx, aura_val, ref_val);
             difftest_failed = true;
         }
     }
-    if (difftest_failed) {
+
+    if (active_exit) {
+        debugChecker.printAll();
+        debugChecker.clearFlags();
+        diffState.enable_diff = false;
+        mark_exit(false);
+    }
+    else if (difftest_failed) {
+        debugChecker.printAll();
         printf("difftest failed!\n");\
         fflush(stdout);
         refProxy.isa_reg_display();
         display_reg();
-        mark_next_cycle_fail();
-        diffState.enable_diff = false;
+
         debugChecker.clearFlags();
+        diffState.enable_diff = false;
+        mark_exit(true);
     }
 }
 

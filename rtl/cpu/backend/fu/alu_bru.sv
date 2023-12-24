@@ -100,7 +100,8 @@ module alu_bru (
     wire[`XDEF] pred_npc = saved_fuInfo.npc;
     wire[`XDEF] fallthru = saved_fuInfo.pc + 4;
     wire[`XDEF] imm20 = {{44{saved_fuInfo.imm20[19]}}, saved_fuInfo.imm20};
-    wire[`XDEF] auipc = pc + imm20;
+    wire[`XDEF] auipc_imm = {{32{saved_fuInfo.imm20[19]}}, saved_fuInfo.imm20, 12'b0};
+    wire[`XDEF] auipc = pc + auipc_imm;
 
     wire[`XDEF] jal_target = pc + imm20;
     wire[`XDEF] jalr_target = src0 + imm20;

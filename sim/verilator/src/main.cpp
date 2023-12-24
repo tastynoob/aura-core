@@ -7,18 +7,47 @@
 #include "statistics.hpp"
 #include "flags.hpp"
 
-uint64_t max_simTime = 1000;
+uint64_t max_simTime = 10000;
 uint64_t main_time = 0;
 VTOP *top;
+VerilatedVcdC *tfp;
 char buffer[100];
 
-bool next_cycle_fail = false;
-
 uint64_t curTick() { return main_time; }
-void mark_next_cycle_fail() { next_cycle_fail = true; }
 
 extern void diff_init(const char* ref_path);
 extern void init_workload(std::string path);
+
+
+void tick_init_top() {
+    top->clk = 0;
+    top->rst = 1;
+    top->eval();
+#ifdef USE_TRACE
+    tfp->dump(main_time);
+#endif
+
+    main_time++;
+    top->clk = 1;
+    top->rst = 1;
+    top->eval();
+#ifdef USE_TRACE
+    tfp->dump(main_time);
+#endif
+
+    main_time++;
+    top->rst = 0;
+}
+
+void tick_step() {
+    top->clk = !top->clk;
+    top->eval();
+#ifdef USE_TRACE
+    tfp->dump(main_time);
+#endif
+    ++main_time;
+}
+
 
 int main(int argc, char **argv)
 {
@@ -98,7 +127,7 @@ int main(int argc, char **argv)
     top = new VTOP(Vname);
 
 #ifdef USE_TRACE
-    VerilatedVcdC *tfp = new VerilatedVcdC();
+    tfp = new VerilatedVcdC();
     top->trace(tfp, 0);
     tfp->open("wave.vcd");
     printf("Start trace at: %d\n", 0);
@@ -107,47 +136,17 @@ int main(int argc, char **argv)
     std::cout << "**** MAX EMULATION TICK: " << max_simTime << " ****\n";
     std::cout << "**** REAL EMULATION ****\n";
 
-    {
-        top->clk = 0;
-        top->rst = 1;
-        top->eval();
-#ifdef USE_TRACE
-        tfp->dump(main_time);
-#endif
-        main_time++;
-        top->clk = 1;
-        top->rst = 1;
-        top->eval();
-#ifdef USE_TRACE
-        tfp->dump(main_time);
-#endif
-        main_time++;
-        top->rst = 0;
-    }
+    tick_init_top();
     
     // Simulate until $finish
-    while ((main_time < max_simTime) && !Verilated::gotFinish())
+    while ((main_time < max_simTime) && !force_exit())
     {
         // Evaluate model
-        top->clk = !top->clk;
-        top->eval();
-#ifdef USE_TRACE
-        tfp->dump(main_time);
-#endif
-        ++main_time;
-
-        if (next_cycle_fail) {
-            top->clk = !top->clk;
-            top->eval();
-    #ifdef USE_TRACE
-            tfp->dump(main_time);
-    #endif
-            ++main_time;
-            exit(1);
-        }
+        tick_step();
+        debugChecker.printAll();
     }
-
     top->final();
+
 
 #ifdef USE_TRACE
     tfp->close();
@@ -155,8 +154,18 @@ int main(int argc, char **argv)
 
     delete top;
 
-    std::cout << "**** END EMULATION, START DUMP ****\n";
-    dumpStats();
+    int ret_code = 0;
+    if (force_exit() == 1) {
+        std::cout << "**** RUN FAILED! ****\n";
+        ret_code = 1;
+    }
+    else {
+        std::cout << "**** [" << main_time << "] END EMULATION, DUMP STATS ****\n";
+        if (force_exit() == 2) {
+            std::cout << "[active exit] Exit due to call quit\n";
+        }
+        dumpStats();
+    }
 
-    return 0;
+    return ret_code;
 }
