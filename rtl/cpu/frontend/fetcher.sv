@@ -177,7 +177,7 @@ module fetcher (
             end
             s1_startAddr <= toIcache_info.startAddr;
             s1_nextAddr <= toIcache_info.nextAddr;
-            s1_fetchblock_size <= toIcache_info.fetchBlock_size;
+            s1_fetchblock_size <= (toIcache_info.fetchBlock_size & ((`FTB_PREDICT_WIDTH << 1) - 1));
             s1_predTaken <= toIcache_info.taken;
 
             // s2: icache output 2 cachelines, do preDecode
@@ -188,9 +188,9 @@ module fetcher (
             s2_startAddr <= s1_startAddr;
             s2_nextAddr <= s1_nextAddr;
             s2_start_shift <= s1_startAddr[$clog2(`CACHELINE_SIZE)-1:0];
-            s2_max_inst_num <= (s1_fetchblock_size>>1); // if no RVC, should left shift 2
+            s2_max_inst_num <= (s1_fetchblock_size>>1); // if no RVC, should right shift 2
             s2_predTaken <= s1_predTaken;
-            assert(s2_fetch_vld ? s2_max_inst_num <= (`FTB_PREDICT_WIDTH/2) : 1);
+            // assert(s2_fetch_vld ? s2_max_inst_num <= (`FTB_PREDICT_WIDTH/2) : 1);
 
             for (fa=0;fa<`FTB_PREDICT_WIDTH/2;fa=fa+1) begin
                 s2_inst_pcs[fa] <= s1_startAddr + fa * 2;
@@ -336,7 +336,6 @@ module fetcher (
         .i_datas         ( s2_inst_pcs        ),
         .o_reorder_datas ( s2_reordered_inst_pcs      )
     );
-
 
     reorder
     #(

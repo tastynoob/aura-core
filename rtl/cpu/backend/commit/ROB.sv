@@ -11,6 +11,7 @@ import "DPI-C" function void arch_commitInst(
 
 import "DPI-C" function void squash_pipe(uint64_t isMispred);
 import "DPI-C" function void cycle_step();
+import "DPI-C" function void commit_idle(uint64_t c);
 
 const logic[`WDEF(2)] SQUASH_NULL = 0;
 const logic[`WDEF(2)] SQUASH_MISPRED = 1;
@@ -372,6 +373,9 @@ module ROB(
                         willCommit_data[fa].instmeta
                     );
                 end
+            end
+            if (!(|canCommit_vld)) begin
+                commit_idle(1);
             end
         end
     end

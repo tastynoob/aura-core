@@ -124,8 +124,6 @@ module loadQue #(
         end
     end
 
-
-
     generate
         for (i=0;i<INPORT_NUM;i=i+1) begin
             assign o_alloc_lqIdx[i] = '{

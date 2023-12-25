@@ -144,5 +144,9 @@ extern "C" {
     void squash_pipe(uint64_t isMispred) {
         DPRINTF(COMMIT, "squash due to %s\n", "mispred");
     }
+
+    void commit_idle(uint64_t c) {
+        perfAccumulate("commitIdle (cycle)", c);
+    }
 }
 
