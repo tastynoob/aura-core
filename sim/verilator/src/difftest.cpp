@@ -216,6 +216,13 @@ extern "C" void arch_commitInst(
         if (inst->meta[MetaKeys::META_MISPRED]) {
             perfAccumulate("branchMispred", 1);
         }
+
+        if (inst->meta[MetaKeys::META_NPC] > inst->pc) {
+            perfAccumulate("branchJumpForward (npc > pc)", 1);
+        }
+        else {
+            perfAccumulate("branchJumpBackward (npc <= pc)", 1);
+        }
     }
 
     if (logic_idx != 0) {

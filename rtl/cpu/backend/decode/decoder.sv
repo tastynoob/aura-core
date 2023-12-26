@@ -402,7 +402,7 @@ module decoder (
     assign o_decinfo.ilrd_idx = (rd_wen ? ilrd_idx : 0);
     assign o_decinfo.ilrs_idx[0] = has_rs1 ? ilrs1_idx : 0;
     assign o_decinfo.ilrs_idx[1] = has_rs2 ? ilrs2_idx : 0;
-    assign o_decinfo.use_imm = use_imm;
+    assign o_decinfo.use_imm = use_imm && (!ismv);
     assign o_decinfo.dispQue_id = dispQue_id;
     assign o_decinfo.issueQue_id = issueQue_id;
 

@@ -242,10 +242,10 @@ module fetcher (
         rob_idx : 0, // dont care
         ftq_idx         : s2_ftqIdx,
         has_mispred     : 1,
-        branch_taken    : predecInfo_end.isBr, // if condBr falsepred, set taken
+        branch_taken    : (predecInfo_end.simplePredNPC == predecInfo_end.target),
         fallthruOffset  : fallthruOffset_end,
         target_pc       : predecInfo_end.target,
-        branch_npc      : (predecInfo_end.isBr ? predecInfo_end.target : predecInfo_end.fallthru)
+        branch_npc      : predecInfo_end.simplePredNPC
     };
 
     // if predecInfo_end == jal, s2_nextAddr must equal to jal target

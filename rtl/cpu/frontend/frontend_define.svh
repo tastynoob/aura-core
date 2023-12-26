@@ -63,14 +63,8 @@ typedef struct {
     logic isIndirect;
     logic isBr;
     logic[`XDEF] target;
+    logic[`XDEF] simplePredNPC;
 } preDecInfo_t;
-
-typedef struct {
-    ftqIdx_t ftq_idx;
-    logic[`XDEF] new_npc;
-    logic[`SDEF(`FTB_PREDICT_WIDTH)] fallthruOffset;
-    logic isDirectBr;
-} preDecodewb_t;
 
 package ftbFuncs;
     function automatic logic[`XDEF] calcFallthruAddr(logic[`XDEF] base_pc, ftbInfo_t ftbInfo);

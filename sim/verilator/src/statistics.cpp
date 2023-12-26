@@ -74,7 +74,7 @@ extern "C" {
         auto inst = instMonitor.create();
         inst->pc = pc;
         inst->active_tick[InstPos::AT_fetch] = curTick();
-        DPRINTF(FETCH, "%s build inst code: %08lx, instmeta ptr: %lu\n", inst->base().c_str(), inst_code, inst->seq);
+        DPRINTF(FETCH, "%s build inst code: %08lx\n", inst->base().c_str(), inst_code);
         return inst->seq;
     }
 
@@ -104,6 +104,10 @@ extern "C" {
         case InstPos::AT_rename:
             DPRINTF(RENAME, "%s was renamed\n", inst->base().c_str());
             break;
+        case InstPos::AT_dispQue:
+            break;
+        case InstPos::AT_issueQue:
+            break;
         case InstPos::AT_fu:
             DPRINTF(EXECUTE, "%s start executing\n", inst->base().c_str());
         default:
@@ -111,6 +115,9 @@ extern "C" {
         }
     }
 }
+
+
+
 
 extern "C" {
     void bpu_predict_block(uint64_t startAddr, uint64_t endAddr, uint64_t nextAddr, uint64_t use_ftb) {
@@ -134,6 +141,21 @@ extern "C" {
 
     void rename_dealloc(uint64_t physcial_idx) {
         DPRINTF(RENAME_ALLOC, "rename dealloc p%lu\n", physcial_idx);
+    }
+
+    void dispatch_stall(uint64_t reason) {
+        if (reason == 0) { // rob full
+            perfAccumulate("dispatchStall:rob full (cycle)", 1);
+        }
+        else if (reason == 1) { // immbuffer full
+            perfAccumulate("dispatchStall:immbuffer full (cycle)", 1);
+        }
+        else if (reason == 2) { // intDQ full
+            perfAccumulate("dispatchStall:intDQ full (cycle)", 1);
+        }
+        else {
+            perfAccumulate("dispatchStall:other (cycle)", 1);
+        }
     }
 
     void goto_fu(uint64_t instmeta, uint64_t fu_id) {

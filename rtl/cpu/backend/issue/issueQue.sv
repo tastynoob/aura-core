@@ -154,6 +154,11 @@ module issueQue #(
                     buffer[enq_idx[fa]].issued <= 0;
                     buffer[enq_idx[fa]].src_rdy <= i_enq_iprs_rdy[fa];
                     buffer[enq_idx[fa]].src_spec_rdy <= i_enq_iprs_rdy[fa];
+
+                    update_instPos(
+                        i_enq_exeInfo[fa].instmeta,
+                        difftest_def::AT_issueQue
+                    );
                 end
                 if (!i_stall) begin
                     //select and issue(set issued)

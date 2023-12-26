@@ -5,6 +5,8 @@
 //should not dispatch to
 //mark mv complete
 
+import "DPI-C" function void dispatch_stall(uint64_t reason);
+
 // order in
 module dispatch (
     input wire clk,
@@ -79,13 +81,13 @@ module dispatch (
     assign insert_rob_vld = i_enq_vld;
     generate
         for(i=0;i<`RENAME_WIDTH;i=i+1) begin:gen_for
+            assign o_insert_rob_ismv[i] = i_enq_inst[i].ismv;
             // new intDQ entry, skip mv
             assign insert_intDQ_vld[i] = i_enq_vld[i] && (i_enq_inst[i].dispQue_id == `INTBLOCK_ID) && (!i_enq_inst[i].ismv);
             // new memDQ entry
             assign insert_memDQ_vld[i] = i_enq_vld[i] && (i_enq_inst[i].dispQue_id == `MEMBLOCK_ID);
 
-            assign o_insert_rob_ismv[i] = i_enq_inst[i].ismv;
-            assign use_imm_vec[i] = i_enq_vld[i] && i_enq_inst[i].use_imm;
+            assign use_imm_vec[i] = i_enq_vld[i] && i_enq_inst[i].use_imm && (!i_enq_inst[i].ismv);
             assign imm_vec[i] = i_enq_inst[i].imm20;
             assign o_new_robEntry[i] =
             '{
@@ -144,6 +146,32 @@ module dispatch (
     assign o_insert_rob_vld = can_dispatch;
     assign o_insert_rob_req = insert_rob_vld;
     assign o_stall = i_enq_vld[0] ? (!can_dispatch) : 0;
+
+    always_ff @( posedge clk ) begin
+        int fa;
+        if (rst) begin
+        end
+        else begin
+            if (o_stall) begin
+                dispatch_stall(
+                    (!i_can_insert_rob) ? 0 :
+                    (!can_insert_immBuffer) ? 1:
+                    (!can_insert_intDQ) ? 2:
+                    3
+                );
+            end
+            if (can_dispatch) begin
+                for(fa = 0; fa < `RENAME_WIDTH; fa=fa+1) begin
+                    if (insert_rob_vld[fa]) begin
+                        update_instPos(
+                            i_enq_inst[fa].instmeta,
+                            difftest_def::AT_dispQue
+                        );
+                    end
+                end
+            end
+        end
+    end
 
 
 /****************************************************************************************************/
