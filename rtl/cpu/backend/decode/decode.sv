@@ -89,6 +89,7 @@ module decode (
                     (temp[fa].dispQue_id == `MEMBLOCK_ID) && (temp[fa].issueQue_id == `LDUIQ_ID));
                     update_instMeta(i_inst[fa].instmeta, difftest_def::META_ISSTORE,
                     (temp[fa].dispQue_id == `MEMBLOCK_ID) && (temp[fa].issueQue_id == `STUIQ_ID));
+                    update_instMeta(i_inst[fa].instmeta, difftest_def::META_ISMV, temp[fa].ismv);
 
                     update_instPos(i_inst[fa].instmeta, difftest_def::AT_decode);
                 end

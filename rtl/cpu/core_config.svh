@@ -47,6 +47,10 @@
 `define MDU_NUM 2
 `define BRU_NUM 2
 
+`define LDU_NUM 2
+
+`define STU_NUM 2
+
 `define WBPORT_NUM 6
 
 

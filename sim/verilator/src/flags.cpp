@@ -4,6 +4,7 @@
 #include <err.h>
 
 std::map<std::string, DebugFlag> debugflag_name = {
+    {"FTB", DebugFlag::FTB},
     {"BPU" , DebugFlag::BPU},
     {"FETCH" , DebugFlag::FETCH},
     {"DECODE" , DebugFlag::DECODE},
@@ -13,6 +14,7 @@ std::map<std::string, DebugFlag> debugflag_name = {
 
     {"EXECUTE" , DebugFlag::EXECUTE},
     {"COMMIT" , DebugFlag::COMMIT},
+    {"PIPELINE", DebugFlag::PIPELINE},
     {"ROM" , DebugFlag::ROM}
 };
 

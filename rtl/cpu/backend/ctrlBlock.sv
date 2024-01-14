@@ -53,6 +53,7 @@ module ctrlBlock (
     // notify ftq and storeQue
     output wire o_commit_vld,
     output wire[`WDEF($clog2(`ROB_SIZE))] o_commit_rob_idx,
+    output wire o_commit_ftq_vld,
     output ftqIdx_t o_commit_ftq_idx,
 
     // read ftq startAddress from ftq
@@ -295,6 +296,7 @@ module ctrlBlock (
 
         .o_commit_vld          ( o_commit_vld      ),
         .o_commit_rob_idx      ( o_commit_rob_idx  ),
+        .o_commit_ftq_vld      ( o_commit_ftq_vld  ),
         .o_commit_ftq_idx      ( o_commit_ftq_idx  ),
 
         .o_rename_commit       ( toRename_commit      ),

@@ -162,7 +162,7 @@ module dispatch (
             end
             if (can_dispatch) begin
                 for(fa = 0; fa < `RENAME_WIDTH; fa=fa+1) begin
-                    if (insert_rob_vld[fa]) begin
+                    if (insert_intDQ_vld[fa] || insert_memDQ_vld[fa]) begin
                         update_instPos(
                             i_enq_inst[fa].instmeta,
                             difftest_def::AT_dispQue

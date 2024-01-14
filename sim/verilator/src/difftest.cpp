@@ -172,6 +172,7 @@ void display_reg() {
 }
 
 extern void perfAccumulate(const char* name, uint64_t val);
+extern void perfAvgAccumulate(const char* name, uint64_t val);
 
 extern "C" void arch_commitInst(
     const uint64_t dst_type,
@@ -183,8 +184,12 @@ extern "C" void arch_commitInst(
 
     InstMeta* inst = read_instmeta(instmeta_ptr);
     DPRINTF(COMMIT, "%s commit\n", inst->base().c_str());
+    if (debugChecker.checkFlag(DebugFlag::PIPELINE)) {
+        inst->print();
+    }
 
     perfAccumulate("committedInsts", 1);
+    perfAvgAccumulate("ipc", 1);
     if (!diffState.enable_diff) {
         return;
     }

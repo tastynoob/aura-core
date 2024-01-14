@@ -24,7 +24,7 @@ module aura_backend (
     input wire[`WDEF(`FETCH_WIDTH)] i_inst_vld,
     input fetchEntry_t i_inst[`FETCH_WIDTH],
 
-    output wire o_commit_vld,
+    output wire o_commit_ftq_vld,
     output ftqIdx_t o_commit_ftqIdx
 );
     genvar i;
@@ -74,6 +74,7 @@ module aura_backend (
     wire toCtrl_except_vld;
     exceptwbInfo_t toCtrl_exceptwbInfo;
 
+    wire commit_vld;
     robIdx_t commit_robIdx;
 
     ctrlBlock u_ctrlBlock(
@@ -109,8 +110,9 @@ module aura_backend (
         .o_memDQ_deq_req       ( toExe_memDQ_deq_req       ),
         .o_memDQ_deq_info      ( toExe_memDQ_deq_info      ),
 
-        .o_commit_vld          ( o_commit_vld       ),
+        .o_commit_vld          ( commit_vld       ),
         .o_commit_rob_idx      ( commit_robIdx      ),
+        .o_commit_ftq_vld      ( o_commit_ftq_vld   ),
         .o_commit_ftq_idx      ( o_commit_ftqIdx    ),
 
         .o_read_ftq_Vld        ( rob_read_ftq_vld      ),

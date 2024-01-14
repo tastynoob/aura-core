@@ -7,6 +7,7 @@
 #include <sstream>
 
 enum DebugFlag {
+    FTB,
     BPU,
 
     FETCH,
@@ -17,6 +18,8 @@ enum DebugFlag {
 
     EXECUTE,
     COMMIT,
+
+    PIPELINE,
 
     ROM,
     NUM_DEBUGFLAGS
@@ -48,6 +51,12 @@ extern DebugChecker debugChecker;
 if (debugChecker.checkFlag(DebugFlag::flag)) { \
     sprintf(debugChecker.strBuf, "%lu DebugFlag-" #flag ": ", curTick()); \
     debugChecker.putin(flag, debugChecker.strBuf); \
+    sprintf(debugChecker.strBuf, args); \
+    debugChecker.putin(flag, debugChecker.strBuf); \
+}
+
+#define DPRINTD(flag, args...) \
+if (debugChecker.checkFlag(DebugFlag::flag)) { \
     sprintf(debugChecker.strBuf, args); \
     debugChecker.putin(flag, debugChecker.strBuf); \
 }

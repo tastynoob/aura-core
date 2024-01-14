@@ -31,10 +31,10 @@ module FTB_sram #(
     input ftbInfo_t i_write_info
 );
     genvar i;
-    localparam int INDEX_WIDTH = $clog2(SETS);
+    localparam int INDEX_WIDTH = $clog2(SETS); // 5
 
     `define INDEX_RANGE INDEX_WIDTH+1 - 1 : 1
-    `define TAG_RANGE `FTB_TAG_WIDTH + INDEX_WIDTH+1-1 : INDEX_WIDTH+1
+    `define TAG_RANGE `FTB_TAG_WIDTH + (INDEX_WIDTH+1)-1 : INDEX_WIDTH+1
 
     // send response
     wire sram_read_req = i_lookup_req || i_update_req;
@@ -46,6 +46,7 @@ module FTB_sram #(
     reg s1_req;
     reg s1_islookup;
     reg[`XDEF] s1_access_addr;
+    wire[`WDEF(`FTB_TAG_WIDTH)] s1_tag = s1_access_addr[`TAG_RANGE];
 
     ftbEntry_t read_data[WAYS], write_data[WAYS];
 

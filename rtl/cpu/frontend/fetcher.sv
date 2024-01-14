@@ -4,6 +4,7 @@
 
 import "DPI-C" function void fetch_block(uint64_t startAddr, uint64_t endAddr, uint64_t nextAddr, uint64_t falsepred);
 import "DPI-C" function uint64_t build_instmeta(uint64_t pc, uint64_t inst_code);
+import "DPI-C" function void count_fetchToBackend(uint64_t n);
 
 // FIXME:
 // we need to check false predict (non-branch inst was predicted taken)
@@ -120,7 +121,7 @@ module fetcher (
     wire pcMisaligned = toIcache_info.startAddr[0] == 1;
 
     assign if_core_fetch.req = toIcache_req;
-    assign if_core_fetch.get2 = toIcache_info.startAddr[$clog2(`CACHELINE_SIZE)-1 : 0] >= `CACHELINE_SIZE/2;
+    assign if_core_fetch.get2 = 1;
     assign if_core_fetch.addr = toIcache_info.startAddr[`BLK_RANGE];
 
     wire[`WDEF(`FTB_PREDICT_WIDTH/2)] validInst_vec;
@@ -177,7 +178,7 @@ module fetcher (
             end
             s1_startAddr <= toIcache_info.startAddr;
             s1_nextAddr <= toIcache_info.nextAddr;
-            s1_fetchblock_size <= (toIcache_info.fetchBlock_size & ((`FTB_PREDICT_WIDTH << 1) - 1));
+            s1_fetchblock_size <= toIcache_info.fetchBlock_size;
             s1_predTaken <= toIcache_info.taken;
 
             // s2: icache output 2 cachelines, do preDecode
@@ -202,6 +203,7 @@ module fetcher (
             preDecwbInfo <= s2_preDecwbInfo;
             falsepred_arch_pc <= s2_falsepred_arch_pc;
             if (!i_backend_stall) begin
+                count_fetchToBackend(funcs::count_one(new_inst_vld_wire));
                 new_inst_vld <= new_inst_vld_wire;
                 if (new_inst_vld_wire[0]) begin
                     fetch_block(s2_startAddr, predecInfo_end.fallthru, (s2_falsepred ? s2_falsepred_arch_pc : s2_nextAddr), s2_falsepred);
@@ -305,11 +307,11 @@ module fetcher (
     always_comb begin
         int ca;
         predecInfo_end = predecInfo[0];
-        fallthruOffset_end = temp_ftqOffset[0];
+        fallthruOffset_end = temp_ftqOffset[0] + (fetched_32i_OH[0] ? 4 : 2);
         for (ca=0; ca<`FTB_PREDICT_WIDTH/2; ca=ca+1) begin
             if (validInst_vec[ca]) begin
                 predecInfo_end = predecInfo[ca];
-                fallthruOffset_end = temp_ftqOffset[ca] + fetched_32i_OH[ca] ? 4 : 2;
+                fallthruOffset_end = temp_ftqOffset[ca] + (fetched_32i_OH[ca] ? 4 : 2);
             end
         end
     end
@@ -350,29 +352,6 @@ module fetcher (
 
     assign o_fetch_inst_vld = new_inst_vld;
     assign o_fetch_inst = new_inst;
-
-// debug
-    wire AAA_s0_vld = toIcache_req;
-    ftqIdx_t AAA_s0_ftqIdx = toIcache_ftqIdx;
-    wire AAA_s1_vld = s1_fetch_vld;
-    ftqIdx_t AAA_s1_ftqIdx = s1_ftqIdx;
-    wire AAA_s2_vld = s2_fetch_vld;
-    ftqIdx_t AAA_s2_ftqIdx = s2_ftqIdx;
-    wire AAA_s3_vld = |o_fetch_inst_vld;
-    ftqIdx_t AAA_s3_ftqIdx = new_inst[0].ftq_idx;
-    wire has_fetched = (!i_backend_stall) && (|o_fetch_inst_vld);
-
-    int AAA_has_fetched_num;
-    always_ff @( posedge clk ) begin : blockName
-        if(rst) begin
-            AAA_has_fetched_num <=0;
-        end
-        else begin
-            if (has_fetched) begin
-                AAA_has_fetched_num <= AAA_has_fetched_num + funcs::count_one(o_fetch_inst_vld);
-            end
-        end
-    end
 
 endmodule
 

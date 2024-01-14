@@ -8,6 +8,7 @@
 // TODO: remove counter from FTB, use the independent component to predict conditional branch
 
 import "DPI-C" function void bpu_predict_block(uint64_t startAddr, uint64_t endAddr, uint64_t nextAddr, uint64_t use_ftb);
+import "DPI-C" function void count_bpuGeneratedBlock(uint64_t n);
 
 module BPU (
     input wire clk,
@@ -97,7 +98,7 @@ module BPU (
 
     wire[`XDEF] s2_pred_endAddr = (s2_ftbPred_use ? ftbFuncs::calcFallthruAddr(s2_base_pc, s2_ftb_lookup_info) : s1_base_pc);
     wire s2_pred_taken = (s2_ftbPred_use ? s2_taken : 0);
-    wire s2_pred_targetAddr = ftbFuncs::calcTargetAddr(s2_base_pc, s2_ftb_lookup_info);
+    wire[`XDEF] s2_pred_targetAddr = ftbFuncs::calcTargetAddr(s2_base_pc, s2_ftb_lookup_info);
 
     always_ff @( posedge clk ) begin
         if (rst) begin
@@ -124,9 +125,11 @@ module BPU (
             end
 
             if (pred_accept) begin
+                count_bpuGeneratedBlock((s2_pred_endAddr-s2_base_pc));
                 bpu_predict_block(s2_base_pc, s2_pred_endAddr,
                                  (s2_pred_taken ? s2_pred_targetAddr : s2_pred_endAddr),
                                  s2_ftbPred_use);
+                assert(s2_pred_endAddr >= s2_base_pc);
             end
         end
     end

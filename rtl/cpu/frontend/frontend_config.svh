@@ -4,10 +4,6 @@
 
 `include "core_define.svh"
 
-
-
-
-
 /* FTB config */
 
 

@@ -4,7 +4,7 @@
 `include "base.svh"
 `include "core_priv.svh"
 
-`define FTB_PREDICT_WIDTH 16 // byte (up to 8 RVC inst)
+`define FTB_PREDICT_WIDTH 24 // byte
 `define CACHELINE_SIZE 32 // Byte
 `define XLEN 64
 `define XLEN_64

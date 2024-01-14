@@ -82,6 +82,8 @@ module ROB(
     // we need to notify commit ptr
     output wire o_commit_vld,
     output wire[`WDEF($clog2(`ROB_SIZE))] o_commit_rob_idx,
+
+    output wire o_commit_ftq_vld,
     output ftqIdx_t o_commit_ftq_idx,// set the ftq commit_ptr_thre to this
 
     // to rename
@@ -198,11 +200,6 @@ module ROB(
 // decoupled front commit can be one cycle later than rob commit (actually both in one cycle)
 // rename commit, storeQue commit and rob commit must in one cycle
 /****************************************************************************************************/
-
-    assign o_commit_ftq_idx = has_mispred ? (commit_end_inst.ftq_idx == `FTQ_SIZE-1 ? 0 : commit_end_inst.ftq_idx + 1) : commit_end_inst.ftq_idx;
-    // TODO: we may need to improve rename method
-    // rename rob commit -> physical register used buffer
-    assign o_rename_commit = squash_vld ? 0 : canCommit_vld;
     generate
         for(i=0;i<`COMMIT_WIDTH;i=i+1) begin:gen_for
             assign o_rename_commitInfo[i] = '{
@@ -218,7 +215,10 @@ module ROB(
     assign o_commit_vld = canCommit_vld[0];
     assign o_commit_rob_idx = prev_commit_rob_idx;
 
+    assign o_commit_ftq_vld = o_commit_vld;
+    assign o_commit_ftq_idx = has_mispred ? (commit_end_inst.ftq_idx == `FTQ_SIZE-1 ? 0 : commit_end_inst.ftq_idx + 1) : commit_end_inst.ftq_idx;
 
+    assign o_rename_commit = squash_vld ? 0 : canCommit_vld;
 /****************************************************************************************************/
 // squash reason process
 // if has mispred, the mispred inst can be committed
@@ -374,9 +374,9 @@ module ROB(
                     );
                 end
             end
-            if (!(|canCommit_vld)) begin
-                commit_idle(1);
-            end
+        end
+        if (!(canCommit_vld[0])) begin
+            commit_idle(1);
         end
     end
 

@@ -57,6 +57,9 @@ module alu (
             comwbInfo.rd_wen <= saved_fuInfo.rd_wen;
             comwbInfo.iprd_idx <= saved_fuInfo.iprd_idx;
             comwbInfo.result <= calc_data;
+            if (saved_vld) begin
+                update_instPos(saved_fuInfo.instmeta, difftest_def::AT_wb);
+            end
         end
     end
 

@@ -30,7 +30,7 @@ module aura_core (
     wire[`WDEF(`FETCH_WIDTH)] fetch_inst_vld;
     fetchEntry_t fetch_inst[`FETCH_WIDTH];
 
-    wire commit_vld;
+    wire commit_ftq_vld;
     ftqIdx_t commit_ftqIdx;
 
     aura_frontend u_aura_frontend(
@@ -51,7 +51,7 @@ module aura_core (
         .o_fetch_inst_vld    ( fetch_inst_vld    ),
         .o_fetch_inst        ( fetch_inst        ),
 
-        .i_commit_vld        ( commit_vld        ),
+        .i_commit_vld        ( commit_ftq_vld  ),
         .i_commit_ftqIdx     ( commit_ftqIdx     ),
 
         .if_fetch_bus        ( if_tilelink_bus0  )
@@ -76,7 +76,7 @@ module aura_core (
         .i_inst_vld          ( fetch_inst_vld          ),
         .i_inst              ( fetch_inst             ),
 
-        .o_commit_vld        ( commit_vld        ),
+        .o_commit_ftq_vld    ( commit_ftq_vld        ),
         .o_commit_ftqIdx     ( commit_ftqIdx     )
     );
 

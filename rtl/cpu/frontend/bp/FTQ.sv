@@ -83,6 +83,7 @@ module FTQ (
     reg[`WDEF(`FTQ_SIZE)] buffer_vld;
     wire[`WDEF(`FTQ_SIZE)] buffer_mispred;
 
+    wire need_update_ftb;
     wire ftqEmpty = (commit_ptr == pred_ptr) && (cptr_flipped == pptr_flipped);
     wire ftqFull = (commit_ptr == pred_ptr) && (cptr_flipped != pptr_flipped);
     wire[`SDEF(`FTQ_SIZE)] push,pop;
@@ -90,8 +91,6 @@ module FTQ (
     assign pop = ((do_commit && (need_update_ftb ? i_bpu_update_finished : 1)) ? 1 : 0);
     assign o_ftq_rdy = (!ftqFull);
 
-    wire need_update_ftb;
-    assign need_update_ftb = (buf_metaInfo[commit_ptr].hit_on_ftb || buffer_mispred[commit_ptr]) && (!train_stop) && do_commit;
     generate
         for(i=0;i<`FTQ_SIZE;i=i+1) begin : gen_for
             assign buffer_mispred[i] = buf_brInfo[i].mispred;
@@ -102,15 +101,14 @@ module FTQ (
 // do update for ptr
 // NOTE: we need to commit mispred ftq entry quickly
 /****************************************************************************************************/
-
     wire do_pred = i_pred_req && o_ftq_rdy && (!i_falsepred);
-    wire do_commit = (commit_ptr != commit_ptr_thre);
+    wire do_commit = commit_ptr != commit_ptr_thre;
 
     // BPU fetch requet bypass to Icache
     wire BP_bypass = (!ftqFull) && (fetch_ptr == pred_ptr) && do_pred;
     wire do_fetch = ((!ftqEmpty) && (fetch_ptr != pred_ptr) && (!i_stall)) || BP_bypass;
 
-
+    assign need_update_ftb = (buf_metaInfo[commit_ptr].hit_on_ftb || buffer_mispred[commit_ptr]) && (!train_stop) && do_commit;
 
     always_ff @( posedge clk ) begin
         if (rst) begin
@@ -119,9 +117,9 @@ module FTQ (
             commit_ptr <= 0;
             commit_ptr_thre <= 0;
             buffer_vld <= 0;
-            pptr_flipped<=0;
-            fptr_flipped<=0;
-            cptr_flipped<=0;
+            pptr_flipped <= 0;
+            fptr_flipped <= 0;
+            cptr_flipped <= 0;
         end
         else if (i_squash_vld) begin
             pred_ptr <= commit_ptr_thre;
@@ -270,7 +268,7 @@ module FTQ (
             if (do_pred) begin
                 // buf_brInfo[pred_ptr].vld <= 0;
                 // set default value
-                buf_brInfo[branchwbInfo[fa].ftq_idx] <= '{
+                buf_brInfo[pred_ptr] <= '{
                     preDecodewb    : 0,
                     robIdx         : 0,
                     mispred        : 0,// default set false

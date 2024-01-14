@@ -7,7 +7,7 @@
 #include "statistics.hpp"
 #include "flags.hpp"
 
-uint64_t max_simTime = 10000;
+uint64_t max_simTime = 99999999999lu;
 uint64_t main_time = 0;
 VTOP *top;
 VerilatedVcdC *tfp;

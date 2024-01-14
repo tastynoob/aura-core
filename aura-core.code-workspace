@@ -14,11 +14,6 @@
 		//verilog language server use verible
 		"verible.arguments": [
 			"--rules_config=.sv.style"
-		],
-		"files.associations": {
-			"*.h": "cpp",
-			"*.scala": "scala",
-			"sstream": "cpp"
-		}
+		]
 	}
 }

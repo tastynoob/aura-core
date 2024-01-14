@@ -6,18 +6,34 @@
 #include "flags.hpp"
 using namespace std;
 
-std::map<string,uint64_t> statsPerf;
+std::map<const char*,uint64_t> statsPerf;
+std::map<const char*,uint64_t> avgStatsPerf;
 
 void dumpStats() {
     ofstream fs("stats.txt",std::ios::out);
     for (auto it = statsPerf.begin(); it != statsPerf.end();it++) {
         fs << it->first << " : " << it->second << "\n";
     }
+    for (auto it = avgStatsPerf.begin(); it != avgStatsPerf.end();it++) {
+        fs << it->first << " : " << (float)it->second/(curTick()/2) << "\n";
+    }
+
     fs.close();
 }
 
 void InstMeta::print()
 {
+    char c;
+    DPRINTF(PIPELINE, "%s ", base().c_str());
+    for (int i=InstPos::AT_fetch; i<InstPos::AT_wb; i++) {
+        c = '0' + i - InstPos::AT_fetch;
+        assert(active_tick[i+1] >= active_tick[i]);
+        uint64_t cycle = (active_tick[i+1] - active_tick[i]) / 2;
+        for (int j=0;j<cycle;j++) {
+            DPRINTD(PIPELINE, "%c", c);
+        }
+    }
+    DPRINTD(PIPELINE, "C\n");
 }
 
 
@@ -60,10 +76,12 @@ InstMeta* read_instmeta(uint64_t seq) {
 
 
 void perfAccumulate(const char* name, uint64_t val) {
-    string na = name;
-    statsPerf[na] = statsPerf[na] + val;
+    statsPerf[name] = statsPerf[name] + val;
 }
 
+void perfAvgAccumulate(const char* name, uint64_t val) {
+    avgStatsPerf[name] = avgStatsPerf[name] + val;
+}
 
 extern "C" {
     void cycle_step() {
@@ -103,6 +121,11 @@ extern "C" {
             break;
         case InstPos::AT_rename:
             DPRINTF(RENAME, "%s was renamed\n", inst->base().c_str());
+            if (inst->meta[MetaKeys::META_ISMV]) {
+                for (int i=InstPos::AT_rename + 1;i<=InstPos::AT_wb; i++) {
+                    inst->active_tick[i] = inst->active_tick[InstPos::AT_rename] + 2;
+                }
+            }
             break;
         case InstPos::AT_dispQue:
             break;
@@ -120,6 +143,10 @@ extern "C" {
 
 
 extern "C" {
+    void ftb_update_new_block(uint64_t startAddr, uint64_t fallthru, uint64_t target) {
+        DPRINTF(FTB, "update new block [%lx : %lx) tar> %lx\n", startAddr, fallthru, target);
+    }
+
     void bpu_predict_block(uint64_t startAddr, uint64_t endAddr, uint64_t nextAddr, uint64_t use_ftb) {
         DPRINTF(BPU, "bpu predict block [%lx : %lx) -> %lx by %s\n", startAddr, endAddr, nextAddr, use_ftb ? "FTB" : "NONE");
     }
@@ -172,3 +199,57 @@ extern "C" {
     }
 }
 
+extern "C" {
+    void count_bpuGeneratedBlock(uint64_t n) {
+        perfAvgAccumulate("avg BPU predicted block size to backend per cycle (byte)", n);
+    }
+
+    void count_fetchToBackend(uint64_t n) {
+        perfAvgAccumulate("avg fetchedInsts to backend per cycle", n);
+        switch (n)
+        {
+        case 0:
+            perfAccumulate("fetchedInsts to backend::0 (cycle)", 1);
+            break;
+        case 1:
+            perfAccumulate("fetchedInsts to backend::1 (cycle)", 1);
+            break;
+        case 2:
+            perfAccumulate("fetchedInsts to backend::2 (cycle)", 1);
+            break;
+        case 3:
+            perfAccumulate("fetchedInsts to backend::3 (cycle)", 1);
+            break;
+        case 4:
+            perfAccumulate("fetchedInsts to backend::4 (cycle)", 1);
+            break;
+        case 5:
+            perfAccumulate("fetchedInsts to backend::5 (cycle)", 1);
+            break;
+        case 6:
+            perfAccumulate("fetchedInsts to backend::6 (cycle)", 1);
+            break;
+        case 7:
+            perfAccumulate("fetchedInsts to backend::7 (cycle)", 1);
+            break;
+        case 8:
+            perfAccumulate("fetchedInsts to backend::8 (cycle)", 1);
+            break;
+        case 9:
+            perfAccumulate("fetchedInsts to backend::9 (cycle)", 1);
+            break;
+        case 10:
+            perfAccumulate("fetchedInsts to backend::10 (cycle)", 1);
+            break;
+        case 11:
+            perfAccumulate("fetchedInsts to backend::11 (cycle)", 1);
+            break;
+        case 12:
+            perfAccumulate("fetchedInsts to backend::12 (cycle)", 1);
+            break;
+        default:
+            assert(false);
+            break;
+        }
+    }
+}

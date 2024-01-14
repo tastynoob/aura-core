@@ -1,6 +1,6 @@
 `include "frontend_define.svh"
 
-
+import "DPI-C" function void ftb_update_new_block(uint64_t startAddr, uint64_t fallthru, uint64_t target);
 
 // do predict
 // s0: send req | s1: get 4 way datas | s2: output the ftbInfo
@@ -76,6 +76,9 @@ module FTB (
             if ((status == FTB_status_t::normal) && i_update_req) begin // s0
                 status <= FTB_status_t::updating;
                 s1_update_vld <= 1;
+                ftb_update_new_block(i_update_pc,
+                    ftbFuncs::calcFallthruAddr(i_update_pc, i_update_ftbInfo),
+                    ftbFuncs::calcTargetAddr(i_update_pc, i_update_ftbInfo));
             end
             else if(status == FTB_status_t::updating) begin // s1
                 s1_update_vld <= 0;

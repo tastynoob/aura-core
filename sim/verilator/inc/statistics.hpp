@@ -14,6 +14,7 @@ enum InstPos {
     AT_dispQue,
     AT_issueQue,
     AT_fu,
+    AT_wb,
     AT_lq,
     AT_sq,
     NUMPOS
@@ -23,6 +24,7 @@ enum MetaKeys {
     META_ISBRANCH,
     META_ISLOAD,
     META_ISSTORE,
+    META_ISMV,
     META_MISPRED,// branch only
     META_NPC,// branch only
     META_VADDR,// load/store only
