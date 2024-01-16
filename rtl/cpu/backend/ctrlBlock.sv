@@ -80,7 +80,7 @@ module ctrlBlock (
         .dtype       ( fetchEntry_t       ),
         .INPORT_NUM  ( `FETCH_WIDTH  ),
         .OUTPORT_NUM ( `DECODE_WIDTH ),
-        .DEPTH       ( 24       ),
+        .DEPTH       ( 32       ),
         .USE_INIT    ( 0    )
     )
     fetch_inst_buffer(

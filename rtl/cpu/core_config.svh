@@ -11,7 +11,6 @@
 `define RENAME_WIDTH `DECODE_WIDTH
 
 // dispatch
-`define BRANCHBUFFER_SIZE 30
 `define INTDQ_DISP_WID 4
 `define MEMDQ_DISP_WID 4
 

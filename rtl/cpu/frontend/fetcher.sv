@@ -2,10 +2,17 @@
 `include "funcs.svh"
 
 
-import "DPI-C" function void fetch_block(uint64_t startAddr, uint64_t endAddr, uint64_t nextAddr, uint64_t falsepred);
+import "DPI-C" function void fetch_block(
+    uint64_t startAddr,
+    uint64_t endAddr,
+    uint64_t nextAddr,
+    uint64_t predEndAddr,
+    uint64_t predNextAddr,
+    uint64_t falsepred
+);
 import "DPI-C" function uint64_t build_instmeta(uint64_t pc, uint64_t inst_code);
 import "DPI-C" function void count_fetchToBackend(uint64_t n);
-import "DPI-C" function void count_falsepred(uint64_t n);
+import "DPI-C" function void count_falsepred(uint64_t n, uint64_t reason);
 
 // FIXME:
 // we need to check false predict (non-branch inst was predicted taken)
@@ -141,6 +148,7 @@ module fetcher (
     ftqIdx_t s2_ftqIdx;
     reg[`WDEF($clog2(`CACHELINE_SIZE))] s2_start_shift;
     reg[`XDEF] s2_startAddr;
+    reg[`SDEF(`FTB_PREDICT_WIDTH)] s2_fetchblock_size;
     reg[`XDEF] s2_nextAddr;
     reg[`SDEF(`FTB_PREDICT_WIDTH)] s2_max_inst_num;
     reg s2_predTaken;
@@ -187,6 +195,7 @@ module fetcher (
             if (!i_backend_stall) begin
                 s2_ftqIdx <= s1_ftqIdx;
             end
+            s2_fetchblock_size <= s1_fetchblock_size;
             s2_startAddr <= s1_startAddr;
             s2_nextAddr <= s1_nextAddr;
             s2_start_shift <= s1_startAddr[$clog2(`CACHELINE_SIZE)-1:0];
@@ -207,9 +216,22 @@ module fetcher (
                 count_fetchToBackend(funcs::count_one(new_inst_vld_wire));
                 new_inst_vld <= new_inst_vld_wire;
                 if (new_inst_vld_wire[0]) begin
-                    fetch_block(s2_startAddr, predecInfo_end.fallthru, (s2_falsepred ? s2_falsepred_arch_pc : s2_nextAddr), s2_falsepred);
+                    fetch_block(s2_startAddr,
+                                predecInfo_end.fallthru,
+                                (s2_falsepred ? s2_falsepred_arch_pc : s2_nextAddr),
+                                (s2_startAddr + s2_fetchblock_size),
+                                s2_nextAddr,
+                                s2_falsepred);
                 end
-                count_falsepred(s2_falsepred);
+                if (s2_falsepred) begin
+                    count_falsepred(1,
+                        falsepred_nonBrWasBr ? 1:
+                        falsepred_condBrNotMatch ? 2:
+                        falsepred_jal ? 3 :
+                        inst_leak ? 0 : 4
+                    );
+                end
+
                 for (fa = 0; fa < `FETCH_WIDTH; fa=fa+1) begin
                     if (new_inst_vld_wire[fa]) begin
                         new_inst[fa] <= '{
@@ -261,6 +283,16 @@ module fetcher (
     // if fetched_inst_OH > fetched_inst_mask is falsepred
 
     wire inst_leak;
+    wire falsepred_nonBrWasBr;
+    wire falsepred_condBrNotMatch;
+    wire falsepred_jal;
+
+    assign falsepred_nonBrWasBr = (!predecInfo_end.isBr) &&
+        !(predecInfo_end.fallthru == s2_nextAddr);
+    assign falsepred_condBrNotMatch = predecInfo_end.isCond &&
+        !((predecInfo_end.target == s2_nextAddr) || (predecInfo_end.fallthru == s2_nextAddr));
+    assign falsepred_jal = predecInfo_end.isIndirect || ((predecInfo_end.isDirect) &&
+        !(predecInfo_end.target == s2_nextAddr));
 
     assign s2_falsepred = s2_fetch_vld &&
     (!(predecInfo_end.isDirect   ? predecInfo_end.target == s2_nextAddr :

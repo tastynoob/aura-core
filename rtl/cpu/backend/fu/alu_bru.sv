@@ -96,8 +96,8 @@ module alu_bru (
     //TODO: remove it
     BranchType::_ branch_type;
     assign branch_type =
-    (saved_fuInfo.micOp == MicOp_t::jalr) && (saved_fuInfo.iprd_idx == 1) ? BranchType::isCall :
-    (saved_fuInfo.micOp == MicOp_t::jalr) && (saved_fuInfo.iprd_idx == 0) ? BranchType::isRet : //FIXME: iprs[0] should is 1
+    ((saved_fuInfo.micOp == MicOp_t::jalr) && (saved_fuInfo.iprd_idx == 1)) ? BranchType::isCall :
+    ((saved_fuInfo.micOp == MicOp_t::jalr) && (saved_fuInfo.iprd_idx == 0)) ? BranchType::isRet : //FIXME: iprs[0] should is 1
     (saved_fuInfo.micOp == MicOp_t::jalr) ? BranchType::isIndirect :
     (saved_fuInfo.micOp == MicOp_t::jal) ? BranchType::isDirect :
     ((saved_fuInfo.micOp >= MicOp_t::beq) && (saved_fuInfo.micOp <= MicOp_t::bgeu)) ? BranchType::isCond :
@@ -128,7 +128,7 @@ module alu_bru (
             // jal must be not mispred
             assert((saved_vld && mispred) ? (saved_fuInfo.micOp != MicOp_t::jal) : 1);
             // only writeback when mispred
-            branchwb_vld <= saved_vld && mispred;
+            branchwb_vld <= saved_vld && isbranch;
             branchwb_info <= '{
                 branch_type : branch_type,
                 rob_idx : saved_fuInfo.rob_idx,

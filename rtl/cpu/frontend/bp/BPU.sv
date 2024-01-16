@@ -6,11 +6,11 @@
 // FTB only can predict short jump branch
 // we meed to implement BTB
 // TODO: remove counter from FTB, use the independent component to predict conditional branch
-
+import "DPI-C" function void bp_hit_at(uint64_t n);
 import "DPI-C" function void bpu_predict_block(uint64_t startAddr, uint64_t endAddr, uint64_t nextAddr, uint64_t select);
 import "DPI-C" function void count_bpuGeneratedBlock(uint64_t n);
 import "DPI-C" function void bpu_update_arch_gbh(logic[`WDEF(`BRHISTORYLENGTH)] gbh, uint64_t len);
-
+import "DPI-C" function void bpu_update_spec_gbh(logic[`WDEF(`BRHISTORYLENGTH)] gbh, uint64_t len, uint64_t squash);
 
 module BPU (
     input wire clk,
@@ -45,27 +45,35 @@ module BPU (
     assign commit_finish = (i_commit_vld && o_update_finished);
 
 
-    reg[`WDEF(`BRHISTORYLENGTH)] spec_global_branch_history;
-    wire[`WDEF(`BRHISTORYLENGTH)] nxt_spec_global_branch_history;
+    reg[`WDEF(`BRHISTORYLENGTH)] spec_gbh;
+    wire[`WDEF(`BRHISTORYLENGTH)] nxt_spec_gbh;
 
-    reg[`WDEF(`BRHISTORYLENGTH)] arch_global_branch_history;
-    wire[`WDEF(`BRHISTORYLENGTH)] nxt_arch_global_branch_history;
-    assign nxt_arch_global_branch_history = {arch_global_branch_history[`BRHISTORYLENGTH-2:0], i_BPupdateInfo.taken};
+    reg[`WDEF(`BRHISTORYLENGTH)] arch_gbh;
+    wire[`WDEF(`BRHISTORYLENGTH)] nxt_arch_gbh;
+    assign nxt_arch_gbh = {arch_gbh[`BRHISTORYLENGTH-2:0], i_BPupdateInfo.taken};
     always_ff @( posedge clk ) begin
         if (rst) begin
-            spec_global_branch_history <= 0;
-            arch_global_branch_history <= 0;
+            spec_gbh <= 0;
+            arch_gbh <= 0;
         end
         else begin
-            if (commit_finish && (i_BPupdateInfo.branch_type != BranchType::isNone)) begin
-                arch_global_branch_history <= nxt_arch_global_branch_history;
-                bpu_update_arch_gbh(nxt_arch_global_branch_history, `BRHISTORYLENGTH);
+            if (commit_finish && (i_BPupdateInfo.branch_type == BranchType::isCond)) begin
+                arch_gbh <= nxt_arch_gbh;
+                bpu_update_arch_gbh(nxt_arch_gbh, `BRHISTORYLENGTH);
             end
             if (squash_dueToBackend) begin
-                spec_global_branch_history <= arch_global_branch_history;
+                if (commit_finish && (i_BPupdateInfo.branch_type == BranchType::isCond)) begin
+                    spec_gbh <= nxt_arch_gbh;
+                    bpu_update_spec_gbh(nxt_arch_gbh, `BRHISTORYLENGTH, 1);
+                end
+                else begin
+                    spec_gbh <= arch_gbh;
+                    bpu_update_spec_gbh(arch_gbh, `BRHISTORYLENGTH, 1);
+                end
             end
-            else begin
-                spec_global_branch_history <= nxt_spec_global_branch_history;
+            else if (s0_ubtb_hit) begin
+                spec_gbh <= nxt_spec_gbh;
+                bpu_update_spec_gbh(nxt_spec_gbh, `BRHISTORYLENGTH, 0);
             end
         end
     end
@@ -107,21 +115,16 @@ module BPU (
 /****************************************************************************************************/
     wire update_ubtb;
     uBTBInfo_t ubtbUpdateInfo;
-    wire[`WDEF(2)] ubtb_new_scnt =
-        ftbFuncs::counterUpdate(i_BPupdateInfo.ubtb_scnt,
-            (i_BPupdateInfo.taken && (i_BPupdateInfo.branch_type  != BranchType::isNone)));
-    assign update_ubtb = i_commit_vld &&
-    (i_BPupdateInfo.hit_on_ubtb || i_BPupdateInfo.mispred);
+    assign update_ubtb = i_commit_vld && (i_BPupdateInfo.branch_type == BranchType::isCond);
     assign ubtbUpdateInfo = '{
-        hit : 0,// ignore
-        taken : 0,// ignore
-        scnt  : ubtb_new_scnt,
+        hit          : 0,// ignore
+        taken        : i_BPupdateInfo.taken,
         fallthruAddr : i_BPupdateInfo.fallthruAddr,
         targetAddr   : i_BPupdateInfo.targetAddr,
         nextAddr     : 0// ignore
     };
 
-    assign nxt_spec_global_branch_history = {spec_global_branch_history[`BRHISTORYLENGTH-2:0], ubtbInfo.taken};
+    assign nxt_spec_gbh = {spec_gbh[`BRHISTORYLENGTH-2:0], ubtbInfo.taken};
 
     reg s1_ubtb_use, s2_ubtb_use;
     uBTBInfo_t ubtbInfo, s1_ubtbInfo, s2_ubtbInfo;
@@ -134,18 +137,17 @@ module BPU (
         .rst          ( rst          ),
 
         .i_lookup_pc  ( base_pc      ),
-        .i_gbh        ( spec_global_branch_history  ),
+        .i_gbh        ( spec_gbh  ),
         .o_uBTBInfo   ( ubtbInfo   ),
 
         .i_update     ( update_ubtb     ),
         .i_update_pc  ( i_BPupdateInfo.startAddr   ),
-        .i_arch_gbh   ( arch_global_branch_history ),
+        .i_arch_gbh   ( arch_gbh ),
         .i_updateInfo ( ubtbUpdateInfo )
     );
 
     wire s0_ubtb_hit = ubtbInfo.hit;
     wire s0_ubtb_taken = ubtbInfo.taken;
-    wire[`WDEF(2)] s0_ubtb_scnt = ubtbInfo.scnt;
     wire[`XDEF] s0_ubtb_targetAddr = ubtbInfo.targetAddr;
     wire[`XDEF] s0_ubtb_fallthruAddr = ubtbInfo.fallthruAddr;
     wire[`XDEF] s0_ubtb_npc = ubtbInfo.nextAddr;
@@ -250,6 +252,10 @@ module BPU (
             end
 
             if (pred_accept) begin
+                if (s2_ubtb_use) begin
+                    bp_hit_at(1);
+                end
+
                 count_bpuGeneratedBlock((s2_base_fallthruAddr-s2_base_pc));
                 bpu_predict_block(s2_base_pc, s2_base_fallthruAddr,
                                  s2_base_npc,
@@ -289,7 +295,6 @@ module BPU (
         targetAddr  : s2_ubtbInfo.targetAddr,
         // ubtb meta
         hit_on_ubtb : s2_ubtb_use,
-        ubtb_scnt   : s2_ubtbInfo.scnt,
         // ftb meta
         hit_on_ftb  : 0,
         branch_type : BranchType::isNone

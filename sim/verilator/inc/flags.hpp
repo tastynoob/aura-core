@@ -11,6 +11,8 @@ enum DebugFlag {
     FTB,
     BPU,
     BPU_GBH,
+    FTQ,
+    FTQCOMMIT,
 
     FETCH,
     DECODE,

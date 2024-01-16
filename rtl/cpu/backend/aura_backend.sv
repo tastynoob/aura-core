@@ -60,6 +60,7 @@ module aura_backend (
     wire[`WDEF(`WBPORT_NUM)] toCtrl_fu_finished;
     comwbInfo_t toCtrl_comwbInfo[`WBPORT_NUM];
 
+    wire[`WDEF(`BRU_NUM)] exeBlock_branchwb_mispred_vld;
     wire[`WDEF(`BRU_NUM)] exeBlock_branchwb_vld;
     branchwbInfo_t exeBlock_branchwbInfo[`BRU_NUM];
     // to ftq
@@ -68,7 +69,7 @@ module aura_backend (
     assign toFTQ_branchwbInfo = exeBlock_branchwbInfo;
     // to rob
     wire toCtrl_branchwb_vld;
-    assign toCtrl_branchwb_vld = |exeBlock_branchwb_vld;
+    assign toCtrl_branchwb_vld = |exeBlock_branchwb_mispred_vld;
     branchwbInfo_t toCtrl_branchwbInfo;
 
     wire toCtrl_except_vld;
@@ -176,7 +177,11 @@ module aura_backend (
             assign toCtrl_clear_irob_vld[i] = toCtrl_fu_finished[i] && toCtrl_comwbInfo[i].use_imm;
             assign toCtrl_clear_irob_idx[i] = toCtrl_comwbInfo[i].irob_idx;
         end
+        for (i=0; i<`BRU_NUM; i=i+1) begin
+            assign exeBlock_branchwb_mispred_vld[i] = (exeBlock_branchwb_vld[i] && exeBlock_branchwbInfo[i].has_mispred);
+        end
     endgenerate
+
     // when 2 branch writeback the same ftqentry
     // FIXME: should write the oldest mispred branch
     wire write_the_same_ftqEntry = (&exeBlock_branchwb_vld) && (exeBlock_branchwbInfo[0].ftq_idx == exeBlock_branchwbInfo[1].ftq_idx);
@@ -195,7 +200,7 @@ module aura_backend (
         .dtype     ( branchwbInfo_t )
     )
     u_oldest_select(
-        .i_vld            ( exeBlock_branchwb_vld    ),
+        .i_vld            ( exeBlock_branchwb_mispred_vld    ),
         .i_rob_idx        ( {exeBlock_branchwbInfo[0].rob_idx, exeBlock_branchwbInfo[1].rob_idx} ),
         .i_datas          ( exeBlock_branchwbInfo ),
         .o_oldest_data    ( toCtrl_branchwbInfo )

@@ -17,7 +17,6 @@ endpackage
 typedef struct {
     logic hit;
     logic taken;
-    logic[`WDEF(2)] scnt;
     logic[`XDEF] fallthruAddr;
     logic[`XDEF] targetAddr;
     logic[`XDEF] nextAddr;
@@ -41,7 +40,6 @@ typedef struct {
     logic[`XDEF] targetAddr;
     // ubtb meta
     logic hit_on_ubtb;
-    logic ubtb_scnt;
     // ftb meta
     logic hit_on_ftb;
     BranchType::_ branch_type;
@@ -56,7 +54,6 @@ typedef struct {
     logic mispred;
     // original ubtb meta
     logic hit_on_ubtb;
-    logic[`WDEF(2)] ubtb_scnt;
     // original ftb meta
     logic hit_on_ftb;
 } BPupdateInfo_t;

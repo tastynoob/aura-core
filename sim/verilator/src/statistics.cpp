@@ -148,8 +148,11 @@ extern "C" {
 
 
 extern "C" {
-    void ubtb_update_new_block(uint64_t startAddr, uint64_t fallthru, uint64_t target, uint64_t scnt) {
-        DPRINTF(UBTB, "update new block [%lx : %lx) tar> %lx scnt %lu\n", startAddr, fallthru, target, scnt);
+    void ubtb_loookup(uint64_t lookup_pc, uint64_t tag, uint64_t index) {
+        DPRINTF(UBTB, "lookup pc: %lx, tag: %lx, index: %ld\n", lookup_pc, tag, index);
+    }
+    void ubtb_update_new_block(uint64_t uindex, uint64_t startAddr, uint64_t fallthru, uint64_t target, uint64_t scnt) {
+        DPRINTF(UBTB, "update new block uindex %ld [%lx : %lx) tar> %lx scnt %lu\n", uindex, startAddr, fallthru, target, scnt);
     }
 
     void ftb_update_new_block(uint64_t startAddr, uint64_t fallthru, uint64_t target) {
@@ -165,6 +168,15 @@ extern "C" {
         buf[len] = 0;
         DPRINTF(BPU_GBH, "arch gbh: >%s\n", buf);
     }
+    void bpu_update_spec_gbh(const svLogicVecVal* gbr, uint64_t len, uint64_t squash) {
+        char buf[512];
+        for (int i=0; i<len; i++) {
+            uint32_t bit = (gbr[i / 32].aval >> (i%32)) & 0x1;
+            buf[i] = bit + '0';
+        }
+        buf[len] = 0;
+        DPRINTF(BPU_GBH, "spec gbh: >%s%s\n", buf, squash ? " squash" : "");
+    }
 
     void bpu_predict_block(uint64_t startAddr, uint64_t endAddr, uint64_t nextAddr, uint64_t select) {
         const char* dst = select == 0 ? "none" :
@@ -173,8 +185,52 @@ extern "C" {
         DPRINTF(BPU, "bpu predict block [%lx : %lx) -> %lx by %s\n", startAddr, endAddr, nextAddr, dst);
     }
 
-    void fetch_block(uint64_t startAddr, uint64_t endAddr, uint64_t nextAddr, uint64_t falsepred) {
-        DPRINTF(FETCH, "fetch block [%lx : %lx) -> %lx%s\n", startAddr, endAddr, nextAddr, (falsepred ? " falsepred" : ""));
+    void ftq_commit(
+        uint64_t startAddr,
+        uint64_t endAddr,
+        uint64_t targetAddr,
+        uint64_t taken,
+        uint64_t branchType
+    ) {
+        char* btype[] = {
+            "none",
+            "cond",
+            "direct",
+            "indirect",
+            "call",
+            "ret"
+        };
+        DPRINTF(FTQCOMMIT, "bpu commit [%lx : %lx) tar> %lx taken: %ld, btype: %s\n",
+                startAddr, endAddr, targetAddr, taken, btype[branchType]);
+    }
+
+    void ftq_writeback(
+        uint64_t startAddr,
+        uint64_t endAddr,
+        uint64_t targetAddr,
+        uint64_t mispred,
+        uint64_t taken,
+        uint64_t branchType
+    ) {
+        char* btype[] = {
+            "none",
+            "cond",
+            "direct",
+            "indirect",
+            "call",
+            "ret"
+        };
+        uint64_t nextAddr = taken ? targetAddr : endAddr;
+        DPRINTF(FTQ, "bru writeTo FTQ [%lx : %lx) -> %lx by %s mispred: %lx, taken: %lx\n",
+                startAddr, endAddr, nextAddr, btype[branchType], mispred, taken);
+    }
+
+    void fetch_block(uint64_t startAddr, uint64_t endAddr, uint64_t nextAddr, uint64_t predEndAddr, uint64_t predNextAddr, uint64_t falsepred) {
+        DPRINTF(FETCH, "fetch block [%lx : %lx) -> %lx", startAddr, endAddr, nextAddr);
+        if (falsepred) {
+            DPRINTD(FETCH, " falsepred [%lx : %lx) -> %lx", startAddr, predNextAddr, predNextAddr);
+        }
+        DPRINTD(FETCH, "\n");
     }
 
     void rename_alloc(uint64_t seq, uint64_t logic_idx, uint64_t physcial_idx, uint64_t ismv) {
@@ -185,7 +241,6 @@ extern "C" {
         else {
             DPRINTF(RENAME_ALLOC, "%s rename alloc x%lu -> p%lu\n", inst->base().c_str(), logic_idx, physcial_idx);
         }
-        
     }
 
     void rename_dealloc(uint64_t physcial_idx) {
@@ -220,8 +275,41 @@ extern "C" {
         perfAccumulate("commitIdle (cycle)", c);
     }
 
-    void count_falsepred(uint64_t n) {
-        perfAccumulate("BPU falsepred", n);
+    void bp_hit_at(uint64_t i) {
+        // 1: ubtb
+        switch (i)
+        {
+        case 1:
+            perfAccumulate("bp hit::ubtb", 1);
+            break;
+        default:
+            break;
+        }
+    }
+
+    void count_falsepred(uint64_t n, uint64_t reason) {
+        // 0 : inst leak branch was not end
+        // 1 : nonBranch was predicted branch
+        // 2 : condBranch's targetAddr or fallthru not match
+        // 3 : jal
+        switch (reason)
+        {
+        case 0:
+            perfAccumulate("BPU falsepred::inst_leak", n);
+            break;
+        case 1:
+            perfAccumulate("BPU falsepred::badBranch", n);
+            break;
+        case 2:
+            perfAccumulate("BPU falsepred::condBranch_badAddr", n);
+            break;
+        case 3:
+            perfAccumulate("BPU falsepred::jal", n);
+            break;
+        default:
+            assert(false);
+            break;
+        }
     }
 
     void count_bpuGeneratedBlock(uint64_t n) {

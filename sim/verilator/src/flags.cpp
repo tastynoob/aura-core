@@ -8,6 +8,8 @@ std::map<std::string, DebugFlag> debugflag_name = {
     {"FTB", DebugFlag::FTB},
     {"BPU" , DebugFlag::BPU},
     {"BPU_GBH", DebugFlag::BPU_GBH},
+    {"FTQ", DebugFlag::FTQ},
+    {"FTQCOMMIT", DebugFlag::FTQCOMMIT},
     {"FETCH" , DebugFlag::FETCH},
     {"DECODE" , DebugFlag::DECODE},
 
