@@ -13,7 +13,15 @@ package tarStat_t;
      } _;
 endpackage
 
-
+// uBTB
+typedef struct {
+    logic hit;
+    logic taken;
+    logic[`WDEF(2)] scnt;
+    logic[`XDEF] fallthruAddr;
+    logic[`XDEF] targetAddr;
+    logic[`XDEF] nextAddr;
+} uBTBInfo_t;
 
 // FTB
 typedef struct packed {
@@ -22,30 +30,35 @@ typedef struct packed {
     tarStat_t::_ tarStat;
     logic[`WDEF(`FTB_TARGET_WIDTH)] targetAddr;
     BranchType::_ branch_type;
-    logic[`WDEF(2)] counter;
 } ftbInfo_t;
-
-typedef struct packed{
-    logic[`WDEF(`FTB_TAG_WIDTH)] tag;
-    logic vld;
-    ftbInfo_t info;
-} ftbEntry_t;
 
 //ftq
 typedef struct {
     logic[`XDEF] startAddr;
     logic[`XDEF] endAddr;
+    logic[`XDEF] nextAddr;
     logic taken;
     logic[`XDEF] targetAddr;
-    // meta data
+    // ubtb meta
+    logic hit_on_ubtb;
+    logic ubtb_scnt;
+    // ftb meta
     logic hit_on_ftb;
     BranchType::_ branch_type;
-    logic[`WDEF(2)] ftb_counter;
-} ftqInfo_t;
+} BPInfo_t;
 
 typedef struct {
     logic[`XDEF] startAddr;
-    ftbInfo_t ftb_update;
+    logic[`XDEF] fallthruAddr;
+    logic[`XDEF] targetAddr;
+    BranchType::_ branch_type;
+    logic taken;
+    logic mispred;
+    // original ubtb meta
+    logic hit_on_ubtb;
+    logic[`WDEF(2)] ubtb_scnt;
+    // original ftb meta
+    logic hit_on_ftb;
 } BPupdateInfo_t;
 
 typedef struct {
@@ -87,8 +100,8 @@ package ftbFuncs;
     endfunction
 
     function automatic logic[`WDEF(2)] counterUpdate(logic[`WDEF(2)] source, logic taken);
-        logic[`WDEF(2)] counter_0 = (source==0) ? 0 : source - 1;
-        logic[`WDEF(2)] counter_1 = (source==3) ? 3 : source + 1;
+        logic[`WDEF(2)] counter_0 = ((source==0) ? 0 : source - 1);
+        logic[`WDEF(2)] counter_1 = ((source==3) ? 3 : source + 1);
         counterUpdate = taken ? counter_1 : counter_0;
     endfunction
 

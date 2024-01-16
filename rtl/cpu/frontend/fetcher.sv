@@ -5,6 +5,7 @@
 import "DPI-C" function void fetch_block(uint64_t startAddr, uint64_t endAddr, uint64_t nextAddr, uint64_t falsepred);
 import "DPI-C" function uint64_t build_instmeta(uint64_t pc, uint64_t inst_code);
 import "DPI-C" function void count_fetchToBackend(uint64_t n);
+import "DPI-C" function void count_falsepred(uint64_t n);
 
 // FIXME:
 // we need to check false predict (non-branch inst was predicted taken)
@@ -47,19 +48,19 @@ module fetcher (
     wire toBPU_squash = i_squash_vld || falsepred;
     wire[`XDEF] toBPU_squash_arch_pc = i_squash_vld ? i_squashInfo.arch_pc : falsepred_arch_pc;
 
-    wire toBPU_update_vld;
+    wire toBPU_commit_vld;
     wire toFTQ_update_finished;
     BPupdateInfo_t toBPU_updateInfo;
     wire toBPU_ftq_rdy;
     wire toFTQ_pred_vld;
-    ftqInfo_t toFTQ_pred_ftqInfo;
+    BPInfo_t toFTQ_pred_ftqInfo;
     BPU u_BPU(
         .clk               ( clk ),
         .rst               ( rst ),
         .i_squash_vld      ( toBPU_squash ),
         .i_squash_arch_pc  ( toBPU_squash_arch_pc ),
 
-        .i_update_vld      ( toBPU_update_vld      ),
+        .i_commit_vld      ( toBPU_commit_vld      ),
         .o_update_finished ( toFTQ_update_finished ),
         .i_BPupdateInfo    ( toBPU_updateInfo      ),
 
@@ -94,7 +95,7 @@ module fetcher (
         .o_ftq_rdy              ( toBPU_ftq_rdy      ),
         .i_pred_ftqInfo         ( toFTQ_pred_ftqInfo ),
 
-        .o_bpu_update           ( toBPU_update_vld      ),
+        .o_bpu_commit           ( toBPU_commit_vld      ),
         .i_bpu_update_finished  ( toFTQ_update_finished ),
         .o_BPUupdateInfo        ( toBPU_updateInfo      ),
 
@@ -208,6 +209,7 @@ module fetcher (
                 if (new_inst_vld_wire[0]) begin
                     fetch_block(s2_startAddr, predecInfo_end.fallthru, (s2_falsepred ? s2_falsepred_arch_pc : s2_nextAddr), s2_falsepred);
                 end
+                count_falsepred(s2_falsepred);
                 for (fa = 0; fa < `FETCH_WIDTH; fa=fa+1) begin
                     if (new_inst_vld_wire[fa]) begin
                         new_inst[fa] <= '{
@@ -240,8 +242,11 @@ module fetcher (
 
     // if nonbranch falsepred, set branchtype = condbranch, ste not taken
     assign s2_preDecwbInfo = '{
-        branch_type     : predecInfo_end.isDirect ? BranchType::isDirect : predecInfo_end.isIndirect ? BranchType::isIndirect : BranchType::isCond,
-        rob_idx : 0, // dont care
+        branch_type     : predecInfo_end.isDirect ? BranchType::isDirect :
+                          predecInfo_end.isIndirect ? BranchType::isIndirect :
+                          predecInfo_end.isCond ? BranchType::isCond :
+                          BranchType::isNone,
+        rob_idx         : 0, // dont care
         ftq_idx         : s2_ftqIdx,
         has_mispred     : 1,
         branch_taken    : (predecInfo_end.simplePredNPC == predecInfo_end.target),

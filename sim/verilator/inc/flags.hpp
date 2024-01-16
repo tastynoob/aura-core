@@ -7,8 +7,10 @@
 #include <sstream>
 
 enum DebugFlag {
+    UBTB,
     FTB,
     BPU,
+    BPU_GBH,
 
     FETCH,
     DECODE,

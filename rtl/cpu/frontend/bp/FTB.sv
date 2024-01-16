@@ -24,9 +24,9 @@ module FTB (
     input wire i_lookup_req,
     output wire o_lookup_gnt,
     input wire[`XDEF] i_lookup_pc,
-    output ftbInfo_t o_lookup_ftbInfo,
-    output wire o_lookup_hit,
-    output wire o_lookup_hit_rdy,
+    output wire o_lookup_hit,// s1
+    output wire o_lookup_hit_rdy,// s1
+    output ftbInfo_t o_lookup_ftbInfo,// s2
 
     // do update
     input wire i_update_req,
@@ -52,9 +52,9 @@ module FTB (
         .i_lookup_req     ( i_lookup_req     ),
         .o_lookup_gnt     ( ),// dont care
         .i_lookup_pc      ( i_lookup_pc      ),
-        .o_lookup_info    ( o_lookup_ftbInfo ),
         .o_lookup_hit     ( o_lookup_hit     ),
-        .o_lookup_hit_rdy ( o_lookup_hit_rdy     ),
+        .o_lookup_hit_rdy ( o_lookup_hit_rdy ),
+        .o_lookup_info    ( o_lookup_ftbInfo ),
 
         .i_update_req     ( i_update_req     ),
         .i_update_pc      ( i_update_pc      ),

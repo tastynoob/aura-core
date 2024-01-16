@@ -14,7 +14,7 @@
 `define FTB_SETS 128
 `define FTB_WAYS 4
 
-
+`define BRHISTORYLENGTH 40
 
 
 

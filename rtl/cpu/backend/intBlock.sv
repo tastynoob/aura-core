@@ -318,6 +318,7 @@ if (1) begin: gen_intBlock_IQ0_alu0
         .WIDTH ( FU_NUM*3 + EXTERNAL_WRITEBACK*2 )
     )
     u_bypass_sel_0_src0(
+        .rst           ( rst ),
         .i_src_vld     ( global_bypass_vld     ),
         .i_src_idx     ( global_bypass_rdIdx     ),
         .i_src_data    ( global_bypass_data    ),
@@ -330,6 +331,7 @@ if (1) begin: gen_intBlock_IQ0_alu0
         .WIDTH ( FU_NUM*3 + EXTERNAL_WRITEBACK*2 )
     )
     u_bypass_sel_0_src1(
+        .rst           ( rst ),
         .i_src_vld     ( global_bypass_vld      ),
         .i_src_idx     ( global_bypass_rdIdx  ),
         .i_src_data    ( global_bypass_data     ),
@@ -404,6 +406,7 @@ if (1) begin : gen_intBlock_IQ0_alu1
         .WIDTH ( FU_NUM*3 + EXTERNAL_WRITEBACK*2 )
     )
     u_bypass_sel_0_src0(
+        .rst           ( rst ),
         .i_src_vld     ( global_bypass_vld     ),
         .i_src_idx     ( global_bypass_rdIdx     ),
         .i_src_data    ( global_bypass_data    ),
@@ -416,6 +419,7 @@ if (1) begin : gen_intBlock_IQ0_alu1
         .WIDTH ( FU_NUM*3 + EXTERNAL_WRITEBACK*2 )
     )
     u_bypass_sel_0_src1(
+        .rst           ( rst ),
         .i_src_vld     ( global_bypass_vld      ),
         .i_src_idx     ( global_bypass_rdIdx  ),
         .i_src_data    ( global_bypass_data     ),
@@ -614,6 +618,7 @@ if (1) begin: gen_intBlock_IQ1_alu2
         .WIDTH ( FU_NUM*3 + EXTERNAL_WRITEBACK*2 )
     )
     u_bypass_sel_0_src0(
+        .rst           ( rst ),
         .i_src_vld     ( global_bypass_vld     ),
         .i_src_idx     ( global_bypass_rdIdx     ),
         .i_src_data    ( global_bypass_data    ),
@@ -626,6 +631,7 @@ if (1) begin: gen_intBlock_IQ1_alu2
         .WIDTH ( FU_NUM*3 + EXTERNAL_WRITEBACK*2 )
     )
     u_bypass_sel_0_src1(
+        .rst           ( rst ),
         .i_src_vld     ( global_bypass_vld      ),
         .i_src_idx     ( global_bypass_rdIdx  ),
         .i_src_data    ( global_bypass_data     ),
@@ -702,6 +708,7 @@ if (1) begin : gen_intBlock_IQ1_alu3
         .WIDTH ( FU_NUM*3 + EXTERNAL_WRITEBACK*2 )
     )
     u_bypass_sel_0_src0(
+        .rst           ( rst ),
         .i_src_vld     ( global_bypass_vld     ),
         .i_src_idx     ( global_bypass_rdIdx     ),
         .i_src_data    ( global_bypass_data    ),
@@ -714,6 +721,7 @@ if (1) begin : gen_intBlock_IQ1_alu3
         .WIDTH ( FU_NUM*3 + EXTERNAL_WRITEBACK*2 )
     )
     u_bypass_sel_0_src1(
+        .rst           ( rst ),
         .i_src_vld     ( global_bypass_vld      ),
         .i_src_idx     ( global_bypass_rdIdx  ),
         .i_src_data    ( global_bypass_data     ),

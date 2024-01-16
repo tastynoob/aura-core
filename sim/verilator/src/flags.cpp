@@ -4,8 +4,10 @@
 #include <err.h>
 
 std::map<std::string, DebugFlag> debugflag_name = {
+    {"UBTB", DebugFlag::UBTB},
     {"FTB", DebugFlag::FTB},
     {"BPU" , DebugFlag::BPU},
+    {"BPU_GBH", DebugFlag::BPU_GBH},
     {"FETCH" , DebugFlag::FETCH},
     {"DECODE" , DebugFlag::DECODE},
 

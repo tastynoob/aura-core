@@ -20,9 +20,11 @@ typedef struct {
 } ftqBranchInfo_t;// branch writeback
 
 typedef struct {
+    // ubtb meta
+    logic hit_on_ubtb;
+    logic[`WDEF(2)] ubtb_scnt;
     // ftb meta
     logic hit_on_ftb;
-    logic[`WDEF(2)] ftb_counter;
 } ftqMetaInfo_t;
 
 // DESIGN:
@@ -42,9 +44,9 @@ module FTQ (
     // from BPU
     input wire i_pred_req,
     output wire o_ftq_rdy,
-    input ftqInfo_t i_pred_ftqInfo,
+    input BPInfo_t i_pred_ftqInfo,
     // to BPU update
-    output wire o_bpu_update,
+    output wire o_bpu_commit,
     input wire i_bpu_update_finished,
     output BPupdateInfo_t o_BPUupdateInfo,
 
@@ -83,12 +85,12 @@ module FTQ (
     reg[`WDEF(`FTQ_SIZE)] buffer_vld;
     wire[`WDEF(`FTQ_SIZE)] buffer_mispred;
 
-    wire need_update_ftb;
+    wire bpu_commit;
     wire ftqEmpty = (commit_ptr == pred_ptr) && (cptr_flipped == pptr_flipped);
     wire ftqFull = (commit_ptr == pred_ptr) && (cptr_flipped != pptr_flipped);
     wire[`SDEF(`FTQ_SIZE)] push,pop;
     assign push = (i_pred_req && (!ftqFull) ? 1 : 0);
-    assign pop = ((do_commit && (need_update_ftb ? i_bpu_update_finished : 1)) ? 1 : 0);
+    assign pop = ((do_commit && (bpu_commit ? i_bpu_update_finished : 1)) ? 1 : 0);
     assign o_ftq_rdy = (!ftqFull);
 
     generate
@@ -107,8 +109,6 @@ module FTQ (
     // BPU fetch requet bypass to Icache
     wire BP_bypass = (!ftqFull) && (fetch_ptr == pred_ptr) && do_pred;
     wire do_fetch = ((!ftqEmpty) && (fetch_ptr != pred_ptr) && (!i_stall)) || BP_bypass;
-
-    assign need_update_ftb = (buf_metaInfo[commit_ptr].hit_on_ftb || buffer_mispred[commit_ptr]) && (!train_stop) && do_commit;
 
     always_ff @( posedge clk ) begin
         if (rst) begin
@@ -176,7 +176,7 @@ module FTQ (
 
             // do commit
             if (do_commit) begin
-                if (need_update_ftb ? i_bpu_update_finished : 1) begin
+                if (bpu_commit ? i_bpu_update_finished : 1) begin
                     // FIXME: repeating mispred assert faild
                     assert(buffer_vld[commit_ptr]);
                     buffer_vld[commit_ptr] <= 0;
@@ -215,16 +215,16 @@ module FTQ (
                     startAddr : i_pred_ftqInfo.startAddr,
                     endAddr   : i_pred_ftqInfo.endAddr,
                     taken     : i_pred_ftqInfo.taken,
-                    nextAddr  : i_pred_ftqInfo.taken ? i_pred_ftqInfo.targetAddr : i_pred_ftqInfo.endAddr
+                    nextAddr  : i_pred_ftqInfo.nextAddr
                 };
 
                 buf_metaInfo[pred_ptr] <= '{
-                    hit_on_ftb  : i_pred_ftqInfo.hit_on_ftb,
-                    ftb_counter : i_pred_ftqInfo.ftb_counter
+                    hit_on_ubtb : i_pred_ftqInfo.hit_on_ubtb,
+                    ubtb_scnt   : i_pred_ftqInfo.ubtb_scnt,
+                    hit_on_ftb  : i_pred_ftqInfo.hit_on_ftb
                 };
             end
             if (i_falsepred) begin
-                // should equal BPU falsepred_arch_pc
                 buf_baseInfo[i_preDecodewbInfo.ftq_idx].nextAddr <= i_preDecodewbInfo.branch_npc;
             end
         end
@@ -283,7 +283,7 @@ module FTQ (
                 buf_brInfo[i_preDecodewbInfo.ftq_idx] <= '{
                     preDecodewb    : 1,
                     robIdx         : 0,
-                    mispred        : i_preDecodewbInfo.has_mispred,// default set false
+                    mispred        : i_preDecodewbInfo.has_mispred,
                     taken          : i_preDecodewbInfo.branch_taken,
                     fallthruOffset : i_preDecodewbInfo.fallthruOffset,
                     targetAddr     : i_preDecodewbInfo.target_pc,
@@ -310,28 +310,27 @@ module FTQ (
 /****************************************************************************************************/
 
     wire[`XDEF] temp_fallthruAddr = buf_baseInfo[commit_ptr].startAddr + buf_brInfo[commit_ptr].fallthruOffset;
-    wire train_stop;
-    assign train_stop = ftbFuncs::counterUpdate(buf_metaInfo[commit_ptr].ftb_counter, buf_brInfo[commit_ptr].taken) == buf_metaInfo[commit_ptr].ftb_counter;
 
-    wire update_vld;
     BPupdateInfo_t new_updateInfo;
-
-    assign update_vld = need_update_ftb;
     assign new_updateInfo = '{
-        startAddr : buf_baseInfo[commit_ptr].startAddr,
-        // generate new ftb entry
-        // TODO: optimize it
-        ftb_update : '{
-            carry        : temp_fallthruAddr[`FTB_FALLTHRU_WIDTH+1] != buf_baseInfo[commit_ptr].startAddr[`FTB_FALLTHRU_WIDTH+1],
-            fallthruAddr : temp_fallthruAddr[`FTB_FALLTHRU_WIDTH:1],
-            tarStat      : ftbFuncs::calcuTarStat(buf_baseInfo[commit_ptr].startAddr, buf_brInfo[commit_ptr].targetAddr),
-            targetAddr   : buf_brInfo[commit_ptr].targetAddr[`FTB_TARGET_WIDTH:1],
-            branch_type  : buf_brInfo[commit_ptr].branch_type,
-            counter      : ftbFuncs::counterUpdate(buf_metaInfo[commit_ptr].ftb_counter, buf_brInfo[commit_ptr].taken)
-        }
+        startAddr    : buf_baseInfo[commit_ptr].startAddr,
+        fallthruAddr : temp_fallthruAddr,
+        targetAddr   : buf_brInfo[commit_ptr].targetAddr,
+        branch_type  : buf_brInfo[commit_ptr].branch_type,
+        taken        : buf_brInfo[commit_ptr].taken,
+        mispred      : buffer_mispred[commit_ptr],
+        // ubtb meta
+        hit_on_ubtb  : buf_metaInfo[commit_ptr].hit_on_ubtb,
+        ubtb_scnt    : buf_metaInfo[commit_ptr].ubtb_scnt,
+        // ftb meta
+        hit_on_ftb   : buf_metaInfo[commit_ptr].hit_on_ftb
     };
 
-    assign o_bpu_update = update_vld;
+    assign bpu_commit =
+        (buf_brInfo[commit_ptr].branch_type != BranchType::isNone) &&
+        (buf_metaInfo[commit_ptr].hit_on_ftb || buf_metaInfo[commit_ptr].hit_on_ubtb || buffer_mispred[commit_ptr])
+        && do_commit;
+    assign o_bpu_commit = bpu_commit;
     assign o_BPUupdateInfo = new_updateInfo;
 
 /****************************************************************************************************/
@@ -360,7 +359,7 @@ module FTQ (
         // fetchBlock_size = 4 * n
         fetchBlock_size : i_pred_ftqInfo.endAddr - i_pred_ftqInfo.startAddr,
         taken : i_pred_ftqInfo.taken,
-        nextAddr : i_pred_ftqInfo.taken ? i_pred_ftqInfo.targetAddr : i_pred_ftqInfo.endAddr
+        nextAddr : i_pred_ftqInfo.nextAddr
     };
 
     assign o_icache_fetchInfo = BP_bypass ? BP_bypass_fetchInfo : fetchInfo;

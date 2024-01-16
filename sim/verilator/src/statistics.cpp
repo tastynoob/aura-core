@@ -23,17 +23,21 @@ void dumpStats() {
 
 void InstMeta::print()
 {
-    char c;
-    DPRINTF(PIPELINE, "%s ", base().c_str());
+    DPRINTF(PIPELINE, "%s %s F%lu ", base().c_str(), disassembly().c_str(), active_tick[AT_fetch]/2);
     for (int i=InstPos::AT_fetch; i<InstPos::AT_wb; i++) {
-        c = '0' + i - InstPos::AT_fetch;
         assert(active_tick[i+1] >= active_tick[i]);
         uint64_t cycle = (active_tick[i+1] - active_tick[i]) / 2;
-        for (int j=0;j<cycle;j++) {
-            DPRINTD(PIPELINE, "%c", c);
-        }
+        DPRINTD(PIPELINE, "%lu:", cycle);
     }
     DPRINTD(PIPELINE, "C\n");
+}
+
+std::string InstMeta::disassembly()
+{
+    if (meta[MetaKeys::META_ISBRANCH]) {
+        return "branch";
+    }
+    return "normal";
 }
 
 
@@ -90,6 +94,7 @@ extern "C" {
 
     uint64_t build_instmeta(uint64_t pc, uint64_t inst_code) {
         auto inst = instMonitor.create();
+        inst->code = inst_code;
         inst->pc = pc;
         inst->active_tick[InstPos::AT_fetch] = curTick();
         DPRINTF(FETCH, "%s build inst code: %08lx\n", inst->base().c_str(), inst_code);
@@ -143,12 +148,29 @@ extern "C" {
 
 
 extern "C" {
+    void ubtb_update_new_block(uint64_t startAddr, uint64_t fallthru, uint64_t target, uint64_t scnt) {
+        DPRINTF(UBTB, "update new block [%lx : %lx) tar> %lx scnt %lu\n", startAddr, fallthru, target, scnt);
+    }
+
     void ftb_update_new_block(uint64_t startAddr, uint64_t fallthru, uint64_t target) {
         DPRINTF(FTB, "update new block [%lx : %lx) tar> %lx\n", startAddr, fallthru, target);
     }
 
-    void bpu_predict_block(uint64_t startAddr, uint64_t endAddr, uint64_t nextAddr, uint64_t use_ftb) {
-        DPRINTF(BPU, "bpu predict block [%lx : %lx) -> %lx by %s\n", startAddr, endAddr, nextAddr, use_ftb ? "FTB" : "NONE");
+    void bpu_update_arch_gbh(const svLogicVecVal* gbr, uint64_t len) {
+        char buf[512];
+        for (int i=0; i<len; i++) {
+            uint32_t bit = (gbr[i / 32].aval >> (i%32)) & 0x1;
+            buf[i] = bit + '0';
+        }
+        buf[len] = 0;
+        DPRINTF(BPU_GBH, "arch gbh: >%s\n", buf);
+    }
+
+    void bpu_predict_block(uint64_t startAddr, uint64_t endAddr, uint64_t nextAddr, uint64_t select) {
+        const char* dst = select == 0 ? "none" :
+                          select == 1 ? "ubtb" :
+                          "none";
+        DPRINTF(BPU, "bpu predict block [%lx : %lx) -> %lx by %s\n", startAddr, endAddr, nextAddr, dst);
     }
 
     void fetch_block(uint64_t startAddr, uint64_t endAddr, uint64_t nextAddr, uint64_t falsepred) {
@@ -197,9 +219,11 @@ extern "C" {
     void commit_idle(uint64_t c) {
         perfAccumulate("commitIdle (cycle)", c);
     }
-}
 
-extern "C" {
+    void count_falsepred(uint64_t n) {
+        perfAccumulate("BPU falsepred", n);
+    }
+
     void count_bpuGeneratedBlock(uint64_t n) {
         perfAvgAccumulate("avg BPU predicted block size to backend per cycle (byte)", n);
     }

@@ -2,7 +2,11 @@
 `include "funcs.svh"
 import funcs::*;
 
-
+typedef struct packed{
+    logic[`WDEF(`FTB_TAG_WIDTH)] tag;
+    logic vld;
+    ftbInfo_t info;
+} ftbEntry_t;
 
 module FTB_sram #(
     parameter int SETS = 32,
@@ -14,11 +18,11 @@ module FTB_sram #(
 
     // lookup
     input wire i_lookup_req,
-    output wire o_lookup_gnt,
+    output wire o_lookup_gnt,// s0
     input wire[`XDEF] i_lookup_pc,
-    output ftbInfo_t o_lookup_info,
-    output wire o_lookup_hit,
-    output wire o_lookup_hit_rdy,
+    output wire o_lookup_hit, // s1
+    output wire o_lookup_hit_rdy, // s1
+    output ftbInfo_t o_lookup_info,// s2
 
     // update
     input wire i_update_req, // s0: lookup for update, s1: write for update

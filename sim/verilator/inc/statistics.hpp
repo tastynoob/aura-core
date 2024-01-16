@@ -34,6 +34,7 @@ enum MetaKeys {
 
 struct InstMeta
 {
+    uint32_t code;
     uint64_t seq = ~0;
     uint64_t pc = ~0;
     
@@ -55,6 +56,8 @@ struct InstMeta
     std::string base() { return std::format("[sn {:d} pc {:x}]", seq, pc); }
 
     void print();
+
+    std::string disassembly();
 };
 
 

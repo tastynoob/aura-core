@@ -4,6 +4,7 @@
 module bypass_sel #(
     parameter int WIDTH = 4
 )(
+    input wire rst,
     input wire[`WDEF(WIDTH)] i_src_vld,
     input iprIdx_t i_src_idx[WIDTH],
     input wire[`XDEF] i_src_data[WIDTH],
@@ -23,7 +24,7 @@ module bypass_sel #(
                 o_target_vld = true;
             end
         end
-        assert(temp < 2);
+        assert((rst ? 0 : temp) < 2);
     end
 
 endmodule

@@ -6,6 +6,7 @@
 
 package BranchType;
     typedef enum logic[2:0] {
+        isNone = 0,
         isCond,
         isDirect,
         isIndirect,

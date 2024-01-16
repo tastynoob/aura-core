@@ -100,7 +100,8 @@ module alu_bru (
     (saved_fuInfo.micOp == MicOp_t::jalr) && (saved_fuInfo.iprd_idx == 0) ? BranchType::isRet : //FIXME: iprs[0] should is 1
     (saved_fuInfo.micOp == MicOp_t::jalr) ? BranchType::isIndirect :
     (saved_fuInfo.micOp == MicOp_t::jal) ? BranchType::isDirect :
-    BranchType::isCond;
+    ((saved_fuInfo.micOp >= MicOp_t::beq) && (saved_fuInfo.micOp <= MicOp_t::bgeu)) ? BranchType::isCond :
+    BranchType::isNone;
 
     reg fu_finished;
     comwbInfo_t comwbInfo;
