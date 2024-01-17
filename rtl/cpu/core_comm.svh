@@ -16,7 +16,7 @@
 
 `define FTQ_SIZE 32
 `define IPHYREG_NUM 80
-`define IMMBUFFER_SIZE 40
+`define IMMBUFFER_SIZE 60
 `define ROB_SIZE 128
 `define INTDQ_SIZE 16
 `define MEMDQ_SIZE 16

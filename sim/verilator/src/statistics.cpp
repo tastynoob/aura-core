@@ -2,12 +2,14 @@
 #include <fstream>
 #include <ostream>
 #include <map>
+#include "riscv-disasm/disasm.h"
 #include "statistics.hpp"
 #include "flags.hpp"
 using namespace std;
 
 std::map<const char*,uint64_t> statsPerf;
 std::map<const char*,uint64_t> avgStatsPerf;
+disassembler_t* disasm = new disassembler_t(64);
 
 void dumpStats() {
     ofstream fs("stats.txt",std::ios::out);
@@ -34,10 +36,7 @@ void InstMeta::print()
 
 std::string InstMeta::disassembly()
 {
-    if (meta[MetaKeys::META_ISBRANCH]) {
-        return "branch";
-    }
-    return "normal";
+    return disasm->disassemble(code);
 }
 
 

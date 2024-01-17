@@ -181,9 +181,15 @@ extern "C" void arch_commitInst(
     const uint64_t instmeta_ptr) {
     // update arch rename mapping
     assert(logic_idx < 32);
+    arch_int_renameMapping[logic_idx] = physic_idx;
+    assert(arch_int_renameMapping[0] == 0);
 
     InstMeta* inst = read_instmeta(instmeta_ptr);
-    DPRINTF(COMMIT, "%s commit\n", inst->base().c_str());
+    DPRINTF(COMMIT, "%s %s", inst->base().c_str(), inst->disassembly().c_str());
+    if (logic_idx != 0) {
+        DPRINTD(COMMIT, " res: %lx", arch_readIntReg(logic_idx));
+    }
+    DPRINTD(COMMIT, "\n");
     if (debugChecker.checkFlag(DebugFlag::PIPELINE)) {
         inst->print();
     }
@@ -193,9 +199,6 @@ extern "C" void arch_commitInst(
     if (!diffState.enable_diff) {
         return;
     }
-    
-    arch_int_renameMapping[logic_idx] = physic_idx;
-    assert(arch_int_renameMapping[0] == 0);
 
     diffState.ref_this_pc = diffState.ref_reg->pc;
     refProxy.exec(1);

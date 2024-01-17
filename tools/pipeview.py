@@ -2,7 +2,7 @@ import re
 
 
 
-debugFlag_pipeline_re = r"\d+ DebugFlag-PIPELINE: \[sn (\d+) pc ([\da-zA-Z]+)\] ([a-zA-z]+) F(\d+) ([\d:]+C)"
+debugFlag_pipeline_re = r"\d+ DebugFlag-PIPELINE: \[sn (\d+) pc ([\da-zA-Z]+)\] ([a-zA-z ,.0-9-+]+) F(\d+) ([\d:]+C)"
 
 debugFlag_pipeline_pattern = re.compile(debugFlag_pipeline_re)
 
@@ -37,6 +37,6 @@ def fparser(file):
             printPipe(res)
             
 
-fparser('/home/lurker/workspace/O3CPU/aura-core/log.txt')
+fparser('log.txt')
 
 

@@ -3,7 +3,7 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/sim/**",
+                "${workspaceFolder}/sim/verilator/inc",
                 "${workspaceFolder}/build",
                 "/usr/local/share/verilator/include",
                 "/usr/local/share/verilator/include/vltstd"

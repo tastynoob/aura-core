@@ -4,7 +4,7 @@ import "DPI-C" function void ubtb_update_new_block(uint64_t uindex, uint64_t sta
 
 import "DPI-C" function void ubtb_loookup(uint64_t lookup_pc, uint64_t tag, uint64_t index);
 
-`define TAG_WIDTH 8
+`define TAG_WIDTH 9
 `define TARGET_WIDTH 11 // actually is (11+1)
 
 typedef struct packed {
@@ -73,6 +73,7 @@ module uBTB #(
     assign uindex_btb = i_update_pc[$clog2(DEPTH):1] ^ i_update_pc[2*$clog2(DEPTH):$clog2(DEPTH)+1];
     assign uindex_pht = i_update_pc[$clog2(PHTDEPTH):1] ^ i_arch_gbh[$clog2(PHTDEPTH)-1:0];
     assign utag = (i_update_pc[`TAG_WIDTH:1] ^ i_update_pc[2*`TAG_WIDTH:`TAG_WIDTH+1]);
+
     assign ufallthruOffset = (i_updateInfo.fallthruAddr - i_update_pc);
     assign utargetAddr = i_updateInfo.targetAddr[`TARGET_WIDTH:1];
 
