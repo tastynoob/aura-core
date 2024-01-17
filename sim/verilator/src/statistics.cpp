@@ -147,9 +147,15 @@ extern "C" {
 
 
 extern "C" {
-    void ubtb_loookup(uint64_t lookup_pc, uint64_t tag, uint64_t index) {
-        DPRINTF(UBTB, "lookup pc: %lx, tag: %lx, index: %ld\n", lookup_pc, tag, index);
+    void ubtb_loookup(uint64_t lookup_pc, uint64_t endAddr, uint64_t targetAddr, uint64_t hit, uint64_t taken, uint64_t index) {
+        if (hit) {
+            DPRINTF(UBTB, "ubtb hit index %d [%lx : %lx) -> %lx\n", index, lookup_pc, endAddr, taken ? targetAddr : endAddr);
+        }
+        else {
+            DPRINTF(UBTB, "ubtb miss index %d %lx\n", index, lookup_pc);
+        }
     }
+
     void ubtb_update_new_block(uint64_t uindex, uint64_t startAddr, uint64_t fallthru, uint64_t target, uint64_t scnt) {
         DPRINTF(UBTB, "update new block uindex %ld [%lx : %lx) tar> %lx scnt %lu\n", uindex, startAddr, fallthru, target, scnt);
     }
@@ -285,29 +291,8 @@ extern "C" {
         }
     }
 
-    void count_falsepred(uint64_t n, uint64_t reason) {
-        // 0 : inst leak branch was not end
-        // 1 : nonBranch was predicted branch
-        // 2 : condBranch's targetAddr or fallthru not match
-        // 3 : jal
-        switch (reason)
-        {
-        case 0:
-            perfAccumulate("BPU falsepred::inst_leak", n);
-            break;
-        case 1:
-            perfAccumulate("BPU falsepred::badBranch", n);
-            break;
-        case 2:
-            perfAccumulate("BPU falsepred::condBranch_badAddr", n);
-            break;
-        case 3:
-            perfAccumulate("BPU falsepred::jal", n);
-            break;
-        default:
-            assert(false);
-            break;
-        }
+    void count_falsepred(uint64_t n) {
+        perfAccumulate("BPU falsepred:", n);
     }
 
     void count_bpuGeneratedBlock(uint64_t n) {

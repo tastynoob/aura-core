@@ -56,12 +56,13 @@ module BPU (
             arch_gbh <= 0;
         end
         else begin
-            if (commit_finish && (i_BPupdateInfo.branch_type == BranchType::isCond)) begin
+            if (commit_finish) begin
                 arch_gbh <= nxt_arch_gbh;
                 bpu_update_arch_gbh(nxt_arch_gbh, `BRHISTORYLENGTH);
             end
+
             if (squash_dueToBackend) begin
-                if (commit_finish && (i_BPupdateInfo.branch_type == BranchType::isCond)) begin
+                if (commit_finish) begin
                     spec_gbh <= nxt_arch_gbh;
                     bpu_update_spec_gbh(nxt_arch_gbh, `BRHISTORYLENGTH, 1);
                 end
@@ -114,13 +115,14 @@ module BPU (
 /****************************************************************************************************/
     wire update_ubtb;
     uBTBInfo_t ubtbUpdateInfo;
-    assign update_ubtb = i_commit_vld && (i_BPupdateInfo.branch_type == BranchType::isCond);
+    assign update_ubtb = i_commit_vld;
     assign ubtbUpdateInfo = '{
         hit          : 0,// ignore
         taken        : i_BPupdateInfo.taken,
         fallthruAddr : i_BPupdateInfo.fallthruAddr,
         targetAddr   : i_BPupdateInfo.targetAddr,
-        nextAddr     : 0// ignore
+        nextAddr     : 0, // ignore
+        branch_type  : i_BPupdateInfo.branch_type
     };
 
     assign nxt_spec_gbh = {spec_gbh[`BRHISTORYLENGTH-2:0], ubtbInfo.taken};

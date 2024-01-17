@@ -14,6 +14,7 @@ import "DPI-C" function void ftq_commit(
                             uint64_t targetAddr,
                             uint64_t taken,
                             uint64_t branchType);
+import "DPI-C" function void count_falsepred(uint64_t n);
 
 typedef struct {
     logic[`XDEF] startAddr;
@@ -96,6 +97,7 @@ module FTQ (
     ftqMetaInfo_t buf_metaInfo[`FTQ_SIZE];
 
     reg[`WDEF(`FTQ_SIZE)] buffer_vld;
+    reg[`WDEF(`FTQ_SIZE)] falsepred_vec;
     wire[`WDEF(`FTQ_SIZE)] buffer_mispred;
 
     wire bpu_commit;
@@ -131,6 +133,7 @@ module FTQ (
             commit_ptr <= 0;
             commit_ptr_thre <= 0;
             buffer_vld <= 0;
+            falsepred_vec <= 0;
             pptr_flipped <= 0;
             fptr_flipped <= 0;
             cptr_flipped <= 0;
@@ -174,6 +177,7 @@ module FTQ (
                     // do pred
                     assert(buffer_vld[pred_ptr] == 0);
                     buffer_vld[pred_ptr] <= 1;
+                    falsepred_vec[pred_ptr] <= 0;
                     pred_ptr <= (pred_ptr == (`FTQ_SIZE - 1)) ? 0 : pred_ptr + 1;
                     pptr_flipped <= (pred_ptr == (`FTQ_SIZE - 1)) ? ~pptr_flipped : pptr_flipped;
                 end
@@ -196,6 +200,10 @@ module FTQ (
                     buffer_vld[commit_ptr] <= 0;
                     commit_ptr <= (commit_ptr == (`FTQ_SIZE - 1)) ? 0 : commit_ptr + 1;
                     cptr_flipped <= (commit_ptr == (`FTQ_SIZE - 1)) ? ~cptr_flipped : cptr_flipped;
+
+                    if (falsepred_vec[commit_ptr]) begin
+                        count_falsepred(1);
+                    end
                 end
             end
 
@@ -231,13 +239,13 @@ module FTQ (
                     taken     : i_pred_ftqInfo.taken,
                     nextAddr  : i_pred_ftqInfo.nextAddr
                 };
-
                 buf_metaInfo[pred_ptr] <= '{
                     hit_on_ubtb : i_pred_ftqInfo.hit_on_ubtb,
                     hit_on_ftb  : i_pred_ftqInfo.hit_on_ftb
                 };
             end
             if (i_falsepred) begin
+                falsepred_vec[i_preDecodewbInfo.ftq_idx] <= 1;
                 buf_baseInfo[i_preDecodewbInfo.ftq_idx].nextAddr <= i_preDecodewbInfo.branch_npc;
             end
         end

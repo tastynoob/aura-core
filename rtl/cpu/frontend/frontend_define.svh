@@ -20,6 +20,7 @@ typedef struct {
     logic[`XDEF] fallthruAddr;
     logic[`XDEF] targetAddr;
     logic[`XDEF] nextAddr;
+    BranchType::_ branch_type;
 } uBTBInfo_t;
 
 // FTB

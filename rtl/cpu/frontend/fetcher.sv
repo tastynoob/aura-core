@@ -12,7 +12,6 @@ import "DPI-C" function void fetch_block(
 );
 import "DPI-C" function uint64_t build_instmeta(uint64_t pc, uint64_t inst_code);
 import "DPI-C" function void count_fetchToBackend(uint64_t n);
-import "DPI-C" function void count_falsepred(uint64_t n, uint64_t reason);
 
 // FIXME:
 // we need to check false predict (non-branch inst was predicted taken)
@@ -222,14 +221,6 @@ module fetcher (
                                 (s2_startAddr + s2_fetchblock_size),
                                 s2_nextAddr,
                                 s2_falsepred);
-                end
-                if (s2_falsepred) begin
-                    count_falsepred(1,
-                        falsepred_nonBrWasBr ? 1:
-                        falsepred_condBrNotMatch ? 2:
-                        falsepred_jal ? 3 :
-                        inst_leak ? 0 : 4
-                    );
                 end
 
                 for (fa = 0; fa < `FETCH_WIDTH; fa=fa+1) begin
