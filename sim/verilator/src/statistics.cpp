@@ -220,9 +220,8 @@ extern "C" {
             "call",
             "ret"
         };
-        uint64_t nextAddr = taken ? targetAddr : endAddr;
-        DPRINTF(FTQ, "bru writeTo FTQ [%lx : %lx) -> %lx by %s mispred: %lx, taken: %lx\n",
-                startAddr, endAddr, nextAddr, btype[branchType], mispred, taken);
+        DPRINTF(FTQ, "bru writeTo FTQ [%lx : %lx) tar> %lx by %s mispred: %lx, taken: %lx\n",
+                startAddr, endAddr, targetAddr, btype[branchType], mispred, taken);
     }
 
     void fetch_block(uint64_t startAddr, uint64_t endAddr, uint64_t nextAddr, uint64_t predEndAddr, uint64_t predNextAddr, uint64_t falsepred) {

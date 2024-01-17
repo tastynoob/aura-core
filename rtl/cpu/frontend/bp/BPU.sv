@@ -44,7 +44,6 @@ module BPU (
     wire commit_finish;
     assign commit_finish = (i_commit_vld && o_update_finished);
 
-
     reg[`WDEF(`BRHISTORYLENGTH)] spec_gbh;
     wire[`WDEF(`BRHISTORYLENGTH)] nxt_spec_gbh;
 
