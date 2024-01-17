@@ -19,8 +19,6 @@ module issueQue_mem #(
     input wire clk,
     input wire rst,
 
-    // input i_stall, // no need
-
     //enq
     output wire o_can_enq,
     input wire[`WDEF(INOUTPORT_NUM)] i_enq_req,
@@ -116,7 +114,7 @@ module issueQue_mem #(
         end
 
         for(i=0;i<DEPTH;i=i+1) begin : gen_for2
-            assign entry_ready[i] = buffer[i].vld && (&(buffer[i].src_rdy | buffer[i].src_spec_rdy)) && (buffer[i].issued == 0);
+            assign entry_ready[i] = buffer[i].vld && (&(buffer[i].src_rdy | buffer[i].src_spec_rdy)) && buffer[i].memdep_rdy && (buffer[i].issued == 0);
         end
 
         for (i=0;i<INOUTPORT_NUM;i=i+1) begin:gen_for4
@@ -147,6 +145,7 @@ module issueQue_mem #(
                     buffer[enq_idx[fa]].src_rdy <= i_enq_iprs_rdy[fa];
                     buffer[enq_idx[fa]].src_spec_rdy <= i_enq_iprs_rdy[fa];
                 end
+
                 if (!i_fu_busy[fa]) begin
                     //save selected entry's Idx
                     saved_deq_find_ready[fa] <= deq_find_ready[fa];

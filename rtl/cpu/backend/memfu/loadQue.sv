@@ -1,24 +1,22 @@
 `include "backend_config.svh"
 
-
-// if loadpipe tlb hit and permission denied, write except by loadpipe
-
-// lq's except only record if cache refill
 typedef struct {
     logic vld;
     logic finished;// load is writebacked, can be committed
+    // pointer
     robIdx_t rob_idx;
+    sqIdx_t sq_idx;
     iprIdx_t iprd_idx;
-    logic addr_vld;
-    logic[`WDEF(`XDEF/8)] load_vec;// maybe: (1 << [1, 2, 4, 8]) - 1
 
-    paddr_t paddr; // {cacheblk addr, offset}
-    logic[`XDEF] vaddr;// debug
+    logic vaddr_vld;
+    logic paddr_vld;
+    logic[`XDEF] vaddr;
+    paddr_t paddr;
+    logic[`WDEF(`XDEF/8)] load_vec;// maybe: ((1 << [1, 2, 4, 8]) - 1) << addr[2:0]
 
-    logic miss;// cache miss
-    // the following only used at cachemiss
-    logic has_except; // exception, if tlb hit, exception writeback by loadpipe
-    rv_trap_t::exception except;// maybe: loadMisaligned, loadFault
+    logic cachemiss;// cache miss, need listen for cache refill
+    logic has_except; // exception, such as addr misaligned, loadfault, pagefault
+    rv_trap_t::exception except;
 
     logic[`WDEF(`XDEF/8)] vld_vec;// mask which byte was vld
     logic[`XDEF] val; // if load is miss, val will wait for refill data or store forward
@@ -40,15 +38,20 @@ module loadQue #(
     input wire i_enq_vld,
     input wire [`WDEF(INPORT_NUM)] i_enq_req,
     input memDQEntry_t i_enq_data[INPORT_NUM],
-    output lqIdx_t o_alloc_lqIdx[INPORT_NUM]
+    output lqIdx_t o_alloc_lqIdx[INPORT_NUM],
 
     // loadQue should listen to loadpipe
     // loadIQ issue s0
 
+    // from/to loadque
+    load2que_if.s if_load2que[`LDU_NUM],
+
+    sta2ldque_if.s if_sta2ldque[`STU_NUM]
+
 
 
 );
-    genvar i;
+    genvar i,j;
 
     wire[`WDEF(INPORT_NUM)] real_enq_vld = o_can_enq && i_enq_vld ? i_enq_req : 0;
     wire[`WDEF(INPORT_NUM)] real_deq_vld = i_deq_req & o_can_deq;
@@ -121,6 +124,20 @@ module loadQue #(
             // commit
 
             // update status
+
+
+            for (fa = 0; fa < `LDU_NUM; fa=fa+1) begin
+                if (if_load2que[fa].s0_vld) begin
+                    buff[if_load2que[fa].s0_lqIdx.idx].vaddr_vld <= 1;
+                    buff[if_load2que[fa].s0_lqIdx.idx].vaddr <= if_load2que[fa].s0_vaddr;
+                    buff[if_load2que[fa].s0_lqIdx.idx].load_vec <= if_load2que[fa].s0_load_vec;
+                end
+
+                if (if_load2que[fa].s1_vld) begin
+                    buff[if_load2que[fa].s0_lqIdx.idx].paddr_vld <= 0;
+                    
+                end
+            end
         end
     end
 
@@ -132,6 +149,31 @@ module loadQue #(
             };
         end
     endgenerate
+
+
+    // check violation
+
+    wire[`WDEF(DEPTH)] violation_vec[`STU_NUM];
+
+    generate
+        for (i=0;i<`STU_NUM;i=i+1) begin
+            for (j=0;j<DEPTH;j=j+1) begin
+                assign violation_vec[i][j] = buff[j].vld && buff[j].addr_vld && if_sta2ldque[i].s0_vld &&
+                    (buff[j].sq_idx >= if_sta2ldque[i].s0_sqIdx) &&
+                    (buff[j].vaddr[`XLEN-1 : 3] == if_sta2ldque[i].s0_sta_vaddr[`XLEN-1:3]) &&
+                    (buff[j].load_vec & if_sta2ldque[i].s0_store_vec != 0);
+            end
+        end
+    endgenerate
+
+
+    LQEntry_t oldest_buff;
+    always_comb begin
+        int ca;
+        for (ca=0;ca<DEPTH;ca=ca+1) begin
+            
+        end
+    end
 
 endmodule
 

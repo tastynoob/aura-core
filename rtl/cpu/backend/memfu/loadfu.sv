@@ -56,13 +56,15 @@ module loadfu (
     wire[`WDEF(`XLEN/8)] s0_load_vec;
     wire[`WDEF($clog2(`CACHELINE_SIZE))] s0_load_size;
     wire[`XDEF] s0_vaddr;
+    wire[`WDEF(3)] s0_addrLow3;
     wire loadaddr_misaligned;
     assign s0_vaddr = s0_fuInfo.srcs[0] + s0_fuInfo.srcs[1];
+    assign s0_addrLow3 = s0_vaddr[2:0];
     assign s0_load_vec =
-    ((s0_fuInfo.micOp == MicOp_t::lb) || (s0_fuInfo.micOp == MicOp_t::lbu)) ? 8'b0000_0001 :
+    (((s0_fuInfo.micOp == MicOp_t::lb) || (s0_fuInfo.micOp == MicOp_t::lbu)) ? 8'b0000_0001 :
     ((s0_fuInfo.micOp == MicOp_t::lh) || (s0_fuInfo.micOp == MicOp_t::lhu)) ? 8'b0000_0011 :
     ((s0_fuInfo.micOp == MicOp_t::lw) || (s0_fuInfo.micOp == MicOp_t::lwu)) ? 8'b0000_1111 :
-    8'b1111_1111 ;
+    8'b1111_1111) << s0_addrLow3;
 
     assign s0_load_size =
     ((s0_fuInfo.micOp == MicOp_t::lb) || (s0_fuInfo.micOp == MicOp_t::lbu)) ? 1 :
@@ -70,11 +72,10 @@ module loadfu (
     ((s0_fuInfo.micOp == MicOp_t::lw) || (s0_fuInfo.micOp == MicOp_t::lwu)) ? 4 :
     8 ;
 
-    // dont care
-    assign loadaddr_misaligned = (s0_vaddr[$clog2(`CACHELINE_SIZE)-1 : 0] + s0_load_size <= `CACHELINE_SIZE);
+    assign loadaddr_misaligned = (s0_vaddr[3:0] & (s0_load_size - 1)) != 0;
 
     /********************/
-    // s0: send vaddr to tlb, tag sram
+    // s0: send vaddr to tlb, cache
     assign if_load2cache.s0_req = s0_vld;
     assign if_load2cache.s0_lqIdx = s0_fuInfo.lq_idx;
     assign if_load2cache.s0_vaddr = s0_vaddr;// fully addr
