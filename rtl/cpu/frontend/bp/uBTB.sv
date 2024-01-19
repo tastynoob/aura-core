@@ -42,8 +42,8 @@ module uBTB #(
     wire[`WDEF($clog2(DEPTH))] index_btb;
     wire[`WDEF($clog2(PHTDEPTH))] index_pht;
     wire[`WDEF(`TAG_WIDTH)] tag;
-    assign index_btb = i_lookup_pc[$clog2(DEPTH):1];
-    assign index_pht = i_lookup_pc[$clog2(PHTDEPTH):1] ^ i_gbh[$clog2(PHTDEPTH)-1:0];
+    assign index_btb = i_lookup_pc[$clog2(DEPTH)+1:2];
+    assign index_pht = i_lookup_pc[$clog2(PHTDEPTH)+1:2] ^ i_gbh[$clog2(PHTDEPTH)-1:0];
     assign tag = (i_lookup_pc[`TAG_WIDTH:1] ^ i_lookup_pc[2*`TAG_WIDTH:`TAG_WIDTH+1]);
 
     uBTBEntry_t indexed_data;
@@ -72,8 +72,8 @@ module uBTB #(
     wire[`WDEF(`TAG_WIDTH)] utag;
     wire[`WDEF($clog2(`FTB_PREDICT_WIDTH))] ufallthruOffset;
     wire[`WDEF(`TARGET_WIDTH)] utargetAddr;
-    assign uindex_btb = i_update_pc[$clog2(DEPTH):1];
-    assign uindex_pht = i_update_pc[$clog2(PHTDEPTH):1] ^ i_arch_gbh[$clog2(PHTDEPTH)-1:0];
+    assign uindex_btb = i_update_pc[$clog2(DEPTH)+1:2];
+    assign uindex_pht = i_update_pc[$clog2(PHTDEPTH)+1:2] ^ i_arch_gbh[$clog2(PHTDEPTH)-1:0];
     assign utag = (i_update_pc[`TAG_WIDTH:1] ^ i_update_pc[2*`TAG_WIDTH:`TAG_WIDTH+1]);
 
     assign ufallthruOffset = (i_updateInfo.fallthruAddr - i_update_pc);
@@ -106,7 +106,9 @@ module uBTB #(
                     targetAddr : utargetAddr,
                     branch_type : i_updateInfo.branch_type
                 };
-                pht[uindex_pht] <= ftbFuncs::counterUpdate(pht[uindex_pht], i_updateInfo.taken);
+                if (i_updateInfo.branch_type == BranchType::isCond) begin
+                    pht[uindex_pht] <= ftbFuncs::counterUpdate(pht[uindex_pht], i_updateInfo.taken);
+                end
                 ubtb_update_new_block(uindex_btb, i_update_pc, i_updateInfo.fallthruAddr, i_updateInfo.targetAddr,
                     ftbFuncs::counterUpdate(pht[uindex_pht], i_updateInfo.taken));
             end
