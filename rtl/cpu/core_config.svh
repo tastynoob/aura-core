@@ -61,24 +61,6 @@
 //the int Inst needs at least 2 srcs
 `define NUMSRCS_INT 2
 
-// cache region fast define
-`define BLKDEF `WDEF(`XLEN - $clog2(`CACHELINE_SIZE))
-`define BLK_RANGE `XLEN - 1 : $clog2(`CACHELINE_SIZE)
-
-`define BLOCKADDR(x) ((``x``)>>$clog2(`CACHELINE_SIZE))
-`define PADDR(x) ``x``[`PALEN-1:0]
-
-//int logic register index def
-`define ILRIDX_DEF `WDEF($clog2(32))
-//flt logic register index def
-`define FLRIDX_DEF `ILRIDX_DEF
-//xlen fast define
-`define XDEF `WDEF(`XLEN)
-//instruction fast define
-`define IDEF `WDEF(32)
-//commpressed instruction fast define
-`define CIDEF `WDEF(16)
-
 
 
 

@@ -1,15 +1,5 @@
 `include "core_define.svh"
 
-
-typedef struct {
-    logic vld; //unused in compressed RS
-    logic issued; // flag issued
-    logic[`WDEF(`NUMSRCS_INT)] src_rdy; // which src is ready
-    logic[`WDEF(`NUMSRCS_INT)] src_spec_rdy; // which src is speculative ready
-
-    intExeInfo_t info;
-} IQEntry;
-
 //use uncompressed scheme
 //uncompressed scheme must use with read-regfile befor issue
 //it must has the same number of in and out ports
@@ -74,6 +64,15 @@ module issueQue #(
     input wire[`WDEF(WBPORT_NUM)] i_wb_vld,
     input iprIdx_t i_wb_rdIdx[WBPORT_NUM]
 );
+
+    typedef struct {
+        logic vld; //unused in compressed RS
+        logic issued; // flag issued
+        logic[`WDEF(`NUMSRCS_INT)] src_rdy; // which src is ready
+        logic[`WDEF(`NUMSRCS_INT)] src_spec_rdy; // which src is speculative ready
+
+        intExeInfo_t info;
+    } IQEntry;
 
     genvar i;
 

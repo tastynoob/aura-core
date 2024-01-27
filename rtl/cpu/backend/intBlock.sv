@@ -44,6 +44,8 @@ module intBlock #(
     // immBuffer read
     output irobIdx_t o_immB_idx[`ALU_NUM],
     input imm_t i_imm_data[`ALU_NUM],
+    // csr access
+    csrrw_if.m if_csrrw,
 
     // read ftq_startAddress (to ftq)
     output ftqIdx_t o_read_ftqIdx[`BRU_NUM],
@@ -84,7 +86,8 @@ module intBlock #(
 
     generate
         for(i=0;i<INPUT_NUM;i=i+1) begin : gen_for
-            assign select_alu[i] = i_disp_req[i] && (i_disp_info[i].issueQue_id == `ALUIQ_ID);
+            // NOTE: serialized inst must goto IQ0 and issue to alu0
+            assign select_alu[i] = i_disp_req[i] && (i_disp_info[i].issueQue_id == `ALUIQ_ID || i_disp_info[i].issueQue_id == `SCUIQ_ID);
             assign select_bru[i] = i_disp_req[i] && (i_disp_info[i].issueQue_id == `BRUIQ_ID);
 
             if (i==0) begin : gen_if
@@ -350,7 +353,9 @@ if (1) begin: gen_intBlock_IQ0_alu0
         iprd_idx : s1_IQ0_inst_info[IQ0_fuID].iprd_idx,
         srcs : {
             alu_bypass_vld[0] ? alu_bypass_data[0] : i_iprs_data[intBlock_fuID][0],
-            s1_IQ0_inst_info[IQ0_fuID].use_imm ? {{44{s1_irob_imm[intBlock_fuID][19]}},s1_irob_imm[intBlock_fuID]} : (alu_bypass_vld[1] ? alu_bypass_data[1] : i_iprs_data[intBlock_fuID][1])
+            (s1_IQ0_inst_info[IQ0_fuID].issueQue_id == `SCUIQ_ID) ? if_csrrw.read_val :
+                s1_IQ0_inst_info[IQ0_fuID].use_imm ? {{44{s1_irob_imm[intBlock_fuID][19]}},s1_irob_imm[intBlock_fuID]} :
+                (alu_bypass_vld[1] ? alu_bypass_data[1] : i_iprs_data[intBlock_fuID][1])
         },// need bypass
         ftqOffset : 0,
         pc : 0,
@@ -362,22 +367,45 @@ if (1) begin: gen_intBlock_IQ0_alu0
         instmeta : s1_IQ0_inst_info[IQ0_fuID].instmeta
     };
 
+    csrIdx_t scu_csrIdx;
+    assign scu_csrIdx = s1_irob_imm[intBlock_fuID][16:5];
+    wire[`WDEF(5)] scu_zimm = s1_irob_imm[intBlock_fuID][4:0];
+    wire scu_write_csr =
+        (fu_info.issueQue_id == `SCUIQ_ID) && (s1_IQ0_inst_info[IQ0_fuID].iprs_idx[0] != 0);
+    wire scu_read_csr = (fu_info.issueQue_id == `SCUIQ_ID) && s1_IQ0_inst_info[IQ0_fuID].rd_wen;
+
+    assign if_csrrw.access =
+        s1_IQ0_inst_vld[IQ0_fuID] && (scu_write_csr || scu_read_csr);
+    assign if_csrrw.read_idx = scu_csrIdx;
+
     //fu0
-    alu u_alu(
+    alu_scu u_alu_scu(
         .clk               ( clk                ),
-        .rst               ( rst || i_squash_vld                ),
+        .rst               ( rst || i_squash_vld ),
 
         .o_fu_stall        ( fu_stall         ),
         .i_vld             ( s1_IQ0_inst_vld[IQ0_fuID] ),
         .i_fuInfo          ( fu_info          ),
 
+        .i_illegal_access_csr ( if_csrrw.illegal ),
+        .i_zimm               ( scu_zimm             ),
+        .i_write_csr          ( scu_write_csr        ),
+        .i_csrIdx             ( scu_csrIdx           ),
+
         .o_willwrite_vld   ( internal_bypass_wb_vld[intBlock_fuID]  ),
         .o_willwrite_rdIdx ( internal_bypass_iprdIdx[intBlock_fuID] ),
         .o_willwrite_data  ( internal_bypass_data[intBlock_fuID]    ),
 
-        .i_wb_stall        ( i_wb_stall[intBlock_fuID]     ),
-        .o_fu_finished          ( fu_finished[intBlock_fuID]         ),
-        .o_comwbInfo          ( comwbInfo[intBlock_fuID]         )
+        .o_has_except      ( o_exceptwb_vld  ),
+        .o_exceptwbInfo    ( o_exceptwb_info ),
+
+        .i_wb_stall         ( i_wb_stall[intBlock_fuID]     ),
+        .o_fu_finished      ( fu_finished[intBlock_fuID]    ),
+        .o_comwbInfo        ( comwbInfo[intBlock_fuID]      ),
+
+        .o_write_csr        ( if_csrrw.write       ),
+        .o_write_csrIdx     ( if_csrrw.write_idx   ),
+        .o_write_new_csr    ( if_csrrw.write_val   )
     );
 end
 endgenerate
@@ -793,9 +821,6 @@ endgenerate
     assign fu_finished[FU_NUM-1:4] = 0;
     assign o_comwbInfo = comwbInfo;
     assign o_fu_finished = fu_finished;
-
-    assign o_branchWB_vld = 0;
-    assign o_exceptwb_vld = 0;
 
 
     reg[`WDEF(FU_NUM)] pat1_wb_vld;

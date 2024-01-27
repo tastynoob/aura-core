@@ -9,6 +9,8 @@ import "DPI-C" function void arch_commitInst(
     uint64_t instmeta_ptr
 );
 
+import "DPI-C" function void arch_commit_except();
+
 import "DPI-C" function void squash_pipe(uint64_t isMispred);
 import "DPI-C" function void cycle_step();
 import "DPI-C" function void commit_idle(uint64_t c);
@@ -53,7 +55,7 @@ module ROB(
     // TODO; trap control
     // from/to csr
     input csr_in_pack_t i_csr_pack,
-    output csr_out_pack_t o_csr_pack,
+    output trap_pack_t o_trap_pack,
 
     // from dispatch insert, enque
     output wire o_can_enq,
@@ -97,6 +99,8 @@ module ROB(
     input wire[`XDEF] i_read_ftqStartAddr,
 
     // pipeline control
+    output wire o_can_dispatch_serialize,
+    output wire o_commit_serialized_inst,
     output wire o_squash_vld,
     output squashInfo_t o_squashInfo
 );
@@ -138,6 +142,7 @@ module ROB(
     // NOTE: if commited insts has multi fetchblock ends
     // we need to stall, only commit first one fetchblock
     ftqOffset_t ftqOffset_buffer[`ROB_SIZE];
+    wire dataQue_empty;
     wire[`WDEF(`RENAME_WIDTH)] enq_vld;
     wire[`WDEF($clog2(`ROB_SIZE))] enq_idx[`RENAME_WIDTH];
     dataQue
@@ -154,6 +159,7 @@ module ROB(
         .clk              ( clk             ),
         .rst              ( rst || squash_vld ),
         .i_stall          ( commit_stall    ),
+        .o_empty          ( dataQue_empty   ),
 
         .o_can_enq        ( o_can_enq       ),
         .i_enq_vld        ( i_enq_vld       ),
@@ -267,22 +273,30 @@ module ROB(
         `ASSERT(count_one(temp_1) <= 1);
     endgenerate
 
+    wire[`WDEF(`COMMIT_WIDTH)] except_vec = (shr.squash_type==SQUASH_EXCEPT) ? temp_1 : 0;
     assign has_except = (shr.squash_type==SQUASH_EXCEPT) && (|temp_1);
     assign has_mispred = (shr.squash_type==SQUASH_MISPRED) && (|temp_1);
 
 /****************************************************************************************************/
 
     assign canCommit_vld = temp_0;
-    assign o_read_ftqIdx = commit_end_inst.ftq_idx;
 
+    robIdx_t except_robIdx;
     always_comb begin
         int ca;
         commit_end_inst = willCommit_data[0];
         prev_commit_rob_idx = willCommit_idx[0];
+
+        o_read_ftqIdx = willCommit_data[0].ftq_idx;
+        except_robIdx = willCommit_idx[0];
         for(ca=0;ca<`COMMIT_WIDTH;ca=ca+1) begin
             if(canCommit_vld[ca]) begin
                 commit_end_inst = willCommit_data[ca];
                 prev_commit_rob_idx = willCommit_idx[ca];
+            end
+            if (except_vec[ca]) begin
+                o_read_ftqIdx = willCommit_data[ca].ftq_idx;
+                except_robIdx = willCommit_idx[ca];
             end
         end
     end
@@ -302,33 +316,37 @@ module ROB(
     wire[`XDEF] trap_ret_pc;
     reg last_commit_isRVC;
     ftqOffset_t ftqOffset;
+    reg do_except;
     always_ff @( posedge clk ) begin
         if (rst || squash_vld) begin
             status <= commit_status_t::normal;
             commit_stall <= 0;
             squash_vld <= 0;
+            do_except <= 0;
         end
         else begin
             // pipe: (| commit and read ftq (normal) | (trapProcess) | squash)
             // 0                              1               2
             if ((has_except || has_interrupt) && (status==commit_status_t::normal)) begin
                 // s1: stall and read ftq;
+                do_except <= 1;
                 commit_stall <= 1;
                 status <= commit_status_t::trapProcess;
                 // NOTE: if has except, commit_end_inst = (excepted inst - 1)
                 last_commit_isRVC <= commit_end_inst.isRVC;
                 // read from rob
-                ftqOffset <= ftqOffset_buffer[prev_commit_rob_idx];
+                ftqOffset <= ftqOffset_buffer[except_robIdx.idx];
             end
             else if (status == commit_status_t::trapProcess) begin
                 // s2: compute the squashInfo
                 // compute the trap return address
-                squash_vld <= true;
+                do_except <= 0;
+                squash_vld <= 1;
                 squashInfo.dueToBranch <= 0;
                 squashInfo.dueToViolation <= 0;
                 squashInfo.branch_taken <= 0;
                 //// TODO: trap address select
-                squashInfo.arch_pc <= has_interrupt ? i_csr_pack.tvec + (0) : i_csr_pack.tvec;
+                squashInfo.arch_pc <= (has_interrupt ? (i_csr_pack.tvec + (0)) : i_csr_pack.tvec);
                 // TODO:
                 // if has interrupt, we must wait for a safe cycle
                 // if has trap: mepc = has_mispred ? shr.npc : i_read_ftqStartAddr + ftqOffset + isRVC ? 2:4
@@ -337,7 +355,7 @@ module ROB(
             end
             else if (has_mispred) begin
                 squash_pipe(1);
-                squash_vld <= true;
+                squash_vld <= 1;
                 squashInfo.dueToBranch <= has_mispred;
                 squashInfo.dueToViolation <= 0;
                 squashInfo.branch_taken <= shr.branch_taken;
@@ -348,30 +366,55 @@ module ROB(
 
     assign o_read_ftq_Vld = (has_except || has_interrupt);
 
+    // top inst is serialized and not commit
+    assign o_can_dispatch_serialize = ((!canCommit_vld[0]) && (!dataQue_empty) && willCommit_data[0].serialized);
+    // top inst is serialized and commit
+    assign o_commit_serialized_inst = (canCommit_vld[0] && willCommit_data[0].serialized);
     assign o_squash_vld = squash_vld;
     assign o_squashInfo = squashInfo;
 
     assign last_commit_pc = i_read_ftqStartAddr + ftqOffset;
     assign trap_ret_pc = last_commit_pc + (last_commit_isRVC ? 2:4);
 
+    assign o_trap_pack = '{
+        has_trap : do_except,
+        epc      : last_commit_pc,
+        cause    : has_interrupt ? 0 :
+                   {{`XLEN - `TRAPCODE_WIDTH{1'b0}}, shr.except_type},
+        tval     : 0
+    };
+
     // for debug
+    longint unsigned cycle_count;
+    longint unsigned lastCommitCycle;
     int AAA_committedInst;
     always_ff @(posedge clk) begin
         int fa;
         cycle_step();
         if (rst) begin
+            cycle_count <= 0;
+            lastCommitCycle <= 0;
             AAA_committedInst <= 0;
         end
         else if ((!squash_vld) && (!commit_stall)) begin
+            cycle_count <= cycle_count + 1;
+            if (cycle_count - lastCommitCycle > 100) begin
+                assert(false); // cpu stucked
+            end
+
             AAA_committedInst <= AAA_committedInst + funcs::count_one(canCommit_vld);
             for (fa =0; fa <`COMMIT_WIDTH; fa=fa+1) begin
                 if (canCommit_vld[fa]) begin
+                    lastCommitCycle <= cycle_count;
                     arch_commitInst(
                         0, // dest type
                         willCommit_data[fa].ilrd_idx,
                         willCommit_data[fa].iprd_idx,
                         willCommit_data[fa].instmeta
                     );
+                end
+                if (except_vec[fa]) begin
+                    arch_commit_except();
                 end
             end
         end

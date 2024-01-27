@@ -46,7 +46,7 @@ module alu_bru (
 // alu
 /****************************************************************************************************/
 
-    `include "alu_tmp.svh"
+    `include "alu.svh.tmp"
 
 /****************************************************************************************************/
 // bru
@@ -120,8 +120,8 @@ module alu_bru (
             comwbInfo.rd_wen <= saved_fuInfo.rd_wen;
             comwbInfo.iprd_idx <= saved_fuInfo.iprd_idx;
             comwbInfo.result <= o_willwrite_data;
-
             if (saved_vld) begin
+                assert(saved_fuInfo.issueQue_id == `ALUIQ_ID || saved_fuInfo.issueQue_id == `BRUIQ_ID);
                 update_instPos(saved_fuInfo.instmeta, difftest_def::AT_wb);
             end
 

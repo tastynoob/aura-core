@@ -13,6 +13,8 @@ module dispatch (
     input wire rst,
 
     input wire i_squash_vld,
+    input wire i_can_dispatch_serialize,
+    input wire i_commit_serialize,
 
     // to rename
     output wire o_stall,
@@ -75,6 +77,7 @@ module dispatch (
     intDQEntry_t new_intDQEntry[`RENAME_WIDTH];
     memDQEntry_t new_memDQEntry[`RENAME_WIDTH];
 
+    robIdx_t oldest_except_robIdx;
     rv_trap_t::exception oldest_except;
 
     // new rob entry
@@ -98,6 +101,7 @@ module dispatch (
                 ilrd_idx        : i_enq_inst[i].ilrd_idx,
                 iprd_idx        : i_enq_inst[i].iprd_idx,
                 prev_iprd_idx   : i_enq_inst[i].prev_iprd_idx,
+                serialized       : i_enq_inst[i].need_serialize,
 
                 instmeta        : i_enq_inst[i].instmeta
             };
@@ -136,10 +140,12 @@ module dispatch (
     endgenerate
     always_comb begin
         int ca;
+        oldest_except_robIdx = i_alloc_robIdx[`RENAME_WIDTH-1];
         oldest_except = i_enq_inst[`RENAME_WIDTH-1].except;
         for(ca=`RENAME_WIDTH-1;ca>=0;ca=ca-1) begin
             if (i_enq_vld[ca] && i_enq_inst[ca].has_except) begin
                 oldest_except = i_enq_inst[ca].except;
+                oldest_except_robIdx = i_alloc_robIdx[ca];
             end
         end
     end
@@ -191,7 +197,7 @@ module dispatch (
                 has_except[fa] <= insert_rob_vld[fa] && i_enq_inst[fa].has_except && can_dispatch;
             end
             oldest_except_info <= '{
-                rob_idx : i_alloc_robIdx[fa],
+                rob_idx : oldest_except_robIdx,
                 except_type: oldest_except
             };
         end
@@ -207,6 +213,7 @@ module dispatch (
 // int dispQue
 /****************************************************************************************************/
 
+    wire[`WDEF(`INTDQ_DISP_WID)] intDQ_disp_vec;
     dispQue
     #(
         .DEPTH       ( `INTDQ_SIZE     ),
@@ -224,12 +231,60 @@ module dispatch (
         .i_enq_req  ( insert_intDQ_vld    ),
         .i_enq_data ( new_intDQEntry      ),
 
-        .o_can_deq  ( o_intDQ_deq_req  ),
+        .o_can_deq  ( intDQ_disp_vec  ),
         .i_deq_req  ( i_intDQ_deq_vld  ),
         .o_deq_data ( o_intDQ_deq_info )
     );
 
+    /* verilator lint_off UNOPTFLAT */
+    wire[`WDEF(`INTDQ_DISP_WID)] serialize_front;
+    wire[`WDEF(`INTDQ_DISP_WID)] need_serialize;
 
+    generate
+        for (i=0; i<`INTDQ_DISP_WID; i=i+1) begin
+            assign need_serialize[i] =
+                    intDQ_disp_vec[i] & (o_intDQ_deq_info[i].issueQue_id == `SCUIQ_ID);
+            if (i==0) begin
+                assign serialize_front[i] =
+                        intDQ_disp_vec[i] & (o_intDQ_deq_info[i].issueQue_id != `SCUIQ_ID);
+            end
+            else begin
+                assign serialize_front[i] =
+                        intDQ_disp_vec[i] & serialize_front[i-1] & (o_intDQ_deq_info[i].issueQue_id != `SCUIQ_ID);
+            end
+        end
+    endgenerate
+
+    reg[`WDEF(2)] status;
+
+    always_ff @( posedge clk ) begin
+        if (rst || i_squash_vld) begin
+            status <= 0;
+        end
+        else begin
+            if (status== 0 && (|need_serialize)) begin
+                status <= 1; // disp inst in front
+            end
+            else if (status == 1 && i_can_dispatch_serialize) begin
+                status <= 2; // disp serialied inst
+            end
+            else if (status == 2) begin
+                assert (i_intDQ_deq_vld == 1);
+                status <= 3; // finish disp serialied inst
+            end
+            else if (status == 3 && i_commit_serialize) begin
+                status <= 0;
+            end
+        end
+    end
+
+
+    assign o_intDQ_deq_req =
+            status==0 ? serialize_front :
+            status==1 ? 0 :
+            status==2 ? 1 :
+            status==3 ? 0 :
+            0;
 /****************************************************************************************************/
 // mem dispQue
 /****************************************************************************************************/

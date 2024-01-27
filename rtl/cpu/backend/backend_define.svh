@@ -163,6 +163,7 @@ typedef struct {
     ilrIdx_t ilrd_idx;
     iprIdx_t iprd_idx;
     iprIdx_t prev_iprd_idx;
+    logic serialized;
 
     logic[`XDEF] instmeta;
 } ROBEntry_t;

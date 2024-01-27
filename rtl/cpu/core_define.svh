@@ -57,26 +57,6 @@ typedef struct {
 // use spec-arch to restore core status
 
 
-typedef struct packed {
-    // trap info
-    logic interrupt_vectored;
-    logic[1:0] level;
-    logic[`XDEF] status;
-    logic[`XDEF] tvec;
-} csr_in_pack_t;
-
-typedef struct packed {
-    // trap handle
-    logic has_trap;
-    logic[`XDEF] epc;
-    logic[`XDEF] cause;
-    logic[`XDEF] tval;
-    logic[`IDEF] tinst;
-    logic[`IDEF] tval2;
-    //
-} csr_out_pack_t;
-
-
 typedef struct {
     logic dueToBranch;
     logic dueToViolation;

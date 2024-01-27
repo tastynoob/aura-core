@@ -30,6 +30,8 @@ module exeBlock(
     // read ftqOffste (to rob)
     output wire[`WDEF($clog2(`ROB_SIZE))] o_read_robIdx[`BRU_NUM],
     input ftqOffset_t i_read_ftqOffset[`BRU_NUM],
+    // csr access
+    csrrw_if.m if_csrrw,
 
     // writeback to rob
     // common writeback
@@ -130,6 +132,8 @@ module exeBlock(
 
         .o_immB_idx          ( o_read_irob_idx  ),
         .i_imm_data          ( i_read_irob_data ),
+
+        .if_csrrw            ( if_csrrw ),
 
         .o_read_ftqIdx       ( o_read_ftqIdx       ),
         .i_read_ftqStartAddr ( i_read_ftqStartAddr ),

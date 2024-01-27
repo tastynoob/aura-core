@@ -41,7 +41,7 @@ module alu (
     wire[`XDEF] src0 = saved_fuInfo.srcs[0];
     wire[`XDEF] src1 = saved_fuInfo.srcs[1];
 
-    `include "alu_tmp.svh"
+    `include "alu.svh.tmp"
 
     reg fu_finished;
     comwbInfo_t comwbInfo;
@@ -58,6 +58,7 @@ module alu (
             comwbInfo.iprd_idx <= saved_fuInfo.iprd_idx;
             comwbInfo.result <= calc_data;
             if (saved_vld) begin
+                assert(saved_fuInfo.issueQue_id == `ALUIQ_ID);
                 update_instPos(saved_fuInfo.instmeta, difftest_def::AT_wb);
             end
         end

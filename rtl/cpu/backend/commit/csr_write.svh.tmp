@@ -1,0 +1,21 @@
+`CSR_MSTATUS : begin
+    mstatus <= (i_write_val & `MSTATUS_WRITE_MASK) | (mstatus & (~(`MSTATUS_WRITE_MASK)));
+end
+`CSR_MIE : begin
+    mie <= i_write_val & `MIP_MIE_WRITE_MASK;
+end
+`CSR_MTVEC : begin
+    mtvec <= i_write_val;
+end
+`CSR_MEPC : begin
+    mepc <= i_write_val;
+end
+`CSR_MCAUSE : begin
+    mcause <= i_write_val;
+end
+`CSR_MTVAL : begin
+    mtval <= i_write_val;
+end
+`CSR_MIP : begin
+    mip <= i_write_val & `MIP_MIE_WRITE_MASK;
+end

@@ -249,7 +249,7 @@ module decoder (
     wire isIntMath = isAdd | isSub | isShift | isLogic | isCompare;
     // replace rs2 to imm
     wire isImmMath = inst_ADDI | inst_ADDIW | inst_SLLI | inst_SLLIW | inst_SRLI | inst_SRLIW | inst_SRAI | inst_SRAIW | inst_ANDI | inst_ORI | inst_XORI | inst_SLTI | inst_SLTIU ;
-    wire use_imm = isImmMath | isCondBranch | inst_JAL | inst_JALR | inst_AUIPC | inst_LUI;
+    wire use_imm = isImmMath | isCondBranch | isUncondBranch | inst_AUIPC | inst_LUI | isCSR;
 
     wire[`WDEF(5)] ilrd_idx = inst[11:7];
     wire[`WDEF(5)] ilrs1_idx = inst[19:15];
@@ -336,8 +336,10 @@ module decoder (
     //issueQue select
     wire[`WDEF(2)] issueQue_id =
     (isIntMath | isImmMath | inst_LUI) ? `ALUIQ_ID :
+    (isCondBranch | isUncondBranch | inst_AUIPC) ? `BRUIQ_ID :
     (isMul | isDiv) ? `MDUIQ_ID :
-    `BRUIQ_ID;
+    (isCSR) ? `SCUIQ_ID :
+    0;
 
     //ALU
     MicOp_t::_alu aluop_type;
@@ -360,6 +362,18 @@ module decoder (
     (inst_SLTU | inst_SLTIU) ? MicOp_t::sltu :
     MicOp_t::none;
     wire use_alu = (aluop_type != MicOp_t::none);
+
+    //SCU
+    MicOp_t::_scu scuop_type;
+    assign scuop_type =
+        inst_CSRRW ? MicOp_t::csrrw :
+        inst_CSRRC ? MicOp_t::csrrc :
+        inst_CSRRS ? MicOp_t::csrrs :
+        inst_CSRRWI ? MicOp_t::csrrwi :
+        inst_CSRRCI ? MicOp_t::csrrci :
+        inst_CSRRSI ? MicOp_t::csrrsi :
+        MicOp_t::none;
+    wire use_scu = (scuop_type != MicOp_t::none);
 
     //BRU
     MicOp_t::_bru bruop_type;
@@ -398,6 +412,7 @@ module decoder (
     assign o_decinfo.isRVC = isRVC;
     assign o_decinfo.ismv = ismv;
     assign o_decinfo.imm20 = imm;
+    assign o_decinfo.need_serialize = isCSR;
     assign o_decinfo.rd_wen = rd_wen;
     assign o_decinfo.ilrd_idx = (rd_wen ? ilrd_idx : 0);
     assign o_decinfo.ilrs_idx[0] = has_rs1 ? ilrs1_idx : 0;
@@ -408,6 +423,7 @@ module decoder (
 
     assign o_decinfo.micOp_type =
     use_alu ? aluop_type :
+    use_scu ? scuop_type :
     use_bru ? bruop_type :
     use_mdu ? mduop_type :
     0;

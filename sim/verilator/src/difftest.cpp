@@ -196,54 +196,61 @@ extern "C" void arch_commitInst(
 
     perfAccumulate("committedInsts", 1);
     perfAvgAccumulate("ipc", 1);
-    if (!diffState.enable_diff) {
-        return;
-    }
-
-    diffState.ref_this_pc = diffState.ref_reg->pc;
-    refProxy.exec(1);
-    refProxy.regcpy(diffState.ref_reg, DIFFTEST_TO_DUT);
-    diffState.ref_next_pc = diffState.ref_reg->pc;
-
-    bool difftest_failed = false;
-    if (inst->pc != diffState.ref_this_pc) {
-        printf("%s diff at pc, this: %lx, ref: %lx\n", inst->base().c_str(), inst->pc, diffState.ref_this_pc);
-        difftest_failed = true;
-    }
-
+    
     bool active_exit = false;
     if (inst->meta[MetaKeys::META_ISBRANCH]) {
-        if (inst->meta[MetaKeys::META_NPC] == 0x4321 && !difftest_failed) {
+        if (inst->meta[MetaKeys::META_NPC] == 0x4321) {
             active_exit = true;
-        }
-        else if (inst->meta[MetaKeys::META_NPC] != diffState.ref_next_pc) {
-            printf("%s diff at npc, this: %lx, ref: %lx\n", inst->base().c_str(), inst->meta[MetaKeys::META_NPC], diffState.ref_next_pc);
-            difftest_failed = true;
-        }
-        perfAccumulate("committedBranches", 1);
-        if (inst->meta[MetaKeys::META_MISPRED]) {
-            perfAccumulate("branchMispred", 1);
-        }
-
-        if (inst->meta[MetaKeys::META_NPC] > inst->pc) {
-            perfAccumulate("branchJumpForward (npc > pc)", 1);
-        }
-        else {
-            perfAccumulate("branchJumpBackward (npc <= pc)", 1);
         }
     }
 
-    if (logic_idx != 0) {
-        uint64_t aura_val, ref_val;
-        const char* str = "none";
-        if (dst_type == DEST_TYPE::INT) {
-            aura_val = arch_readIntReg(logic_idx);
-            ref_val = diffState.ref_reg->gpr[logic_idx]._64;
-            str = "x";
-        }
-        if (aura_val != ref_val) {
-            printf("%s diff at reg %s%lu, this: %lx, ref: %lx\n", inst->base().c_str(), str, logic_idx, aura_val, ref_val);
+    // difftest
+    bool difftest_failed = false;
+    if (diffState.enable_diff) {
+
+        diffState.ref_this_pc = diffState.ref_reg->pc;
+        refProxy.exec(1);
+        refProxy.regcpy(diffState.ref_reg, DIFFTEST_TO_DUT);
+        diffState.ref_next_pc = diffState.ref_reg->pc;
+
+        if (inst->pc != diffState.ref_this_pc) {
+            printf("%s diff at pc, this: %lx, ref: %lx\n", inst->base().c_str(), inst->pc, diffState.ref_this_pc);
             difftest_failed = true;
+        }
+
+        if (inst->meta[MetaKeys::META_ISBRANCH]) {
+            if (inst->meta[MetaKeys::META_NPC] == 0x4321 && !difftest_failed) {
+                active_exit = true;
+            }
+            else if (inst->meta[MetaKeys::META_NPC] != diffState.ref_next_pc) {
+                printf("%s diff at npc, this: %lx, ref: %lx\n", inst->base().c_str(), inst->meta[MetaKeys::META_NPC], diffState.ref_next_pc);
+                difftest_failed = true;
+            }
+            perfAccumulate("committedBranches", 1);
+            if (inst->meta[MetaKeys::META_MISPRED]) {
+                perfAccumulate("branchMispred", 1);
+            }
+
+            if (inst->meta[MetaKeys::META_NPC] > inst->pc) {
+                perfAccumulate("branchJumpForward (npc > pc)", 1);
+            }
+            else {
+                perfAccumulate("branchJumpBackward (npc <= pc)", 1);
+            }
+        }
+
+        if (logic_idx != 0) {
+            uint64_t aura_val, ref_val;
+            const char* str = "none";
+            if (dst_type == DEST_TYPE::INT) {
+                aura_val = arch_readIntReg(logic_idx);
+                ref_val = diffState.ref_reg->gpr[logic_idx]._64;
+                str = "x";
+            }
+            if (aura_val != ref_val) {
+                printf("%s diff at reg %s%lu, this: %lx, ref: %lx\n", inst->base().c_str(), str, logic_idx, aura_val, ref_val);
+                difftest_failed = true;
+            }
         }
     }
 
@@ -263,6 +270,16 @@ extern "C" void arch_commitInst(
         debugChecker.clearFlags();
         diffState.enable_diff = false;
         mark_exit(true);
+    }
+}
+
+
+extern "C" void arch_commit_except() {
+    if (diffState.enable_diff) {
+        diffState.ref_this_pc = diffState.ref_reg->pc;
+        refProxy.exec(1);
+        refProxy.regcpy(diffState.ref_reg, DIFFTEST_TO_DUT);
+        diffState.ref_next_pc = diffState.ref_reg->pc;
     }
 }
 

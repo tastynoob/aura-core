@@ -16,6 +16,7 @@ module dataQue #(
     input wire clk,
     input wire rst,
     input wire i_stall, // only for rob
+    output wire o_empty,
     // enq data
     output wire o_can_enq,
     input wire i_enq_vld, // only when enq_vld is true, dataQue can enq
@@ -103,6 +104,7 @@ module dataQue #(
     /* verilator lint_off UNOPTFLAT */
     wire[`WDEF(INPORT_NUM)] can_clear_vld;
 
+    assign o_empty = (count == 0);
     assign o_enq_vld = real_enq_vld;
     assign o_enq_idx = enq_ptr;
 

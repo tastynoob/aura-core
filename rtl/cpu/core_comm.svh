@@ -2,13 +2,28 @@
 `define __CORE_COMM_SVH__
 
 `include "base.svh"
-`include "core_priv.svh"
 
 `define FTB_PREDICT_WIDTH 24 // byte
 `define CACHELINE_SIZE 32 // Byte
 `define XLEN 64
 `define XLEN_64
 `define INIT_PC 64'h0000000080000000
+
+// cache region fast define
+`define BLKDEF `WDEF(`XLEN - $clog2(`CACHELINE_SIZE))
+`define BLK_RANGE `XLEN - 1 : $clog2(`CACHELINE_SIZE)
+
+`define BLOCKADDR(x) ((``x``)>>$clog2(`CACHELINE_SIZE))
+`define PADDR(x) ``x``[`PALEN-1:0]
+
+//int logic register index def
+`define ILRIDX_DEF `WDEF($clog2(32))
+//flt logic register index def
+`define FLRIDX_DEF `ILRIDX_DEF
+//xlen fast define
+`define XDEF `WDEF(`XLEN)
+//instruction fast define
+`define IDEF `WDEF(32)
 
 `define CSRIDX_DEF `WDEF(12)
 `define PCDEF `WDEF(64)
@@ -27,6 +42,8 @@
 `define SSIT_SIZE 1024
 `define MEMDEP_FOLDPC_WIDTH $clog2(`SSIT_SIZE)
 `define LFST_SIZE 32
+
+`include "core_priv.svh"
 
 typedef logic[`WDEF(`PALEN)] paddr_t;
 
@@ -60,9 +77,9 @@ package rv_trap_t;
 //mtvec mode:
 //0:Direct All exceptions set pc to BASE.
 //1:Vectored Asynchronous interrupts set pc to BASE+4×cause.
-
+`define TRAPCODE_WIDTH 16
     // mcause (actually, 16bits mcause reg is enough)
-    typedef enum logic[`WDEF(16)]{
+    typedef enum logic[`WDEF(`TRAPCODE_WIDTH)]{
         //instruction fetch and decode
         pcMisaligned=0, // instruction address misaligned
         fetchFault=1, // instruction access fault
@@ -85,7 +102,7 @@ package rv_trap_t;
         badDivisor=24, // div/fdiv, it would not to throw trap in standard riscv
         reserved_exception
     }exception;
-    typedef enum logic[`WDEF(16)]{
+    typedef enum logic[`WDEF(`TRAPCODE_WIDTH)]{
         sSoft=1, // Supervisor software interrupt
         mSoft=3,
         sTimer=5, // Supervisor timer interrupt
@@ -97,9 +114,6 @@ package rv_trap_t;
     }interrupt;
 
 endpackage
-
-
-`include "core_comm.svh"
 
 
 `endif

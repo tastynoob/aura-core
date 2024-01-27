@@ -14,6 +14,8 @@ module ctrlBlock (
     input wire[`WDEF(`FETCH_WIDTH)] i_inst_vld,
     input fetchEntry_t i_inst[`FETCH_WIDTH],
 
+    csrrw_if.s if_csrrw,
+
     // read immBuffer (clear when writeback)
     input irobIdx_t i_read_irob_idx[`IMMBUFFER_READPORT_NUM],
     output imm_t o_read_irob_data[`IMMBUFFER_READPORT_NUM],
@@ -226,10 +228,15 @@ module ctrlBlock (
 
     assign toMemDep_alloc_robIdx = toDispatch_alloc_robIdx;
 
+    wire toDisp_disp_serialize;
+    wire toDisp_commit_serialize;
+
     dispatch u_dispatch(
         .clk                      ( clk                 ),
         .rst                      ( rst || o_squash_vld ),
         .i_squash_vld             ( o_squash_vld    ),
+        .i_can_dispatch_serialize ( toDisp_disp_serialize   ),
+        .i_commit_serialize       ( toDisp_commit_serialize ),
 
         .o_stall                  ( toRename_stall  ),
 
@@ -268,29 +275,32 @@ module ctrlBlock (
         end
     endgenerate
 
+    csr_in_pack_t toROB_csr_pack;
+    trap_pack_t toPriv_trap_pack;
+
     ROB u_ROB(
         .clk                   ( clk                   ),
         .rst                   ( rst                   ),
 
-        .i_csr_pack            (            ),
-        .o_csr_pack            (            ),
+        .i_csr_pack            ( toROB_csr_pack   ),
+        .o_trap_pack           ( toPriv_trap_pack ),
 
-        .o_can_enq             ( toDispatch_can_insert             ),
-        .i_enq_vld             ( toROB_insert_vld             ),
-        .i_enq_req             ( toROB_insert_req             ),
+        .o_can_enq             ( toDispatch_can_insert ),
+        .i_enq_vld             ( toROB_insert_vld      ),
+        .i_enq_req             ( toROB_insert_req      ),
 
-        .i_insert_rob_ismv     ( toROB_insert_ismv     ),
+        .i_insert_rob_ismv     ( toROB_insert_ismv         ),
         .i_new_entry           ( toROB_new_entry           ),
         .i_new_entry_ftqOffset ( toROB_new_enrty_ftqOffset ),
-        .o_alloc_robIdx        ( toDispatch_alloc_robIdx        ),
+        .o_alloc_robIdx        ( toDispatch_alloc_robIdx   ),
 
-        .i_read_ftqOffset_idx  ( i_read_ftqOffset_idx ),
+        .i_read_ftqOffset_idx  ( i_read_ftqOffset_idx  ),
         .o_read_ftqOffset_data ( o_read_ftqOffset_data ),
 
-        .i_fu_finished         ( i_fu_finished             ),
-        .i_comwbInfo           ( i_comwbInfo             ),
-        .i_branchwb_vld        ( i_branchwb_vld       ),
-        .i_branchwb_info       ( i_branchwb_info      ),
+        .i_fu_finished         ( i_fu_finished   ),
+        .i_comwbInfo           ( i_comwbInfo     ),
+        .i_branchwb_vld        ( i_branchwb_vld  ),
+        .i_branchwb_info       ( i_branchwb_info ),
         .i_exceptwb_vld        ( i_exceptwb_vld || toROB_disp_exceptwb_vld ),
         .i_exceptwb_info       ( i_exceptwb_vld ? i_exceptwb_info : toROB_disp_exceptwb_info ),
 
@@ -303,13 +313,31 @@ module ctrlBlock (
         .o_rename_commitInfo   ( toRename_commitInfo  ),
 
         .o_read_ftq_Vld        ( o_read_ftq_Vld ),
-        .o_read_ftqIdx         ( o_read_ftqIdx             ),
+        .o_read_ftqIdx         ( o_read_ftqIdx  ),
         .i_read_ftqStartAddr   ( i_read_ftqStartAddr   ),
 
+        .o_can_dispatch_serialize ( toDisp_disp_serialize   ),
+        .o_commit_serialized_inst ( toDisp_commit_serialize ),
         .o_squash_vld          ( o_squash_vld         ),
         .o_squashInfo          ( o_squashInfo         )
     );
 
+
+
+    priv_ctrl u_priv_ctrl(
+    	.clk            ( clk            ),
+        .rst            ( rst            ),
+        .o_priv_sysInfo ( toROB_csr_pack ),
+        .i_trap_handle  ( toPriv_trap_pack  ),
+
+        .i_access       ( if_csrrw.access   ),
+        .i_read_csrIdx  ( if_csrrw.read_idx ),
+        .o_read_illegal ( if_csrrw.illegal  ),
+        .o_read_val     ( if_csrrw.read_val ),
+        .i_write        ( if_csrrw.write     ),
+        .i_write_csrIdx ( if_csrrw.write_idx ),
+        .i_write_val    ( if_csrrw.write_val )
+    );
 
 
 

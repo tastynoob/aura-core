@@ -54,6 +54,7 @@ module rename(
 
     assign o_stall = (!can_rename) || i_stall;
 
+    renameInfo_t wireInfo[`RENAME_WIDTH];
     renametable u_renametable(
         .clk                    ( clk                    ),
         .rst                    ( rst                    ),
@@ -74,42 +75,47 @@ module rename(
         .i_commitInfo           ( i_commitInfo           )
     );
 
+    generate
+        for (i=0; i<`RENAME_WIDTH;i=i+1) begin
+            assign wireInfo[i] = '{
+                    ftq_idx     : i_decinfo[i].ftq_idx,
+                    ftqOffset   : i_decinfo[i].ftqOffset,
+                    has_except  : i_decinfo[i].has_except,
+                    except      : i_decinfo[i].except,
+                    isRVC       : i_decinfo[i].isRVC,
+                    ismv        : i_decinfo[i].ismv,
+                    imm20       : i_decinfo[i].imm20,
+                    need_serialize : i_decinfo[i].need_serialize,
+                    rd_wen      : i_decinfo[i].rd_wen,
+                    ilrd_idx    : i_decinfo[i].ilrd_idx,
+                    iprd_idx    : iprd_idx[i],
+                    prev_iprd_idx : prev_iprd_idx[i],
+
+                    iprs_idx    : iprs_idx[i],
+
+                    use_imm     : i_decinfo[i].use_imm,
+                    dispQue_id  : i_decinfo[i].dispQue_id,
+                    issueQue_id : i_decinfo[i].issueQue_id,
+                    micOp_type  : i_decinfo[i].micOp_type,
+                    isStore     : i_decinfo[i].isStore,
+
+                    instmeta    : i_decinfo[i].instmeta
+                };
+        end
+    endgenerate
+
     reg[`WDEF(`RENAME_WIDTH)] rename_vld;
     renameInfo_t renameInfo[`RENAME_WIDTH];
 
     always_ff @( posedge clk ) begin
         int fa,fb;
-        if ((rst==true) || i_squash_vld) begin
+        if (rst || i_squash_vld) begin
             rename_vld <= 0;
         end
         else if (!i_stall) begin
             rename_vld <= can_rename ? i_decinfo_vld : 0;
+            renameInfo <= wireInfo;
             for(fa=0;fa<`RENAME_WIDTH;fa=fa+1) begin
-                renameInfo[fa] <= '{
-                    ftq_idx     : i_decinfo[fa].ftq_idx,
-                    ftqOffset   : i_decinfo[fa].ftqOffset,
-                    has_except  : i_decinfo[fa].has_except,
-                    except      : i_decinfo[fa].except,
-                    isRVC       : i_decinfo[fa].isRVC,
-                    ismv        : i_decinfo[fa].ismv,
-                    imm20       : i_decinfo[fa].imm20,
-                    need_serialize : i_decinfo[fa].need_serialize,
-                    rd_wen      : i_decinfo[fa].rd_wen,
-                    ilrd_idx    : i_decinfo[fa].ilrd_idx,
-                    iprd_idx    : iprd_idx[fa],
-                    prev_iprd_idx : prev_iprd_idx[fa],
-
-                    iprs_idx    : iprs_idx[fa],
-
-                    use_imm     : i_decinfo[fa].use_imm,
-                    dispQue_id  : i_decinfo[fa].dispQue_id,
-                    issueQue_id : i_decinfo[fa].issueQue_id,
-                    micOp_type  : i_decinfo[fa].micOp_type,
-                    isStore     : i_decinfo[fa].isStore,
-
-                    instmeta    : i_decinfo[fa].instmeta
-                };
-
                 if (can_rename ? i_decinfo_vld[fa] : 0) begin
                     update_instPos(i_decinfo[fa].instmeta, difftest_def::AT_rename);
                     if (i_decinfo[fa].ilrd_idx != 0) begin

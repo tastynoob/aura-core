@@ -78,6 +78,8 @@ module aura_backend (
     wire commit_vld;
     robIdx_t commit_robIdx;
 
+    csrrw_if toCtrl_csrrw();
+
     ctrlBlock u_ctrlBlock(
         .clk                   ( clk                   ),
         .rst                   ( rst                   ),
@@ -85,6 +87,8 @@ module aura_backend (
         .o_stall               ( o_stall               ),
         .i_inst_vld            ( i_inst_vld            ),
         .i_inst                ( i_inst                ),
+
+        .if_csrrw              ( toCtrl_csrrw ),
 
         .i_read_irob_idx       ( toCtrl_read_irob_idx     ),
         .o_read_irob_data      ( toExe_read_irob_data      ),
@@ -153,6 +157,8 @@ module aura_backend (
         .i_read_ftqNextAddr  ( i_read_ftqNextAddr   ),
         .o_read_robIdx       ( toCtrl_read_rob_idx  ),
         .i_read_ftqOffset    ( toExe_read_rob_ftqOffset ),
+
+        .if_csrrw            ( toCtrl_csrrw ),
 
         .o_fu_finished       ( toCtrl_fu_finished    ),
         .o_comwbInfo         ( toCtrl_comwbInfo      ),
