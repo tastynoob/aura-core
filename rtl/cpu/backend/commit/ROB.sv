@@ -30,11 +30,6 @@ typedef struct {
     rv_trap_t::exception except_type;
 } squash_handle;
 
-typedef struct packed {
-    robIdx_t rob_idx;
-    logic[`XDEF] access_addr;
-} lsu_handle;
-
 package commit_status_t;
 
 typedef enum logic[1:0] {
@@ -56,6 +51,7 @@ module ROB(
     // from/to csr
     input csr_in_pack_t i_csr_pack,
     output trap_pack_t o_trap_pack,
+    syscall_if.s if_syscall,
 
     // from dispatch insert, enque
     output wire o_can_enq,
@@ -237,7 +233,14 @@ module ROB(
             shr.squash_type <= SQUASH_NULL;
         end
         else begin
-            if ((i_exceptwb_vld && ((i_branchwb_vld && i_branchwb_info.has_mispred) ? i_exceptwb_info.rob_idx <= i_branchwb_info.rob_idx : 1))) begin
+            if (if_syscall.mret || if_syscall.sret) begin
+                shr.squash_type <= SQUASH_MISPRED;
+                shr.branch_taken <= 0;
+                shr.npc <= if_syscall.npc;
+                shr.rob_idx <= if_syscall.rob_idx;
+                assert (willCommit_idx[0] == if_syscall.rob_idx.idx);
+            end
+            else if ((i_exceptwb_vld && ((i_branchwb_vld && i_branchwb_info.has_mispred) ? i_exceptwb_info.rob_idx <= i_branchwb_info.rob_idx : 1))) begin
                 if ((i_exceptwb_info.rob_idx <= shr.rob_idx) || (shr.squash_type == SQUASH_NULL)) begin
                     shr.squash_type <= SQUASH_EXCEPT;
                     shr.except_type <= i_exceptwb_info.except_type;
@@ -414,7 +417,19 @@ module ROB(
                     );
                 end
                 if (except_vec[fa]) begin
-                    arch_commit_except();
+                    if ((shr.except_type == rv_trap_t::breakpoint) ||
+                        (shr.except_type >= rv_trap_t::ucall && shr.except_type <= rv_trap_t::mcall)) begin
+                        // still difftest ecall
+                        arch_commitInst(
+                            0, // dest type
+                            willCommit_data[fa].ilrd_idx,
+                            willCommit_data[fa].iprd_idx,
+                            willCommit_data[fa].instmeta
+                        );
+                    end
+                    else begin
+                        arch_commit_except();
+                    end
                 end
             end
         end

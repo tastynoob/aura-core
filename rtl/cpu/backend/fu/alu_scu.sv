@@ -10,6 +10,7 @@ module alu_scu (
     input wire i_vld,
     input fuInfo_t i_fuInfo,
 
+    input csr_in_pack_t i_csr_pack,
     input wire i_illegal_access_csr,// illegal access csr
     input wire[`WDEF(5)] i_zimm,
     input wire i_write_csr,
@@ -28,6 +29,8 @@ module alu_scu (
     input wire i_wb_stall,
     output wire o_fu_finished,
     output comwbInfo_t o_comwbInfo,
+
+    syscall_if.m if_syscall,
     output wire o_write_csr,
     output csrIdx_t o_write_csrIdx,
     output wire[`XDEF] o_write_new_csr
@@ -82,8 +85,27 @@ module alu_scu (
         0;
 
     wire[`XDEF] final_result =
-        saved_fuInfo.issueQue_id == `ALUIQ_ID ? calc_data :
-        saved_fuInfo.issueQue_id == `SCUIQ_ID ? csr_val : 0;
+        (saved_fuInfo.issueQue_id == `ALUIQ_ID) ? calc_data :
+        (saved_fuInfo.issueQue_id == `SCUIQ_ID) ? csr_val : 0;
+
+    wire ecall = (saved_fuInfo.issueQue_id == `SCUIQ_ID) && (saved_fuInfo.micOp == MicOp_t::ecall);
+    wire ebreak = (saved_fuInfo.issueQue_id == `SCUIQ_ID) && (saved_fuInfo.micOp == MicOp_t::ebreak);
+    // NOTE: mret/sret do not cause except if permission is legal
+    wire mret = (saved_fuInfo.issueQue_id == `SCUIQ_ID) && (saved_fuInfo.micOp == MicOp_t::mret);
+    wire sret = (saved_fuInfo.issueQue_id == `SCUIQ_ID) && (saved_fuInfo.micOp == MicOp_t::sret);
+    wire illegal_eret =
+        mret ? i_csr_pack.mode < `MODE_M :
+        sret ? i_csr_pack.mode < `MODE_S :
+        0;
+
+    wire sysexcept = (saved_fuInfo.issueQue_id == `SCUIQ_ID) && (ecall || ebreak);
+    rv_trap_t::exception syscall_except;
+    assign syscall_except =
+        ecall ? (rv_trap_t::ucall + i_csr_pack.mode) :
+        ebreak ? rv_trap_t::breakpoint :
+        rv_trap_t::breakpoint;
+
+    wire instIllegal = illegal_csr || illegal_eret;
 
     reg _has_except;
     exceptwbInfo_t exceptwbInfo;
@@ -108,10 +130,11 @@ module alu_scu (
             comwbInfo.iprd_idx <= saved_fuInfo.iprd_idx;
             comwbInfo.result <= final_result;
 
-            _has_except <= saved_vld && illegal_csr;
+            _has_except <= saved_vld && (instIllegal || sysexcept);
             exceptwbInfo <= '{
                 rob_idx : saved_fuInfo.rob_idx,
-                except_type : illegal_csr ? rv_trap_t::instIllegal : 0
+                except_type : instIllegal ? rv_trap_t::instIllegal :
+                              sysexcept ? syscall_except : 0
             };
 
             _write_csr <= saved_vld && write_csr;
@@ -139,5 +162,32 @@ module alu_scu (
     assign o_write_csrIdx = _write_csrIdx;
     assign o_write_new_csr = _new_csr;
 
+
+    // system call/ret
+    reg _mret;
+    reg _sret;
+    reg[`XDEF] eret_pc;
+
+
+    always_ff @( posedge clk ) begin
+        if (rst) begin
+            _mret <= 0;
+            _sret <= 0;
+        end
+        else if (saved_vld) begin
+            _mret <= saved_vld && (saved_fuInfo.issueQue_id == `SCUIQ_ID) && (saved_fuInfo.micOp == MicOp_t::mret);
+            _sret <= saved_vld && (saved_fuInfo.issueQue_id == `SCUIQ_ID) && (saved_fuInfo.micOp == MicOp_t::sret);
+            eret_pc <= i_csr_pack.epc;
+        end
+        else begin
+            _mret <= 0;
+            _sret <= 0;
+        end
+    end
+
+    assign if_syscall.rob_idx = comwbInfo.rob_idx;
+    assign if_syscall.mret = _mret;
+    assign if_syscall.sret = _sret;
+    assign if_syscall.npc = eret_pc;
 
 endmodule

@@ -1,6 +1,6 @@
 `include "backend_define.svh"
 
-
+// scu -> csr regs
 interface csrrw_if;
     // read channel
     logic access;

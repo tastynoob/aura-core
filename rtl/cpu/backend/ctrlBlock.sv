@@ -14,7 +14,9 @@ module ctrlBlock (
     input wire[`WDEF(`FETCH_WIDTH)] i_inst_vld,
     input fetchEntry_t i_inst[`FETCH_WIDTH],
 
+    output csr_in_pack_t o_csr_pack,
     csrrw_if.s if_csrrw,
+    syscall_if.s if_syscall,
 
     // read immBuffer (clear when writeback)
     input irobIdx_t i_read_irob_idx[`IMMBUFFER_READPORT_NUM],
@@ -284,6 +286,7 @@ module ctrlBlock (
 
         .i_csr_pack            ( toROB_csr_pack   ),
         .o_trap_pack           ( toPriv_trap_pack ),
+        .if_syscall            ( if_syscall       ),
 
         .o_can_enq             ( toDispatch_can_insert ),
         .i_enq_vld             ( toROB_insert_vld      ),
@@ -328,7 +331,8 @@ module ctrlBlock (
     	.clk            ( clk            ),
         .rst            ( rst            ),
         .o_priv_sysInfo ( toROB_csr_pack ),
-        .i_trap_handle  ( toPriv_trap_pack  ),
+        .i_trap_handle  ( toPriv_trap_pack ),
+        .if_syscall     ( if_syscall       ),
 
         .i_access       ( if_csrrw.access   ),
         .i_read_csrIdx  ( if_csrrw.read_idx ),
@@ -338,6 +342,8 @@ module ctrlBlock (
         .i_write_csrIdx ( if_csrrw.write_idx ),
         .i_write_val    ( if_csrrw.write_val )
     );
+
+    assign o_csr_pack = toROB_csr_pack;
 
 
 

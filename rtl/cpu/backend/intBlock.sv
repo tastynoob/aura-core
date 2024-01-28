@@ -45,7 +45,9 @@ module intBlock #(
     output irobIdx_t o_immB_idx[`ALU_NUM],
     input imm_t i_imm_data[`ALU_NUM],
     // csr access
+    input csr_in_pack_t i_csr_pack,
     csrrw_if.m if_csrrw,
+    syscall_if.m if_syscall,
 
     // read ftq_startAddress (to ftq)
     output ftqIdx_t o_read_ftqIdx[`BRU_NUM],
@@ -371,8 +373,13 @@ if (1) begin: gen_intBlock_IQ0_alu0
     assign scu_csrIdx = s1_irob_imm[intBlock_fuID][16:5];
     wire[`WDEF(5)] scu_zimm = s1_irob_imm[intBlock_fuID][4:0];
     wire scu_write_csr =
-        (fu_info.issueQue_id == `SCUIQ_ID) && (s1_IQ0_inst_info[IQ0_fuID].iprs_idx[0] != 0);
-    wire scu_read_csr = (fu_info.issueQue_id == `SCUIQ_ID) && s1_IQ0_inst_info[IQ0_fuID].rd_wen;
+            (fu_info.issueQue_id == `SCUIQ_ID) &&
+            (fu_info.micOp >= MicOp_t::csrrw) &&
+            (s1_IQ0_inst_info[IQ0_fuID].iprs_idx[0] != 0);
+    wire scu_read_csr =
+            (fu_info.issueQue_id == `SCUIQ_ID) &&
+            (fu_info.micOp >= MicOp_t::csrrw) &&
+            s1_IQ0_inst_info[IQ0_fuID].rd_wen;
 
     assign if_csrrw.access =
         s1_IQ0_inst_vld[IQ0_fuID] && (scu_write_csr || scu_read_csr);
@@ -387,6 +394,7 @@ if (1) begin: gen_intBlock_IQ0_alu0
         .i_vld             ( s1_IQ0_inst_vld[IQ0_fuID] ),
         .i_fuInfo          ( fu_info          ),
 
+        .i_csr_pack           ( i_csr_pack       ),
         .i_illegal_access_csr ( if_csrrw.illegal ),
         .i_zimm               ( scu_zimm             ),
         .i_write_csr          ( scu_write_csr        ),
@@ -403,9 +411,10 @@ if (1) begin: gen_intBlock_IQ0_alu0
         .o_fu_finished      ( fu_finished[intBlock_fuID]    ),
         .o_comwbInfo        ( comwbInfo[intBlock_fuID]      ),
 
-        .o_write_csr        ( if_csrrw.write       ),
-        .o_write_csrIdx     ( if_csrrw.write_idx   ),
-        .o_write_new_csr    ( if_csrrw.write_val   )
+        .if_syscall         ( if_syscall         ),
+        .o_write_csr        ( if_csrrw.write     ),
+        .o_write_csrIdx     ( if_csrrw.write_idx ),
+        .o_write_new_csr    ( if_csrrw.write_val )
     );
 end
 endgenerate

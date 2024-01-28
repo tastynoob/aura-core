@@ -75,13 +75,19 @@ void DebugChecker::putin(DebugFlag flag, const char * str)
 
 void DebugChecker::printAll()
 {
-    if (!enable_flag) {
-        return;
+    if (enable_flag) {
+        for (auto& it : dprint_buf) {
+            if (it.rdbuf()->in_avail()) {
+                std::cout << it.str();
+                it.str("");
+                it.clear();
+            }
+        }
     }
-    for (auto& it : dprint_buf) {
-        std::cout << it.str();
-        it.str("");
-        it.clear();
+    if (dprinta_buf.rdbuf()->in_avail()) {
+        std::cout << dprinta_buf.str();
+        dprinta_buf.str("");
+        dprinta_buf.clear();
     }
 }
 

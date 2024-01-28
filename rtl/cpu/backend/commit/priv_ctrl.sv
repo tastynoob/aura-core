@@ -10,6 +10,7 @@ module priv_ctrl (
 
     output csr_in_pack_t o_priv_sysInfo,
     input trap_pack_t i_trap_handle,
+    syscall_if.s if_syscall,
 
     input wire i_access,
     input csrIdx_t i_read_csrIdx,
@@ -38,6 +39,7 @@ module priv_ctrl (
     assign csr_mapping[`CSR_MTVEC] = mtvec;
     assign csr_mapping[`CSR_MEPC] = mepc;
     assign csr_mapping[`CSR_MCAUSE] = mcause;
+    assign csr_mapping[`CSR_MTVAL] = mtval;
 
     always_ff @( posedge clk ) begin
         if (rst) begin
@@ -53,14 +55,15 @@ module priv_ctrl (
         else begin
             // write csr
             if (i_write) begin
+                assert(`GETMODE(i_write_csrIdx) <= cur_mode);
                 case (i_write_csrIdx)
                     `include "csr_write.svh.tmp"
                     default: begin
                     end
                 endcase
             end
-            // trap
-            if (i_trap_handle.has_trap) begin
+            else if (i_trap_handle.has_trap) begin
+                // except
                 mepc <= i_trap_handle.epc;
                 mcause <= i_trap_handle.cause;
                 mtval <= i_trap_handle.tval;
@@ -69,7 +72,13 @@ module priv_ctrl (
                 mstatus.mpp <= cur_mode;
                 mstatus.mie <= 0;
                 mstatus.mpie <= mstatus.mie;
-
+            end
+            else if (if_syscall.mret) begin
+                // syscall/ret
+                cur_mode <= mstatus.mpp;
+                mstatus.mie <= mstatus.mpie;
+                mstatus.mpie <= 1;
+                mstatus.mpp <= `MODE_M;
             end
             // TODO:
             // ecall
@@ -86,9 +95,10 @@ module priv_ctrl (
 
 
     assign o_priv_sysInfo = '{
-        interrupt_vectored : (mtvec.mode == 1),
-        level : cur_mode,
+        mode : cur_mode,
         status : mstatus,
+        epc : mepc,
+        interrupt_vectored : (mtvec.mode == 1),
         tvec : {mtvec.base, 2'b00}
     };
 

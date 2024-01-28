@@ -37,6 +37,7 @@ class DebugChecker {
     std::vector<bool> debug_flags;
     std::vector<std::stringstream> dprint_buf;
     public:
+    std::stringstream dprinta_buf; // not controlled by debugflag
     char strBuf[1024];
     DebugChecker();
 
@@ -59,11 +60,15 @@ if (debugChecker.checkFlag(DebugFlag::flag)) { \
     debugChecker.putin(flag, debugChecker.strBuf); \
 }
 
-#define DPRINTD(flag, args...) \
+#define DPRINTFD(flag, args...) \
 if (debugChecker.checkFlag(DebugFlag::flag)) { \
     sprintf(debugChecker.strBuf, args); \
     debugChecker.putin(flag, debugChecker.strBuf); \
 }
+
+#define DPRINTFA(args...) \
+    sprintf(debugChecker.strBuf, args); \
+    debugChecker.dprinta_buf << debugChecker.strBuf; \
 
 
 extern void mark_exit(bool failed);

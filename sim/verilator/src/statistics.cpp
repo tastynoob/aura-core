@@ -29,9 +29,9 @@ void InstMeta::print()
     for (int i=InstPos::AT_fetch; i<InstPos::AT_wb; i++) {
         assert(active_tick[i+1] >= active_tick[i]);
         uint64_t cycle = (active_tick[i+1] - active_tick[i]) / 2;
-        DPRINTD(PIPELINE, "%lu:", cycle);
+        DPRINTFD(PIPELINE, "%lu:", cycle);
     }
-    DPRINTD(PIPELINE, "C\n");
+    DPRINTFD(PIPELINE, "C\n");
 }
 
 std::string InstMeta::disassembly()
@@ -232,9 +232,9 @@ extern "C" {
     void fetch_block(uint64_t startAddr, uint64_t endAddr, uint64_t nextAddr, uint64_t predEndAddr, uint64_t predNextAddr, uint64_t falsepred) {
         DPRINTF(FETCH, "fetch block [%lx : %lx) -> %lx", startAddr, endAddr, nextAddr);
         if (falsepred) {
-            DPRINTD(FETCH, " falsepred [%lx : %lx) -> %lx", startAddr, predNextAddr, predNextAddr);
+            DPRINTFD(FETCH, " falsepred [%lx : %lx) -> %lx", startAddr, predNextAddr, predNextAddr);
         }
-        DPRINTD(FETCH, "\n");
+        DPRINTFD(FETCH, "\n");
     }
 
     void rename_alloc(uint64_t seq, uint64_t logic_idx, uint64_t physcial_idx, uint64_t ismv) {

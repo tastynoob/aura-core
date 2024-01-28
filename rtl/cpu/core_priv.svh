@@ -29,9 +29,10 @@
 
 typedef struct {
     // trap info
-    logic interrupt_vectored;
-    logic[`WDEF(2)] level;
+    logic[`WDEF(2)] mode;
     logic[`XDEF] status;
+    logic[`XDEF] epc;
+    logic interrupt_vectored;
     logic[`XDEF] tvec;
 } csr_in_pack_t;
 

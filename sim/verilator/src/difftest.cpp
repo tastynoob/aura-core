@@ -187,9 +187,9 @@ extern "C" void arch_commitInst(
     InstMeta* inst = read_instmeta(instmeta_ptr);
     DPRINTF(COMMIT, "%s %s", inst->base().c_str(), inst->disassembly().c_str());
     if (logic_idx != 0) {
-        DPRINTD(COMMIT, " res: %lx", arch_readIntReg(logic_idx));
+        DPRINTFD(COMMIT, " res: %lx", arch_readIntReg(logic_idx));
     }
-    DPRINTD(COMMIT, "\n");
+    DPRINTFD(COMMIT, "\n");
     if (debugChecker.checkFlag(DebugFlag::PIPELINE)) {
         inst->print();
     }
@@ -214,7 +214,7 @@ extern "C" void arch_commitInst(
         diffState.ref_next_pc = diffState.ref_reg->pc;
 
         if (inst->pc != diffState.ref_this_pc) {
-            printf("%s diff at pc, this: %lx, ref: %lx\n", inst->base().c_str(), inst->pc, diffState.ref_this_pc);
+            DPRINTFA("%s diff at pc, this: %lx, ref: %lx\n", inst->base().c_str(), inst->pc, diffState.ref_this_pc);
             difftest_failed = true;
         }
 
@@ -223,7 +223,7 @@ extern "C" void arch_commitInst(
                 active_exit = true;
             }
             else if (inst->meta[MetaKeys::META_NPC] != diffState.ref_next_pc) {
-                printf("%s diff at npc, this: %lx, ref: %lx\n", inst->base().c_str(), inst->meta[MetaKeys::META_NPC], diffState.ref_next_pc);
+                DPRINTFA("%s diff at npc, this: %lx, ref: %lx\n", inst->base().c_str(), inst->meta[MetaKeys::META_NPC], diffState.ref_next_pc);
                 difftest_failed = true;
             }
             perfAccumulate("committedBranches", 1);
@@ -248,7 +248,7 @@ extern "C" void arch_commitInst(
                 str = "x";
             }
             if (aura_val != ref_val) {
-                printf("%s diff at reg %s%lu, this: %lx, ref: %lx\n", inst->base().c_str(), str, logic_idx, aura_val, ref_val);
+                DPRINTFA("%s diff at reg %s%lu, this: %lx, ref: %lx\n", inst->base().c_str(), str, logic_idx, aura_val, ref_val);
                 difftest_failed = true;
             }
         }

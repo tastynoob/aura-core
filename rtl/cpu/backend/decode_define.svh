@@ -132,7 +132,11 @@ package MicOp_t;
         bgeu
     }_bru;
     typedef enum logic[`WDEF(`MICOP_WIDTH)]{
-        csrrw = 5'b0_1000,
+        mret = 5'b0_1000,
+        sret,
+        ecall,
+        ebreak,
+        csrrw,
         csrrc,
         csrrs,
         csrrwi,

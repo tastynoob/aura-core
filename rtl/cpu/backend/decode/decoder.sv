@@ -243,7 +243,8 @@ module decoder (
     wire isMul = inst_MUL | inst_MULH | inst_MULHSU | inst_MULHU | inst_MULW;
     wire isDiv = inst_DIV | inst_DIVU | inst_DIVUW | inst_DIVW | inst_REM | inst_REMU | inst_REMUW | inst_REMW;
     wire isCSR = inst_CSRRC | inst_CSRRCI | inst_CSRRS | inst_CSRRSI | inst_CSRRW | inst_CSRRWI;
-    wire isUnknow = !(inst_LUI | inst_AUIPC | isAdd | isSub | isShift | isLogic | isCompare | isCondBranch | isUncondBranch | isLoad | isStore | isMul | isDiv | isCSR);
+    wire isSYS = inst_MRET | inst_ECALL | inst_EBREAK;
+    wire isUnknow = !(inst_LUI | inst_AUIPC | isAdd | isSub | isShift | isLogic | isCompare | isCondBranch | isUncondBranch | isLoad | isStore | isMul | isDiv | isCSR | isSYS);
     // TODO: add compressed inst
     // int math (with rs1 rs2)
     wire isIntMath = isAdd | isSub | isShift | isLogic | isCompare;
@@ -338,7 +339,7 @@ module decoder (
     (isIntMath | isImmMath | inst_LUI) ? `ALUIQ_ID :
     (isCondBranch | isUncondBranch | inst_AUIPC) ? `BRUIQ_ID :
     (isMul | isDiv) ? `MDUIQ_ID :
-    (isCSR) ? `SCUIQ_ID :
+    (isCSR | isSYS) ? `SCUIQ_ID :
     0;
 
     //ALU
@@ -366,6 +367,10 @@ module decoder (
     //SCU
     MicOp_t::_scu scuop_type;
     assign scuop_type =
+        inst_MRET ? MicOp_t::mret :
+        0 ? MicOp_t::sret :
+        inst_ECALL ? MicOp_t::ecall :
+        inst_EBREAK ? MicOp_t::ebreak :
         inst_CSRRW ? MicOp_t::csrrw :
         inst_CSRRC ? MicOp_t::csrrc :
         inst_CSRRS ? MicOp_t::csrrs :
@@ -412,7 +417,7 @@ module decoder (
     assign o_decinfo.isRVC = isRVC;
     assign o_decinfo.ismv = ismv;
     assign o_decinfo.imm20 = imm;
-    assign o_decinfo.need_serialize = isCSR;
+    assign o_decinfo.need_serialize = isCSR | isSYS;
     assign o_decinfo.rd_wen = rd_wen;
     assign o_decinfo.ilrd_idx = (rd_wen ? ilrd_idx : 0);
     assign o_decinfo.ilrs_idx[0] = has_rs1 ? ilrs1_idx : 0;
