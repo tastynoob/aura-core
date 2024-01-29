@@ -390,14 +390,12 @@ module ROB(
     // for debug
     longint unsigned cycle_count;
     longint unsigned lastCommitCycle;
-    int AAA_committedInst;
     always_ff @(posedge clk) begin
         int fa;
         cycle_step();
         if (rst) begin
             cycle_count <= 0;
             lastCommitCycle <= 0;
-            AAA_committedInst <= 0;
         end
         else if ((!squash_vld) && (!commit_stall)) begin
             cycle_count <= cycle_count + 1;
@@ -405,10 +403,8 @@ module ROB(
                 assert(false); // cpu stucked
             end
 
-            AAA_committedInst <= AAA_committedInst + funcs::count_one(canCommit_vld);
             for (fa =0; fa <`COMMIT_WIDTH; fa=fa+1) begin
                 if (canCommit_vld[fa]) begin
-                    lastCommitCycle <= cycle_count;
                     arch_commitInst(
                         0, // dest type
                         willCommit_data[fa].ilrd_idx,
@@ -419,6 +415,10 @@ module ROB(
                 if (except_vec[fa]) begin
                     arch_commit_except(shr.except_type);
                 end
+            end
+
+            if (|(canCommit_vld | except_vec)) begin
+                lastCommitCycle <= cycle_count;
             end
         end
         if (!(canCommit_vld[0])) begin
