@@ -147,7 +147,13 @@ void diff_init(const char* ref_path) {
     assert((uint64_t)diffState.ref_reg->pc == PMEM_BASE);
 }
 
-int arch_int_renameMapping[32] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+struct {
+    uint64_t mstatus;
+    uint64_t mepc;
+    uint64_t mcause;
+} cpu_csrs;
+
+int arch_int_renameMapping[32] = {0};
 uint64_t physical_int_regfile[200] = {0};
 
 uint64_t arch_readIntReg(int index) {
@@ -173,6 +179,19 @@ void display_reg() {
 
 extern void perfAccumulate(const char* name, uint64_t val);
 extern void perfAvgAccumulate(const char* name, uint64_t val);
+
+
+extern "C" void arch_sync_csrs(
+    uint64_t mstatus,
+    uint64_t mepc,
+    uint64_t mcause
+)
+{
+    cpu_csrs.mstatus = mstatus;
+    cpu_csrs.mepc = mepc;
+    cpu_csrs.mcause = mcause;
+}
+
 
 extern "C" void arch_commitInst(
     const uint64_t dst_type,
@@ -207,7 +226,6 @@ extern "C" void arch_commitInst(
     // difftest
     bool difftest_failed = false;
     if (diffState.enable_diff) {
-
         diffState.ref_this_pc = diffState.ref_reg->pc;
         refProxy.exec(1);
         refProxy.regcpy(diffState.ref_reg, DIFFTEST_TO_DUT);
@@ -252,6 +270,19 @@ extern "C" void arch_commitInst(
                 difftest_failed = true;
             }
         }
+
+        if (cpu_csrs.mstatus != diffState.ref_reg->mstatus) {
+            difftest_failed = true;
+            DPRINTFA("%s diff at mstatus, this: %lx, ref: %lx\n", inst->base().c_str(), cpu_csrs.mstatus, diffState.ref_reg->mstatus);
+        }
+        if (cpu_csrs.mepc != diffState.ref_reg->mepc) {
+            difftest_failed = true;
+            DPRINTFA("%s diff at mepc, this: %lx, ref: %lx\n", inst->base().c_str(), cpu_csrs.mepc, diffState.ref_reg->mepc);
+        }
+        if (cpu_csrs.mcause != diffState.ref_reg->mcause) {
+            difftest_failed = true;
+            DPRINTFA("%s diff at mcause, this: %lx, ref: %lx\n", inst->base().c_str(), cpu_csrs.mcause, diffState.ref_reg->mcause);
+        }
     }
 
     if (active_exit) {
@@ -274,7 +305,8 @@ extern "C" void arch_commitInst(
 }
 
 
-extern "C" void arch_commit_except() {
+extern "C" void arch_commit_except(uint64_t except_code) {
+    DPRINTF(COMMIT, "raise one except: %lu\n", except_code);
     if (diffState.enable_diff) {
         diffState.ref_this_pc = diffState.ref_reg->pc;
         refProxy.exec(1);

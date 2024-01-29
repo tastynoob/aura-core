@@ -9,7 +9,7 @@ import "DPI-C" function void arch_commitInst(
     uint64_t instmeta_ptr
 );
 
-import "DPI-C" function void arch_commit_except();
+import "DPI-C" function void arch_commit_except(uint64_t except);
 
 import "DPI-C" function void squash_pipe(uint64_t isMispred);
 import "DPI-C" function void cycle_step();
@@ -417,19 +417,7 @@ module ROB(
                     );
                 end
                 if (except_vec[fa]) begin
-                    if ((shr.except_type == rv_trap_t::breakpoint) ||
-                        (shr.except_type >= rv_trap_t::ucall && shr.except_type <= rv_trap_t::mcall)) begin
-                        // still difftest ecall
-                        arch_commitInst(
-                            0, // dest type
-                            willCommit_data[fa].ilrd_idx,
-                            willCommit_data[fa].iprd_idx,
-                            willCommit_data[fa].instmeta
-                        );
-                    end
-                    else begin
-                        arch_commit_except();
-                    end
+                    arch_commit_except(shr.except_type);
                 end
             end
         end

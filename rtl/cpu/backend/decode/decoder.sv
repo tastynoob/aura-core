@@ -315,13 +315,13 @@ module decoder (
     wire ilrs1_ren =
     (ilrs1_idx!=0 ) &
     (inst_JALR   |
-    isCondBranch  |
-    isLoad    |
-    isStore   |
-    isImmMath   |
-    isIntMath      |
-    inst_CSRRW  |
-    inst_CSRRS  |
+    isCondBranch |
+    isLoad       |
+    isStore      |
+    isImmMath    |
+    isIntMath    |
+    inst_CSRRW   |
+    inst_CSRRS   |
     inst_CSRRC);
 
     //寄存器读使能2

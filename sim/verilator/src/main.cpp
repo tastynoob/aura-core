@@ -155,6 +155,7 @@ int main(int argc, char **argv)
     delete top;
 
     int ret_code = 0;
+    std::cout<<std::endl;
     if (force_exit() == 1) {
         std::cout << "**** RUN FAILED! ****\n";
         ret_code = 1;

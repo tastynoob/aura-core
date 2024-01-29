@@ -19,3 +19,6 @@ end
 `CSR_MIP : begin
     mip <= i_write_val & `MIP_MIE_WRITE_MASK;
 end
+12'hbc0 : begin
+    $write("%c", i_write_val[7:0]);
+end

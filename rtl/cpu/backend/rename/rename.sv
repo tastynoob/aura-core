@@ -124,6 +124,18 @@ module rename(
                                         iprd_idx[fa],
                                         i_decinfo[fa].ismv);
                     end
+                    if (ilrs_idx[fa][0] != 0) begin
+                        rename_alloc(i_decinfo[fa].instmeta,
+                                        ilrs_idx[fa][0],
+                                        iprs_idx[fa][0],
+                                        0);
+                    end
+                    if (ilrs_idx[fa][1] != 0) begin
+                        rename_alloc(i_decinfo[fa].instmeta,
+                                        ilrs_idx[fa][1],
+                                        iprs_idx[fa][1],
+                                        0);
+                    end
                 end
             end
         end

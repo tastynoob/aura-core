@@ -1,7 +1,11 @@
 `include "backend_define.svh"
 
 
-
+import "DPI-C" function void arch_sync_csrs(
+    uint64_t mstatus,
+    uint64_t mepc,
+    uint64_t mcause
+);
 
 
 module priv_ctrl (
@@ -41,8 +45,15 @@ module priv_ctrl (
     assign csr_mapping[`CSR_MCAUSE] = mcause;
     assign csr_mapping[`CSR_MTVAL] = mtval;
 
+    reg csr_sync;
+    always_ff @( negedge clk ) begin
+        if (csr_sync) begin
+            arch_sync_csrs(mstatus, mepc, mcause);
+        end
+    end
     always_ff @( posedge clk ) begin
         if (rst) begin
+            csr_sync <= 1;
             cur_mode <= `MODE_M;
             mstatus <= `INIT_MSTATUS;
             mtvec <= 0;
@@ -53,8 +64,12 @@ module priv_ctrl (
             mtval <= 0;
         end
         else begin
+            if (csr_sync) begin
+                csr_sync <= 0;
+            end
             // write csr
             if (i_write) begin
+                csr_sync <= 1;
                 assert(`GETMODE(i_write_csrIdx) <= cur_mode);
                 case (i_write_csrIdx)
                     `include "csr_write.svh.tmp"
@@ -63,6 +78,7 @@ module priv_ctrl (
                 endcase
             end
             else if (i_trap_handle.has_trap) begin
+                csr_sync <= 1;
                 // except
                 mepc <= i_trap_handle.epc;
                 mcause <= i_trap_handle.cause;
@@ -74,11 +90,12 @@ module priv_ctrl (
                 mstatus.mpie <= mstatus.mie;
             end
             else if (if_syscall.mret) begin
-                // syscall/ret
+                csr_sync <= 1;
+                // mret
                 cur_mode <= mstatus.mpp;
                 mstatus.mie <= mstatus.mpie;
                 mstatus.mpie <= 1;
-                mstatus.mpp <= `MODE_M;
+                mstatus.mpp <= `MODE_U;
             end
             // TODO:
             // ecall

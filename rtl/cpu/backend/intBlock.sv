@@ -376,13 +376,11 @@ if (1) begin: gen_intBlock_IQ0_alu0
             (fu_info.issueQue_id == `SCUIQ_ID) &&
             (fu_info.micOp >= MicOp_t::csrrw) &&
             (s1_IQ0_inst_info[IQ0_fuID].iprs_idx[0] != 0);
-    wire scu_read_csr =
-            (fu_info.issueQue_id == `SCUIQ_ID) &&
-            (fu_info.micOp >= MicOp_t::csrrw) &&
-            s1_IQ0_inst_info[IQ0_fuID].rd_wen;
 
     assign if_csrrw.access =
-        s1_IQ0_inst_vld[IQ0_fuID] && (scu_write_csr || scu_read_csr);
+        s1_IQ0_inst_vld[IQ0_fuID] && (fu_info.issueQue_id == `SCUIQ_ID) &&
+        (fu_info.micOp >= MicOp_t::csrrw);
+
     assign if_csrrw.read_idx = scu_csrIdx;
 
     //fu0
