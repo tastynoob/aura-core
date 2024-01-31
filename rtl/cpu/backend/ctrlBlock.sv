@@ -44,15 +44,7 @@ module ctrlBlock (
     output wire[`WDEF(`RENAME_WIDTH)] o_disp_mark_notready_vld,
     output iprIdx_t o_disp_mark_notready_iprIdx[`RENAME_WIDTH],
 
-    // to intBlock
-    input wire[`WDEF(`INTDQ_DISP_WID)] i_intDQ_deq_vld,
-    output wire[`WDEF(`INTDQ_DISP_WID)] o_intDQ_deq_req,
-    output intDQEntry_t o_intDQ_deq_info[`INTDQ_DISP_WID],
-    // to memBlock
-    input wire[`WDEF(`MEMDQ_DISP_WID)] i_memDQ_deq_vld,
-    output wire[`WDEF(`MEMDQ_DISP_WID)] o_memDQ_deq_req,
-    output memDQEntry_t o_memDQ_deq_info[`MEMDQ_DISP_WID],
-    output wire[`WDEF(`MEMDQ_DISP_WID)] o_memdep_rdy,
+    disp_if.m if_disp,
 
     // notify ftq and storeQue
     output wire o_commit_vld,
@@ -260,14 +252,8 @@ module ctrlBlock (
 
         .o_exceptwb_vld           ( toROB_disp_exceptwb_vld         ),
         .o_exceptwb_info          ( toROB_disp_exceptwb_info        ),
-        // to intBlock
-        .i_intDQ_deq_vld          ( i_intDQ_deq_vld          ),
-        .o_intDQ_deq_req          ( o_intDQ_deq_req          ),
-        .o_intDQ_deq_info         ( o_intDQ_deq_info         ),
-        // to memBlock
-        .i_memDQ_deq_vld          ( i_memDQ_deq_vld        ),
-        .o_memDQ_deq_req          ( o_memDQ_deq_req        ),
-        .o_memDQ_deq_info         ( o_memDQ_deq_info       )
+
+        .if_disp                  ( if_disp )
     );
 
     generate

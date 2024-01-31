@@ -22,7 +22,7 @@
 
 
 module intBlock #(
-    parameter int INPUT_NUM = `ISSUE_WIDTH,
+    parameter int INPUT_NUM = `INTDQ_DISP_WID,
     parameter int EXTERNAL_WRITEBACK = 2,// 2 ldu
     parameter int EXTERNAL_WAKEUP = 2,// external wake up sources
     parameter int FU_NUM = 6
@@ -32,11 +32,10 @@ module intBlock #(
 
     input wire i_squash_vld,
     input squashInfo_t i_squashInfo,
-    // from dispatch
-    output wire[`WDEF(INPUT_NUM)] o_disp_vld,
-    input wire[`WDEF(INPUT_NUM)] i_disp_req,
-    input intDQEntry_t i_disp_info[INPUT_NUM],
+
+    disp_if.s if_disp,
     input wire[`WDEF(`NUMSRCS_INT)] i_enq_iprs_rdy[INPUT_NUM],
+
     // regfile read
     output iprIdx_t o_iprs_idx[FU_NUM][`NUMSRCS_INT],// read regfile
     input wire[`WDEF(`NUMSRCS_INT)] i_iprs_ready[FU_NUM],// ready or not
@@ -89,8 +88,8 @@ module intBlock #(
     generate
         for(i=0;i<INPUT_NUM;i=i+1) begin : gen_for
             // NOTE: serialized inst must goto IQ0 and issue to alu0
-            assign select_alu[i] = i_disp_req[i] && (i_disp_info[i].issueQue_id == `ALUIQ_ID || i_disp_info[i].issueQue_id == `SCUIQ_ID);
-            assign select_bru[i] = i_disp_req[i] && (i_disp_info[i].issueQue_id == `BRUIQ_ID);
+            assign select_alu[i] = if_disp.int_req[i] && (if_disp.int_info[i].issueQue_id == `ALUIQ_ID || if_disp.int_info[i].issueQue_id == `SCUIQ_ID);
+            assign select_bru[i] = if_disp.int_req[i] && (if_disp.int_info[i].issueQue_id == `BRUIQ_ID);
 
             if (i==0) begin : gen_if
                 assign select_total[i] = select_toIQ0[i] || select_toIQ1[i];
@@ -141,7 +140,7 @@ module intBlock #(
     `ASSERT((select_toIQ0 & select_toIQ1) == 0);
     `ORDER_CHECK((select_toIQ0 | select_toIQ1));
 
-    assign o_disp_vld = select_total;
+    assign if_disp.int_rdy = select_total;
 
     // FU_NUM*3 : will writeback + writeback bypass + writeback read regfile bypass
     // EXTERNAL_WAKEUP*2 : writeback bypass + writeback read regfile bypass
@@ -190,7 +189,7 @@ module intBlock #(
     )
     u_reorder_0(
         .i_data_vld      ( select_toIQ0      ),
-        .i_datas         ( i_disp_info       ),
+        .i_datas         ( if_disp.int_info       ),
         .o_data_vld      ( IQ0_has_selected  ),
         .o_reorder_datas ( IQ0_selected_info )
     );
@@ -517,7 +516,7 @@ endgenerate
     )
     u_reorder_2(
         .i_data_vld      ( select_toIQ1      ),
-        .i_datas         ( i_disp_info       ),
+        .i_datas         ( if_disp.int_info       ),
         .o_data_vld      ( IQ1_has_selected  ),
         .o_reorder_datas ( IQ1_selected_info )
     );

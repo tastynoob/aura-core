@@ -82,6 +82,8 @@ module aura_backend (
     csrrw_if toCtrl_csrrw();
     syscall_if toCtrl_syscall();
 
+    disp_if toExe_disp();
+
     ctrlBlock u_ctrlBlock(
         .clk                   ( clk                   ),
         .rst                   ( rst                   ),
@@ -112,12 +114,7 @@ module aura_backend (
         .o_disp_mark_notready_vld    ( toExe_mark_notready_vld ),
         .o_disp_mark_notready_iprIdx ( toExe_mark_notready_iprIdx ),
 
-        .i_intDQ_deq_vld       ( toCtrl_intDQ_deq_vld      ),
-        .o_intDQ_deq_req       ( toExe_intDQ_deq_req       ),
-        .o_intDQ_deq_info      ( toExe_intDQ_deq_info      ),
-        .i_memDQ_deq_vld       ( toCtrl_memDQ_deq_vld      ),
-        .o_memDQ_deq_req       ( toExe_memDQ_deq_req       ),
-        .o_memDQ_deq_info      ( toExe_memDQ_deq_info      ),
+        .if_disp               ( toExe_disp ),
 
         .o_commit_vld          ( commit_vld       ),
         .o_commit_rob_idx      ( commit_robIdx      ),
@@ -149,9 +146,7 @@ module aura_backend (
         .i_disp_mark_notready_vld    ( toExe_mark_notready_vld    ),
         .i_disp_mark_notready_iprIdx ( toExe_mark_notready_iprIdx ),
 
-        .o_intDQ_deq_vld     ( toCtrl_intDQ_deq_vld ),
-        .i_intDQ_deq_req     ( toExe_intDQ_deq_req  ),
-        .i_intDQ_deq_info    ( toExe_intDQ_deq_info ),
+        .if_disp             ( toExe_disp          ),
 
         .o_read_irob_idx     ( toCtrl_read_irob_idx ),
         .i_read_irob_data    ( toExe_read_irob_data ),

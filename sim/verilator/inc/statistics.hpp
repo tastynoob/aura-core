@@ -57,6 +57,7 @@ struct InstMeta
 
     void print();
 
+    std::string cachedDisasm;
     std::string disassembly();
 };
 

@@ -44,19 +44,7 @@ module dispatch (
     output wire o_exceptwb_vld,
     output exceptwbInfo_t o_exceptwb_info,
 
-    // to exeBlock
-    // TODO: we need to set the busytable
-
-    // to int block
-    input wire[`WDEF(`INTDQ_DISP_WID)] i_intDQ_deq_vld,
-    output wire[`WDEF(`INTDQ_DISP_WID)] o_intDQ_deq_req,
-    output intDQEntry_t o_intDQ_deq_info[`INTDQ_DISP_WID],
-
-    // to mem block
-    input wire[`WDEF(`INTDQ_DISP_WID)] i_memDQ_deq_vld,
-    output wire[`WDEF(`INTDQ_DISP_WID)] o_memDQ_deq_req,
-    output memDQEntry_t o_memDQ_deq_info[`INTDQ_DISP_WID]
-
+    disp_if.m if_disp
 );
     genvar i;
 
@@ -232,8 +220,8 @@ module dispatch (
         .i_enq_data ( new_intDQEntry      ),
 
         .o_can_deq  ( intDQ_disp_vec  ),
-        .i_deq_req  ( i_intDQ_deq_vld  ),
-        .o_deq_data ( o_intDQ_deq_info )
+        .i_deq_req  ( if_disp.int_rdy  ),
+        .o_deq_data ( if_disp.int_info )
     );
 
     /* verilator lint_off UNOPTFLAT */
@@ -243,14 +231,14 @@ module dispatch (
     generate
         for (i=0; i<`INTDQ_DISP_WID; i=i+1) begin
             assign need_serialize[i] =
-                    intDQ_disp_vec[i] & (o_intDQ_deq_info[i].issueQue_id == `SCUIQ_ID);
+                    intDQ_disp_vec[i] & (if_disp.int_info[i].issueQue_id == `SCUIQ_ID);
             if (i==0) begin
                 assign serialize_front[i] =
-                        intDQ_disp_vec[i] & (o_intDQ_deq_info[i].issueQue_id != `SCUIQ_ID);
+                        intDQ_disp_vec[i] & (if_disp.int_info[i].issueQue_id != `SCUIQ_ID);
             end
             else begin
                 assign serialize_front[i] =
-                        intDQ_disp_vec[i] & serialize_front[i-1] & (o_intDQ_deq_info[i].issueQue_id != `SCUIQ_ID);
+                        intDQ_disp_vec[i] & serialize_front[i-1] & (if_disp.int_info[i].issueQue_id != `SCUIQ_ID);
             end
         end
     endgenerate
@@ -269,7 +257,7 @@ module dispatch (
                 status <= 2; // disp serialied inst
             end
             else if (status == 2) begin
-                assert (i_intDQ_deq_vld == 1);
+                assert (if_disp.int_rdy == 1);
                 status <= 3; // finish disp serialied inst
             end
             else if (status == 3 && i_commit_serialize) begin
@@ -279,7 +267,7 @@ module dispatch (
     end
 
 
-    assign o_intDQ_deq_req =
+    assign if_disp.int_req =
             status==0 ? serialize_front :
             status==1 ? 0 :
             status==2 ? 1 :
@@ -307,9 +295,9 @@ module dispatch (
         .i_enq_req  ( insert_memDQ_vld    ),
         .i_enq_data ( new_memDQEntry      ),
 
-        .o_can_deq  ( o_memDQ_deq_req  ),
-        .i_deq_req  ( i_memDQ_deq_vld  ),
-        .o_deq_data ( o_memDQ_deq_info )
+        .o_can_deq  ( if_disp.mem_req  ),
+        .i_deq_req  ( if_disp.mem_rdy  ),
+        .o_deq_data ( if_disp.mem_info )
     );
 
 

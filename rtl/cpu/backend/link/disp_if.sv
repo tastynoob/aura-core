@@ -4,36 +4,39 @@
 
 
 
-// dispatch to exeBlock
+// dispatch -> exeBlock
 interface disp_if;
+    // req -> exeBlock
+    // rdy -> dispatch
+
     // from/to int block
-    logic[`WDEF(`INTDQ_DISP_WID)] disp_int_req;
-    logic[`WDEF(`INTDQ_DISP_WID)] disp_int_rdy;
-    intDQEntry_t disp_int_info[`INTDQ_DISP_WID];
+    logic[`WDEF(`INTDQ_DISP_WID)] int_req;
+    logic[`WDEF(`INTDQ_DISP_WID)] int_rdy;
+    intDQEntry_t int_info[`INTDQ_DISP_WID];
 
     // from/to mem block
-    logic[`WDEF(`INTDQ_DISP_WID)] disp_mem_req;
-    logic[`WDEF(`INTDQ_DISP_WID)] disp_mem_rdy;
-    memDQEntry_t disp_mem_info[`INTDQ_DISP_WID];
+    logic[`WDEF(`MEMDQ_DISP_WID)] mem_req;
+    logic[`WDEF(`MEMDQ_DISP_WID)] mem_rdy;
+    memDQEntry_t mem_info[`MEMDQ_DISP_WID];
 
     modport m (
-        output disp_int_req,
-        input disp_int_rdy,
-        output disp_int_info,
+        output int_req,
+        input int_rdy,
+        output int_info,
 
-        output disp_mem_req,
-        input disp_mem_rdy,
-        output disp_int_info
+        output mem_req,
+        input mem_rdy,
+        output mem_info
     );
 
     modport s (
-        input disp_int_req,
-        output disp_int_rdy,
-        input disp_int_info,
+        input int_req,
+        output int_rdy,
+        input int_info,
 
-        input disp_mem_req,
-        output disp_mem_rdy,
-        input disp_int_info
+        input mem_req,
+        output mem_rdy,
+        input mem_info
     );
 endinterface
 

@@ -4,6 +4,7 @@
 module regfile #(
     parameter int READPORT_NUM = 10,
     parameter int WBPORT_NUM = 6,
+    parameter int DISPWIDTH = 8,
     parameter int SIZE = 80,
     parameter int HAS_ZERO = 1
 )(
@@ -12,9 +13,10 @@ module regfile #(
     // rename to rob mark not ready
     input wire[`WDEF(`RENAME_WIDTH)] i_notready_mark,
     input iprIdx_t i_notready_iprIdx[`RENAME_WIDTH],
+
     // dispatch to issueQue read src is or not ready
-    input iprIdx_t i_disp_check_iprsIdx[`RENAME_WIDTH * `NUMSRCS_INT],
-    output wire[`WDEF(`NUMSRCS_INT)] o_disp_check_iprs_vld[`RENAME_WIDTH],
+    input iprIdx_t i_disp_check_iprsIdx[DISPWIDTH * `NUMSRCS_INT],
+    output wire[`WDEF(DISPWIDTH * `NUMSRCS_INT)] o_disp_check_iprs_vld,
 
     input wire[`WDEF($clog2(SIZE))] i_read_idx[READPORT_NUM],
     output wire[`WDEF(READPORT_NUM)] o_data_rdy,
@@ -77,10 +79,10 @@ module regfile #(
 
             assign o_read_data = read_data;
             assign o_data_rdy = data_rdy;
-            // disp to IQ
-            for (i=0;i<`RENAME_WIDTH * `NUMSRCS_INT;i=i+1) begin:gen_for
+            // disp to IQ check
+            for (i=0;i<DISPWIDTH * `NUMSRCS_INT;i=i+1) begin
                 // this should use rdy_bit_bypass;
-                assign o_disp_check_iprs_vld[i/2][i%2] = (i_disp_check_iprsIdx[i] == 0) ? 1 : rdy_bit_bypass[i_disp_check_iprsIdx[i]];
+                assign o_disp_check_iprs_vld[i] = (i_disp_check_iprsIdx[i] == 0) ? 1 : rdy_bit_bypass[i_disp_check_iprsIdx[i]];
             end
         end
         else begin : gen_no_zero

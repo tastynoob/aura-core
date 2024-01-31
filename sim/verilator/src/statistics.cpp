@@ -36,7 +36,10 @@ void InstMeta::print()
 
 std::string InstMeta::disassembly()
 {
-    return disasm->disassemble(code);
+    if (cachedDisasm.empty()) {
+        cachedDisasm = disasm->disassemble(code);
+    }
+    return cachedDisasm;
 }
 
 
@@ -116,12 +119,7 @@ extern "C" {
         switch (pos)
         {
         case InstPos::AT_decode:
-            DPRINTF(DECODE, "%s was decoded is %s\n", inst->base().c_str(),
-            inst->meta[MetaKeys::META_ISBRANCH] ? "branch" :
-            inst->meta[MetaKeys::META_ISLOAD] ? "load" :
-            inst->meta[MetaKeys::META_ISSTORE] ? "store" :
-            "dontCare"
-            );
+            DPRINTF(DECODE, "%s was decoded is %s\n", inst->base().c_str(), inst->disassembly().c_str());
             break;
         case InstPos::AT_rename:
             DPRINTF(RENAME, "%s was renamed\n", inst->base().c_str());

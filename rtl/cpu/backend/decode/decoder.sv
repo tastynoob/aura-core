@@ -335,6 +335,7 @@ module decoder (
     (isLoad || isStore) ?  `MEMBLOCK_ID :
     isUnknow ? `UNKOWNBLOCK_ID :
     0;
+
     //issueQue select
     wire[`WDEF(2)] issueQue_id =
     (isIntMath | isImmMath | inst_LUI) ? `ALUIQ_ID :

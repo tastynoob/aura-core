@@ -92,7 +92,23 @@ typedef struct {
 } memDQEntry_t;
 
 
-typedef memDQEntry_t memExeInfo_t;
+typedef struct {
+    ftqIdx_t ftq_idx;
+    robIdx_t rob_idx;
+    irobIdx_t irob_idx;
+
+    logic rd_wen;
+    iprIdx_t iprd_idx;// only for load
+    iprIdx_t iprs_idx;// ld: rs1, sta: rs1, std: rs2
+    logic use_imm;
+    logic[`WDEF(3)] issueQue_id;
+    MicOp_t::_u micOp_type;
+    // memdep
+    logic shouldwait;
+    robIdx_t dep_robIdx;
+
+    logic[`XDEF] instmeta;
+} memExeInfo_t;
 
 typedef struct {
     robIdx_t rob_idx;
