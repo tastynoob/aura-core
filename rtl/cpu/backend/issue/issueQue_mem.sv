@@ -1,14 +1,43 @@
-`include "backend_define.svh"
+`include "core_define.svh"
 
 
+// Issue Stage:
+// select(i0), readRegfile(i1), bypassData(i2)
 
+// cancel cause:
+// fu stall
+// load replay
+// replay may come from i1, i2
+
+// free IQEntry at i2 if no cancelEvent
+
+// sigle cycle instruct select:
+// | woken+select | wakeOthers/read regfile | bypass |
+
+// NOTE: wake from alu/mdu is absolutely correct
+// wake from ldu is speculative
+
+`define BUILD_ISSUESTATE(_micOp, _srcLpv, _iqIdx) \
+    '{ \
+        default : 0,                    \
+        ftqIdx  : ``_micOp``.ftqIdx,     \
+        robIdx  : ``_micOp``.robIdx,     \
+        irobIdx : ``_micOp``.irobIdx,    \
+        rdwen   : ``_micOp``.rdwen,      \
+        iprd    : ``_micOp``.iprd,       \
+        iprs    : ``_micOp``.iprs,       \
+        useImm  : ``_micOp``.useImm,     \
+        issueQueId : ``_micOp``.issueQueId,  \
+        micOp   : ``_micOp``.micOp,      \
+        iqIdx   : ``_iqIdx``,            \
+        seqNum  : ``_micOp``.seqNum      \
+    }
+
+//unordered in,unordered out
 module issueQue_mem #(
     parameter int DEPTH = 8,
     parameter int INOUTPORT_NUM = 2,
-    parameter int EXTERNAL_WAKEUPNUM = 2,
-    parameter int WBPORT_NUM = 6,
-    parameter int SINGLEEXE = 0,
-    parameter int HASDEST = 1
+    parameter int EXTERNAL_WAKEUPNUM = 2
 ) (
     input wire clk,
     input wire rst,
@@ -16,177 +45,72 @@ module issueQue_mem #(
     //enq
     output wire o_can_enq,
     input wire[`WDEF(INOUTPORT_NUM)] i_enq_req,
-    input microOp_t i_enq_exeInfo[INOUTPORT_NUM],
-    input wire i_enq_iprs_rdy[INOUTPORT_NUM],
-    input wire i_enq_memdep_rdy[INOUTPORT_NUM],
+    input microOp_t i_microOp[INOUTPORT_NUM],
+    input wire[`WDEF(`NUMSRCS_INT)] i_enq_iprs_rdy[INOUTPORT_NUM],
 
     //output INOUTPORT_NUM entrys with the highest priority which is ready
-    input wire[`WDEF(INOUTPORT_NUM)] i_fu_busy,// cannot issue
+    input wire[`WDEF(INOUTPORT_NUM)] i_fu_busy,
     output wire[`WDEF(INOUTPORT_NUM)] o_can_issue,//find can issued entry
-    output wire[`WDEF($clog2(DEPTH))] o_issue_idx[INOUTPORT_NUM],
-    output microOp_t o_issue_exeInfo[INOUTPORT_NUM],
+    output issueState_t o_issueState[INOUTPORT_NUM],
 
-    // clear entry's vld bit (issue successed)
-    input wire[`WDEF(INOUTPORT_NUM)] i_issue_finished_vec,
-    // replay entry's issued bit (issue failed)
-    input wire[`WDEF(INOUTPORT_NUM)] i_issue_replay_vec,
-    // feedback from readRegfile which is or not successed
-    input wire[`WDEF($clog2(DEPTH))] i_feedback_idx[INOUTPORT_NUM],
+    input wire[`WDEF(INOUTPORT_NUM)] i_issueSuccess,
+    input wire[`WDEF(INOUTPORT_NUM)] i_issueReplay,
+    input wire[`WDEF($clog2(DEPTH))] i_feedbackIdx[INOUTPORT_NUM],
 
-    //export internal wakeup signal
-    output wire[`WDEF(INOUTPORT_NUM)] o_export_wakeup_vld,
-    output iprIdx_t o_export_wakeup_rdIdx[INOUTPORT_NUM],
-
-    //external wakeup source (speculative wakeup)
-    input wire[`WDEF(EXTERNAL_WAKEUPNUM)] i_ext_wakeup_vld,
-    input iprIdx_t i_ext_wakeup_rdIdx[EXTERNAL_WAKEUPNUM],
-
-    //wb wakeup port (must be correct)
-    input wire[`WDEF(WBPORT_NUM)] i_wb_vld,
-    input iprIdx_t i_wb_rdIdx[WBPORT_NUM],
-
-    // store issue
-    input wire[`WDEF(`STORE_ISSUE_WIDTH)] i_store_issue,
-    input robIdx_t i_store_robIdx[`STORE_ISSUE_WIDTH]
+    input wire[`WDEF(EXTERNAL_WAKEUPNUM)] i_ext_wk_vec,
+    input iprIdx_t i_ext_wk_iprd[EXTERNAL_WAKEUPNUM],
+    input lpv_t i_ext_wk_lpv[EXTERNAL_WAKEUPNUM][`NUMSRCS_INT]
 );
-
-    genvar i;
 
     typedef struct {
         logic vld; //unused in compressed RS
         logic issued; // flag issued
-        logic memdep_rdy;
-        logic src_rdy; // which src is ready
-        logic src_spec_rdy; // which src is speculative ready
+        logic[`WDEF(`NUMSRCS_INT)] srcRdy;// update by writeback
 
         microOp_t info;
     } IQEntry;
 
+    genvar i, j;
+
     IQEntry buffer[DEPTH];
-    logic[`WDEF(DEPTH)] nxt_memdep_rdy;
-    logic nxt_src_rdy[DEPTH], nxt_src_spec_rdy[DEPTH];
+    logic[`WDEF(`NUMSRCS_INT)] nxtSrcRdy[DEPTH];
 
     //find the entry idx of buffer which can issue
-    logic[`WDEF(INOUTPORT_NUM)] enq_find_free, deq_find_ready;//is find the entry which is ready to issue
-    logic[`WDEF($clog2(DEPTH))] enq_idx[INOUTPORT_NUM] ,deq_idx[INOUTPORT_NUM];//the entrys that ready to issue
-    reg[`WDEF(INOUTPORT_NUM)] saved_deq_find_ready;//T0 compute and T1 use
-    reg[`WDEF($clog2(DEPTH))] saved_deq_idx[INOUTPORT_NUM];
+    logic[`WDEF(INOUTPORT_NUM)] enq_find_free, deqRdy;//is find the entry which is ready to issue
+    logic[`WDEF($clog2(DEPTH))] enq_idx[INOUTPORT_NUM] ,deqIdx[INOUTPORT_NUM];//the entrys that ready to issue
+    reg[`WDEF(INOUTPORT_NUM)] s1_deqRdy;//T0 compute and T1 use
 
-    assign o_can_issue = saved_deq_find_ready;
-    assign o_issue_idx = saved_deq_idx;
+    assign o_can_issue = s1_deqRdy;
     assign o_can_enq = &enq_find_free;
 
     wire[`WDEF(INOUTPORT_NUM)] real_enq_req = enq_find_free & i_enq_req;
 
-    //spec wakeup source
-    wire[`WDEF(EXTERNAL_WAKEUPNUM)] wakeup_src_vld;
-    iprIdx_t wakeup_rdIdx[EXTERNAL_WAKEUPNUM];
-
-
     wire[`WDEF(DEPTH)] entry_ready;
+
     generate
-        for (i=0;i<EXTERNAL_WAKEUPNUM;i=i+1) begin
-            //external wakeup source
-            assign wakeup_src_vld[i] = i_ext_wakeup_vld[i];
-            assign wakeup_rdIdx[i] = i_ext_wakeup_rdIdx[i];
-        end
-        //export internal wakeup signal
-        for (i=0;i<INOUTPORT_NUM;i=i+1) begin
-            assign o_export_wakeup_vld[i] = buffer[deq_idx[i]].vld && deq_find_ready[i] && buffer[deq_idx[i]].info.rd_wen;
-            assign o_export_wakeup_rdIdx[i] = buffer[deq_idx[i]].info.iprd_idx;
-        end
-
         for(i=0;i<DEPTH;i=i+1) begin
-            assign entry_ready[i] = buffer[i].vld && (&(buffer[i].src_rdy | buffer[i].src_spec_rdy)) && buffer[i].memdep_rdy && (buffer[i].issued == 0);
-        end
-
-        for (i=0;i<INOUTPORT_NUM;i=i+1) begin
-            assign o_issue_exeInfo[i] = buffer[saved_deq_idx[i]].info;
+            assign entry_ready[i] =
+                buffer[i].vld && (!buffer[i].issued) && (&(nxtSrcRdy[i])) ;
         end
     endgenerate
 
-
-    //update status
-    always_ff @( posedge clk ) begin
-        int fa,fb,fc;
-        if (rst) begin
-            saved_deq_find_ready <= 0;
-            for (fa=0;fa<DEPTH;fa=fa+1) begin
-                buffer[fa].vld <= false;
-            end
-        end
-        else begin
-
-            for (fa=0;fa<INOUTPORT_NUM;fa=fa+1) begin
-                //enq
-                if (real_enq_req[fa]) begin
-                    assert(buffer[enq_idx[fa]].vld == 0);
-                    buffer[enq_idx[fa]].vld <= 1;
-                    buffer[enq_idx[fa]].info <= i_enq_exeInfo[fa];
-                    buffer[enq_idx[fa]].issued <= 0;
-                    buffer[enq_idx[fa]].memdep_rdy <= i_enq_memdep_rdy[fa];
-                    buffer[enq_idx[fa]].src_rdy <= i_enq_iprs_rdy[fa];
-                    buffer[enq_idx[fa]].src_spec_rdy <= i_enq_iprs_rdy[fa];
-                end
-
-                if (!i_fu_busy[fa]) begin
-                    //save selected entry's Idx
-                    saved_deq_find_ready[fa] <= deq_find_ready[fa];
-                    saved_deq_idx[fa] <= deq_idx[fa];
-                    //select and issue(set issued)
-                    if (deq_find_ready[fa]) begin
-                        buffer[deq_idx[fa]].issued <= 1;
-                    end
-                end
-
-                //deq
-                if (i_issue_finished_vec[fa]) begin
-                    assert(buffer[i_feedback_idx[fa]].vld);
-                    buffer[i_feedback_idx[fa]].vld <= false;
-                end
-                //replay
-                else if ((!SINGLEEXE) && i_issue_replay_vec[fa]) begin
-                    assert(buffer[i_feedback_idx[fa]].vld);
-                    assert(buffer[i_feedback_idx[fa]].src_spec_rdy == 1'b1);
-                    buffer[deq_idx[fa]].issued <= false;
-                    buffer[i_feedback_idx[fa]].src_spec_rdy <= buffer[i_feedback_idx[fa]].src_rdy;
-                end
-                assert(SINGLEEXE ? !(|i_issue_replay_vec) : 1);
-            end
-
-            for (fa=0;fa<DEPTH;fa=fa+1) begin
-                if (buffer[fa].vld) begin
-                    buffer[fa].memdep_rdy <= nxt_memdep_rdy[fa];
-                    buffer[fa].src_rdy <= nxt_src_rdy[fa];
-                    buffer[fa].src_spec_rdy <= nxt_src_spec_rdy[fa];
-                end
-            end
-        end
-    end
-
-    //select: find ready entry and find free entry
-    //TODO: now the issue scheduler is random-select
-    //we need to replace this to age-select
-    logic[`WDEF(DEPTH)] free_entry_selected[INOUTPORT_NUM];
-
-    //select
+    // enq find free
     always_comb begin
         int ca,cb;
         free_entry_selected[0] = 0;
         for (ca=0;ca<INOUTPORT_NUM;ca=ca+1) begin
             enq_idx[ca]=0;
             enq_find_free[ca]=0;
-            deq_idx[ca]=0;
 
             if (ca==0) begin
                 for (cb=DEPTH-1;cb>=0;cb=cb-1) begin
-                    //select free entry
+                    // find free entry
                     if (!buffer[cb].vld) begin
                         enq_idx[ca] = cb;
                         enq_find_free[ca] = 1;
                     end
                 end
-                free_entry_selected[ca][enq_idx[ca]] = enq_find_free[ca];
+                free_entry_selected[ca][enq_idx[ca]]= enq_find_free[ca];
             end
             else begin
                 free_entry_selected[ca] = free_entry_selected[ca-1];
@@ -202,11 +126,92 @@ module issueQue_mem #(
         end
     end
 
+    // update status
+    always_ff @( posedge clk ) begin
+        int fa,fb,fc;
+        if (rst) begin
+            s1_deqRdy <= 0;
+            for (fa=0;fa<DEPTH;fa=fa+1) begin
+                buffer[fa].vld <= 0;
+            end
+        end
+        else begin
+            for (fa=0;fa<INOUTPORT_NUM;fa=fa+1) begin
+                // enq
+                if (real_enq_req[fa]) begin
+                    assert(buffer[enq_idx[fa]].vld == 0);
+                    buffer[enq_idx[fa]].vld <= 1;
+                    buffer[enq_idx[fa]].info <= i_microOp[fa];
+                    buffer[enq_idx[fa]].issued <= 0;
+                    buffer[enq_idx[fa]].srcRdy <= i_enq_iprs_rdy[fa];
+
+                    update_instPos(
+                        i_microOp[fa].seqNum,
+                        difftest_def::AT_issueQue
+                    );
+                end
+
+                // deq/replay at i2
+                if (i_issueSuccess[fa]) begin
+                    assert(buffer[i_feedbackIdx[fa]].vld);
+                    buffer[i_feedbackIdx[fa]].vld <= 0;
+                end
+                else if (i_issueReplay[fa]) begin
+                    assert(buffer[i_feedbackIdx[fa]].vld);
+                    buffer[i_feedbackIdx[fa]].issued <= 0;
+                end
+            end
+
+            // schedule and issue
+            if (|deqRdy) begin
+                if (i_fu_busy == 2'b00) begin
+                    // ports are free
+                    s1_deqRdy <= deqRdy;
+                    o_issueState[0] <= `BUILD_ISSUESTATE(buffer[deqIdx[0]].info, 0, deqIdx[0]);
+                    o_issueState[1] <= `BUILD_ISSUESTATE(buffer[deqIdx[1]].info, 0, deqIdx[1]);
+                    if (deqRdy[0]) begin
+                        buffer[deqIdx[0]].issued <= 1;
+                    end
+                    if (deqRdy[1]) begin
+                        buffer[deqIdx[1]].issued <= 1;
+                    end
+                end
+                else if (i_fu_busy == 2'b01) begin
+                    // port 0 is busy
+                    s1_deqRdy <= {deqRdy[0], 1'b0};
+                    o_issueState[1] <= `BUILD_ISSUESTATE(buffer[deqIdx[0]].info, 0, deqIdx[0]);
+                    if (deqRdy[0]) begin
+                        buffer[deqIdx[0]].issued <= 1;
+                    end
+                end
+                else if (i_fu_busy == 2'b10) begin
+                    // port 1 is busy
+                    s1_deqRdy <= {1'b0, deqRdy[0]};
+                    o_issueState[0] <= `BUILD_ISSUESTATE(buffer[deqIdx[0]].info, 0, deqIdx[0]);
+                    if (deqRdy[0]) begin
+                        buffer[deqIdx[0]].issued <= 1;
+                    end
+                end
+            end
+            else begin
+                s1_deqRdy <= 0;
+            end
+
+            for (fa=0;fa<DEPTH;fa=fa+1) begin
+                if (buffer[fa].vld) begin
+                    buffer[fa].srcRdy <= nxtSrcRdy[fa];
+                end
+            end
+        end
+    end
+
+    logic[`WDEF(DEPTH)] free_entry_selected[INOUTPORT_NUM];
+
 `SET_TRACE_OFF
     robIdx_t ages[DEPTH];
     generate
         for (i=0;i<DEPTH;i=i+1) begin
-            assign ages[i] = buffer[i].info.rob_idx;
+            assign ages[i] = buffer[i].info.robIdx;
         end
     endgenerate
     age_schedule
@@ -218,46 +223,27 @@ module issueQue_mem #(
         .clk       ( clk ),
         .rst       ( rst ),
         .i_vld     ( entry_ready ),
-        .i_ages    ( ages    ),
-        .o_vld     ( deq_find_ready     ),
-        .o_sel_idx ( deq_idx )
+        .i_ages    ( ages   ),
+        .o_vld     ( deqRdy ),
+        .o_sel_idx ( deqIdx )
     );
 `SET_TRACE_ON
-    `ASSERT((i_issue_finished_vec & i_issue_replay_vec) == 0);
 
     logic[`WDEF(DEPTH)] AAA_buffer_vld;
 
-    // wakeup
     always_comb begin
         int ca,cb,cc;
         for(ca=0;ca<DEPTH;ca=ca+1) begin
             AAA_buffer_vld[ca] = buffer[ca].vld;
-            nxt_src_rdy[ca] = buffer[ca].src_rdy;
-            nxt_src_spec_rdy[ca] = buffer[ca].src_spec_rdy;
-            nxt_memdep_rdy[ca] = 0;
-
-            //wb wakeup
-            for (cc=0;cc<WBPORT_NUM;cc=cc+1) begin
-                if ((buffer[ca].info.iprs_idx == i_wb_rdIdx[cc]) && i_wb_vld[cc]) begin
-                    nxt_src_rdy[ca] = 1;
-                end
-            end
-            //spec wakeup
-            for (cc=0;cc<EXTERNAL_WAKEUPNUM;cc=cc+1) begin
-                if ((buffer[ca].info.iprs_idx == wakeup_rdIdx[cc]) && wakeup_src_vld[cc]) begin
-                    nxt_src_spec_rdy[ca] = 1;
-                end
-            end
-
-            for (cb=0;cb<`STORE_ISSUE_WIDTH;cb=cb+1) begin
-                if (i_store_issue[cb] && (buffer[ca].info.dep_robIdx == i_store_robIdx[cb])) begin
-                    nxt_memdep_rdy[ca] = 1;
+            nxtSrcRdy[ca] = buffer[ca].srcRdy;
+            for (cb=0;cb<`NUMSRCS_INT;cb=cb+1) begin
+                // wake
+                for (cc=0;cc<EXTERNAL_WAKEUPNUM;cc=cc+1) begin
+                    if ((buffer[ca].info.iprs[cb] == i_ext_wk_iprd[cc]) && i_ext_wk_vec[cc]) begin
+                        nxtSrcRdy[ca][cb] = 1;
+                    end
                 end
             end
         end
     end
 endmodule
-
-
-
-

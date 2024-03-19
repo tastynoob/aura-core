@@ -30,6 +30,7 @@ module regfile #(
     generate
         if (HAS_ZERO != 0) begin:gen_has_zero
             import "DPI-C" function void write_int_physicRegfile(uint64_t idx, uint64_t value);
+            import "DPI-C" function void count_regfilewrite(uint64_t n);
 
             reg[`XDEF] buffer[1:SIZE-1];
             reg[`WDEF(SIZE)] rdy_bit;
@@ -49,6 +50,7 @@ module regfile #(
                             assert (rdy_bit[i_write_idx[fa]] == 0);
                         end
                     end
+                    count_regfilewrite(count_one(i_write_en));
                 end
             end
 

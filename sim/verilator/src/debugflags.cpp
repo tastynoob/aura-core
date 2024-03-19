@@ -1,4 +1,4 @@
-#include "flags.hpp"
+#include "debugflags.hpp"
 
 #include <string.h>
 #include <err.h>

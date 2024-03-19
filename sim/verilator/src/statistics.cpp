@@ -4,11 +4,12 @@
 #include <map>
 #include "riscv-disasm/disasm.h"
 #include "statistics.hpp"
-#include "flags.hpp"
+#include "debugflags.hpp"
 using namespace std;
 
 std::map<const char*,uint64_t> statsPerf;
 std::map<const char*,uint64_t> avgStatsPerf;
+std::map<const char*,std::map<uint64_t, uint64_t>> diststatsPerf;
 disassembler_t* disasm = new disassembler_t(64);
 
 void dumpStats() {
@@ -18,6 +19,12 @@ void dumpStats() {
     }
     for (auto it = avgStatsPerf.begin(); it != avgStatsPerf.end();it++) {
         fs << it->first << " : " << (float)it->second/(curTick()/2) << "\n";
+    }
+    for (auto it = diststatsPerf.begin(); it != diststatsPerf.end();it++) {
+        for (auto it2 = it->second.begin(); it2 != it->second.end();it2++) {
+            fs << it->first << "::";
+            fs << it2->first << " : " << it2->second << "\n";
+        }
     }
 
     fs.close();
@@ -88,6 +95,10 @@ void perfAccumulate(const char* name, uint64_t val) {
 
 void perfAvgAccumulate(const char* name, uint64_t val) {
     avgStatsPerf[name] = avgStatsPerf[name] + val;
+}
+
+void perfDistAccumulate(const char* name, uint64_t key, uint64_t val) {
+    diststatsPerf[name][key] = diststatsPerf[name][key] + val;
 }
 
 extern "C" {
@@ -312,52 +323,12 @@ extern "C" {
         perfAvgAccumulate("avg BPU predicted block size to backend per cycle (byte)", n);
     }
 
+    void count_regfilewrite(uint64_t n) {
+        perfDistAccumulate("regfile write", n, 1);
+    }
+
     void count_fetchToBackend(uint64_t n) {
         perfAvgAccumulate("avg fetchedInsts to backend per cycle", n);
-        switch (n)
-        {
-        case 0:
-            perfAccumulate("fetchedInsts to backend::0 (cycle)", 1);
-            break;
-        case 1:
-            perfAccumulate("fetchedInsts to backend::1 (cycle)", 1);
-            break;
-        case 2:
-            perfAccumulate("fetchedInsts to backend::2 (cycle)", 1);
-            break;
-        case 3:
-            perfAccumulate("fetchedInsts to backend::3 (cycle)", 1);
-            break;
-        case 4:
-            perfAccumulate("fetchedInsts to backend::4 (cycle)", 1);
-            break;
-        case 5:
-            perfAccumulate("fetchedInsts to backend::5 (cycle)", 1);
-            break;
-        case 6:
-            perfAccumulate("fetchedInsts to backend::6 (cycle)", 1);
-            break;
-        case 7:
-            perfAccumulate("fetchedInsts to backend::7 (cycle)", 1);
-            break;
-        case 8:
-            perfAccumulate("fetchedInsts to backend::8 (cycle)", 1);
-            break;
-        case 9:
-            perfAccumulate("fetchedInsts to backend::9 (cycle)", 1);
-            break;
-        case 10:
-            perfAccumulate("fetchedInsts to backend::10 (cycle)", 1);
-            break;
-        case 11:
-            perfAccumulate("fetchedInsts to backend::11 (cycle)", 1);
-            break;
-        case 12:
-            perfAccumulate("fetchedInsts to backend::12 (cycle)", 1);
-            break;
-        default:
-            assert(false);
-            break;
-        }
+        perfDistAccumulate("fetchedInsts to backend", n, 1);
     }
 }

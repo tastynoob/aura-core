@@ -5,13 +5,13 @@
 #include Vheader
 #include "cmdline.hpp"
 #include "statistics.hpp"
-#include "flags.hpp"
+#include "debugflags.hpp"
 
 uint64_t trace_start = 0;
 uint64_t max_simTime = UINT64_MAX;
 uint64_t main_time = 0;
-VTOP *top;
-VerilatedVcdC *tfp;
+VTOP* top;
+VerilatedVcdC* tfp;
 char buffer[100];
 
 uint64_t curTick() { return main_time; }
@@ -48,7 +48,7 @@ void tick_step() {
 }
 
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     for (int i = 0; i < argc; i++)
     {
@@ -58,10 +58,10 @@ int main(int argc, char **argv)
     cmdline::parser parser;
     parser.add<std::string>("exec-file", 'f', "the riscv executable binary file path", true);
     parser.add<std::string>("end", 'e', "end simulation by specific conditions\n"
-                                        "       e.g\n"
-                                        "           -e i100t25\n"
-                                        "       end simulation at 100th instruction or 25th tick",
-                            false);
+        "       e.g\n"
+        "           -e i100t25\n"
+        "       end simulation at 100th instruction or 25th tick",
+        false);
     parser.add<uint32_t>("seed", 's', "the seed of x-assign random init", false);
     parser.add<std::string>("diff-so", 'd', "the so of difftest ref", false);
 
@@ -72,10 +72,10 @@ int main(int argc, char **argv)
 
 #ifdef USE_TRACE
     parser.add<std::string>("trace", 0, "enable trace by specific conditions\n"
-                                        "       e.g\n"
-                                        "           --trace i100t25\n"
-                                        "       enable trace starting at 100th instruction or 25th tick",
-                            false);
+        "       e.g\n"
+        "           --trace i100t25\n"
+        "       enable trace starting at 100th instruction or 25th tick",
+        false);
 #endif
 
     parser.parse_check(argc, argv);
@@ -93,7 +93,7 @@ int main(int argc, char **argv)
         diff_init(parser.get<std::string>("diff-so").c_str());
     }
 
-    int verilated_seed; 
+    int verilated_seed;
     if (parser.exist("seed"))
     {
         verilated_seed = parser.get<uint32_t>("seed");
@@ -140,7 +140,7 @@ int main(int argc, char **argv)
     std::cout << "verilated random seed: " << verilated_seed << std::endl;
 
     int verilated_argc = 3;
-    char const *verilated_argv[3];
+    char const* verilated_argv[3];
     sprintf(buffer, "+verilator+seed+%d", verilated_seed);
     // veriator simulate runtime args
     verilated_argv[0] = argv[0];
@@ -148,9 +148,9 @@ int main(int argc, char **argv)
     verilated_argv[2] = "+verilator+rand+reset+2";
     Verilated::commandArgs(verilated_argc, verilated_argv);
     Verilated::traceEverOn(true);
-    Verilated::addExitCb([](void *)
-                         { std::cout << "Exiting tick at: " << main_time << std::endl; },
-                         nullptr);
+    Verilated::addExitCb([](void*)
+        { std::cout << "Exiting tick at: " << main_time << std::endl; },
+        nullptr);
     top = new VTOP(Vname);
 
 #ifdef USE_TRACE
@@ -164,7 +164,7 @@ int main(int argc, char **argv)
     std::cout << "**** REAL EMULATION ****\n";
 
     tick_init_top();
-    
+
     // Simulate until $finish
     while ((main_time < max_simTime) && !force_exit())
     {
@@ -174,7 +174,6 @@ int main(int argc, char **argv)
     }
     top->final();
 
-
 #ifdef USE_TRACE
     tfp->close();
 #endif
@@ -182,7 +181,7 @@ int main(int argc, char **argv)
     delete top;
 
     int ret_code = 0;
-    std::cout<<std::endl;
+    std::cout << std::endl;
     if (force_exit() == 1) {
         std::cout << "**** [" << main_time << "] RUN FAILED! ****\n";
         ret_code = 1;

@@ -24,20 +24,11 @@ module memBlock #(
     input wire[`XDEF] i_iprs_data[`LDU_NUM + `STU_NUM*2],
 
     // immBuffer read
-    output irobIdx_t o_immB_idx[`ALU_NUM],
-    input imm_t i_imm_data[`ALU_NUM],
-
-    // read ftq_startAddress (to ftq)
-    output ftqIdx_t o_read_ftqIdx,
-    input wire[`XDEF] i_read_ftqStartAddr,
-    input wire[`XDEF] i_read_ftqNextAddr,
-
-    // read ftqOffste (to rob)
-    output wire[`WDEF($clog2(`ROB_SIZE))] o_read_robIdx,
-    input ftqOffset_t i_read_ftqOffset,
+    output irobIdx_t o_immB_idx[FU_NUM],
+    input imm_t i_imm_data[FU_NUM],
 
     // writeback
-    input wire[`WDEF(2)] i_wb_stall,
+    input wire[`WDEF(`LDU_NUM)] i_wb_stall,
     output wire[`WDEF(FU_NUM)] o_fu_finished,
     output comwbInfo_t o_comwbInfo[FU_NUM],
 
@@ -51,9 +42,9 @@ module memBlock #(
     output iprIdx_t o_exp_bp_iprd[`MEM_WBPORT_NUM],
     output wire[`XDEF] o_exp_bp_data[`MEM_WBPORT_NUM],
 
-    // intblk wakeNetwork
-    input wire[`WDEF(`WBPORT_NUM)] i_glob_wk_vec,
-    input iprIdx_t i_glob_wk_iprd[`WBPORT_NUM],
+    // external specwake
+    input wire[`WDEF(`INT_SWAKE_WIDTH)] i_ext_swk_vec,
+    input iprIdx_t i_ext_swk_iprd[`INT_SWAKE_WIDTH],
 
     // global bypass data
     input wire[`WDEF(`BYPASS_WIDTH)] i_glob_bp_vec,

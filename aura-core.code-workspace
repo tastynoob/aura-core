@@ -10,7 +10,8 @@
 		"verilog.linting.verilator.arguments": "-sv -f test/verilator/tb.sv $(python3 tools/getlist_of_rtl.py -p rtl) ",
 		"verilog.formatting.systemVerilog.formatter": "verible-verilog-format",
 		"verilog.formatting.veribleVerilogFormatter.path": "verible-verilog-format",
-		"verilog.formatting.veribleVerilogFormatter.arguments": "--indentation_spaces=4 --named_port_alignment=align --named_port_indentation=wrap --port_declarations_alignment=align --port_declarations_indentation=wrap",
+		"verilog.formatting.veribleVerilogFormatter.arguments" :
+			"--flagfile=/home/lurker/workspace/O3CPU/aura-core/.sv.format",
 		//verilog language server use verible
 		"verible.arguments": [
 			"--rules_config=.sv.style"

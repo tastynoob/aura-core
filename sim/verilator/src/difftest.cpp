@@ -6,7 +6,7 @@
 #include <svdpi.h>
 
 #include "define.hpp"
-#include "flags.hpp"
+#include "debugflags.hpp"
 #include "statistics.hpp"
 
 enum DEST_TYPE {

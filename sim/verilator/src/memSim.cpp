@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 #include "define.hpp"
-#include "flags.hpp"
+#include "debugflags.hpp"
 
 
 class MemSim {

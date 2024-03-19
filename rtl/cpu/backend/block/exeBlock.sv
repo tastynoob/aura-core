@@ -244,13 +244,6 @@ module exeBlock(
         .o_immB_idx          ( memBlock_irob_idx          ),
         .i_imm_data          ( toMemBlock_imm          ),
 
-        .o_read_ftqIdx       (),
-        .i_read_ftqStartAddr (),
-        .i_read_ftqNextAddr  (),
-
-        .o_read_robIdx       (),
-        .i_read_ftqOffset    (),
-
         .i_wb_stall          ( 0          ),
         .o_fu_finished       ( memBlk_fu_finished       ),
         .o_comwbInfo         ( memBlk_comwbInfo         ),
@@ -263,6 +256,9 @@ module exeBlock(
         .o_exp_bp_vec        ( memBlk_bp_vec        ),
         .o_exp_bp_iprd       ( memBlk_bp_iprd       ),
         .o_exp_bp_data       ( memBlk_bp_data       ),
+
+        .i_ext_swk_vec       (),
+        .i_ext_swk_iprd      (),
 
         .i_glob_bp_vec       ( glob_bp_vec          ),
         .i_glob_bp_iprd      ( glob_bp_iprd         ),
