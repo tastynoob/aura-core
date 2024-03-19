@@ -7,9 +7,9 @@
 
 // link storeQue to Dcache
 module StoreBuffer #(
-    parameter int SIZE = 16,
-    parameter int DATAWIDTH = 32*8//32Byte
-)(
+    parameter int SIZE      = 16,
+    parameter int DATAWIDTH = 32 * 8  //32Byte
+) (
     input wire clk,
     input wire rst
 );

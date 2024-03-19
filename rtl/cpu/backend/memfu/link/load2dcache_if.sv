@@ -18,25 +18,25 @@ interface load2dcache_if;
     logic s0_req;
     logic s0_gnt;
     lqIdx_t s0_lqIdx;
-    logic[`XDEF] s0_vaddr;
+    logic [`XDEF] s0_vaddr;
 
     // s1:
     // check dcache/tlb miss
     logic s1_req;
-    logic s1_rdy;// used for pipeline align
-    logic s1_cft; // bank conflict, replay
-    logic s1_miss; // tlbmiss or cache miss
-    logic s1_pagefault;// mmu page fault
-    logic s1_illegaAddr;// mmu check failed
-    logic s1_mmio; // mmio space
-    paddr_t s1_paddr; // translated paddr
+    logic s1_rdy;  // used for pipeline align
+    logic s1_cft;  // bank conflict, replay
+    logic s1_miss;  // tlbmiss or cache miss
+    logic s1_pagefault;  // mmu page fault
+    logic s1_illegaAddr;  // mmu check failed
+    logic s1_mmio;  // mmio space
+    paddr_t s1_paddr;  // translated paddr
 
     // s2:
     logic s2_req;
     logic s2_rdy;
-    logic[`WDEF(`CACHELINE_SIZE*8)] s2_data;// return one cacheline
+    logic [`WDEF(`CACHELINE_SIZE*8)] s2_data;  // return one cacheline
 
-    modport m (
+    modport m(
         output s0_req,
         input s0_gnt,
         output s0_lqIdx,
@@ -56,7 +56,7 @@ interface load2dcache_if;
         input s2_data
     );
 
-    modport s (
+    modport s(
         input s0_req,
         output s0_gnt,
         input s0_lqIdx,

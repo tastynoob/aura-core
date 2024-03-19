@@ -5,14 +5,14 @@ import funcs::*;
 //unsafed fifo
 //ordered in out
 module fifo #(
-    parameter type dtype = logic,
-    parameter int INPORT_NUM = 4,
-    parameter int OUTPORT_NUM = 4,
-    parameter int DEPTH = 32,
-    parameter int USE_INIT = 0,
+    parameter type dtype       = logic,
+    parameter int  INPORT_NUM  = 4,
+    parameter int  OUTPORT_NUM = 4,
+    parameter int  DEPTH       = 32,
+    parameter int  USE_INIT    = 0,
     // only for rename
-    parameter int USE_RENAME = 0,
-    parameter int COMMIT_WID = 0
+    parameter int  USE_RENAME  = 0,
+    parameter int  COMMIT_WID  = 0
 ) (
     input dtype init_data[DEPTH],
     input wire clk,
@@ -20,7 +20,7 @@ module fifo #(
     input wire i_flush,
     // enq
     output wire o_can_enq,
-    input wire i_enq_vld, // only when enq_vld is true, can enq
+    input wire i_enq_vld,  // only when enq_vld is true, can enq
     input wire [`WDEF(INPORT_NUM)] i_enq_req,
     input dtype i_enq_data[INPORT_NUM],
     // deq
@@ -31,67 +31,63 @@ module fifo #(
     // resteer (only for rename restore)
     input wire i_resteer_vld,
     // commit (only for rename restore)
-    input wire[`WDEF(COMMIT_WID)] i_commit_vld
+    input wire [`WDEF(COMMIT_WID)] i_commit_vld
 );
     genvar i;
 
-    wire[`WDEF(INPORT_NUM)] real_enq_vld = (o_can_enq && i_enq_vld) ? i_enq_req : 0;
-    wire[`WDEF(INPORT_NUM)] real_deq_vld = i_deq_req & o_can_deq;
+    wire [`WDEF(INPORT_NUM)] real_enq_vld = (o_can_enq && i_enq_vld) ? i_enq_req : 0;
+    wire [`WDEF(INPORT_NUM)] real_deq_vld = i_deq_req & o_can_deq;
     wire [`SDEF(DEPTH)] enq_num, real_enq_num, deq_num;
-    count_one
-    #(
-        .WIDTH ( INPORT_NUM )
-    )
-    u_count_one_0(
-    	.i_a   ( i_enq_req   ),
-        .o_sum ( enq_num )
+    count_one #(
+        .WIDTH(INPORT_NUM)
+    ) u_count_one_0 (
+        .i_a  (i_enq_req),
+        .o_sum(enq_num)
     );
     assign o_can_enq = enq_num <= remaining;
 
     count_one #(
-        .WIDTH  ( INPORT_NUM    )
+        .WIDTH(INPORT_NUM)
     ) u_count_one_1 (
-        .i_a    ( real_enq_vld  ),
-        .o_sum  ( real_enq_num  )
+        .i_a  (real_enq_vld),
+        .o_sum(real_enq_num)
     );
     count_one #(
-        .WIDTH  ( OUTPORT_NUM   )
+        .WIDTH(OUTPORT_NUM)
     ) u_count_one_2 (
-        .i_a    ( real_deq_vld  ),
-        .o_sum  ( deq_num      )
+        .i_a  (real_deq_vld),
+        .o_sum(deq_num)
     );
 
     dtype buffer[DEPTH];
-    reg[`WDEF($clog2(DEPTH))] enq_ptr[INPORT_NUM], deq_ptr[OUTPORT_NUM];
-    reg[`WDEF($clog2(DEPTH))] arch_deq_ptr;
-    reg[`SDEF(DEPTH)] count, arch_count;
+    reg [`WDEF($clog2(DEPTH))] enq_ptr[INPORT_NUM], deq_ptr[OUTPORT_NUM];
+    reg [`WDEF($clog2(DEPTH))] arch_deq_ptr;
+    reg [`SDEF(DEPTH)] count, arch_count;
 
     if (USE_RENAME) begin : gen_freelist
         // DESIGN:
         // commit ont inst with rd
         // the arch_deq_ptr increment by 1
 
-        wire [`SDEF(DEPTH)] commit_num;// the arch_read_num
-        count_one
-        #(
-            .WIDTH ( COMMIT_WID )
-        )
-        u_count_one_3 (
-            .i_a   ( i_commit_vld   ),
-            .o_sum ( commit_num )
+        wire [`SDEF(DEPTH)] commit_num;  // the arch_read_num
+        count_one #(
+            .WIDTH(COMMIT_WID)
+        ) u_count_one_3 (
+            .i_a  (i_commit_vld),
+            .o_sum(commit_num)
         );
-        always_ff @( posedge clk ) begin
+        always_ff @(posedge clk) begin
             int fa;
-            if (rst==true) begin
+            if (rst == true) begin
                 arch_count <= DEPTH;
                 arch_deq_ptr <= 0;
             end
             else begin
                 arch_count <= arch_count - commit_num + enq_num;
                 arch_deq_ptr <= (arch_deq_ptr + commit_num) < DEPTH ? (arch_deq_ptr + commit_num) : (arch_deq_ptr + commit_num - DEPTH);
-                for (fa=0;fa<INPORT_NUM;fa=fa+1) begin
+                for (fa = 0; fa < INPORT_NUM; fa = fa + 1) begin
                     if (real_enq_vld[fa]) begin
-                        assert(arch_deq_ptr != enq_ptr[fa]);
+                        assert (arch_deq_ptr != enq_ptr[fa]);
                     end
                 end
             end
@@ -105,8 +101,8 @@ module fifo #(
         int fa;
         if ((rst == true) || (i_flush == true)) begin
             if (USE_RENAME) begin
-                for(fa=0;fa<DEPTH;fa=fa+1) begin
-                    buffer[fa] = fa+1;
+                for (fa = 0; fa < DEPTH; fa = fa + 1) begin
+                    buffer[fa] = fa + 1;
                 end
                 count <= DEPTH;
             end
@@ -147,25 +143,25 @@ module fifo #(
     end
 
     wire [`SDEF(DEPTH)] existing, remaining;
-    assign existing  = count;
+    assign existing = count;
     assign remaining = DEPTH - count;
 
     generate
         for (i = 0; i < OUTPORT_NUM; i = i + 1) begin
-            assign o_can_deq[i] = ((i+1) <= existing);
+            assign o_can_deq[i] = ((i + 1) <= existing);
             assign o_deq_data[i] = buffer[deq_ptr[i]];
         end
     endgenerate
 
 
     // use for waveform debug
-    wire[`SDEF(DEPTH)] AAA_count = count;
+    wire [`SDEF(DEPTH)] AAA_count = count;
     if (USE_RENAME) begin
-        wire[`SDEF(DEPTH)] AAA_arch_count = arch_count;
+        wire [`SDEF(DEPTH)] AAA_arch_count = arch_count;
     end
 
-    wire[`SDEF(DEPTH)] AAA_enq_num = real_enq_num;
-    wire[`SDEF(DEPTH)] AAA_deq_num = deq_num;
+    wire [`SDEF(DEPTH)] AAA_enq_num = real_enq_num;
+    wire [`SDEF(DEPTH)] AAA_deq_num = deq_num;
 
     `ASSERT(count <= DEPTH);
 

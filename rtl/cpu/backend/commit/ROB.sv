@@ -14,16 +14,19 @@ import "DPI-C" function void arch_commit_except(uint64_t except);
 import "DPI-C" function void squash_pipe(uint64_t isMispred);
 import "DPI-C" function void cycle_step();
 import "DPI-C" function void commit_idle(uint64_t c);
-import "DPI-C" function void cpu_stucked(uint64_t seqNum, uint64_t vld);
+import "DPI-C" function void cpu_stucked(
+    uint64_t seqNum,
+    uint64_t vld
+);
 
-const logic[`WDEF(2)] SQUASH_NULL = 0;
-const logic[`WDEF(2)] SQUASH_MISPRED = 1;
-const logic[`WDEF(2)] SQUASH_EXCEPT = 2;
+const logic [`WDEF(2)] SQUASH_NULL = 0;
+const logic [`WDEF(2)] SQUASH_MISPRED = 1;
+const logic [`WDEF(2)] SQUASH_EXCEPT = 2;
 
 
 typedef struct {
     robIdx_t rob_idx;
-    logic[`WDEF(2)] squash_type;
+    logic [`WDEF(2)] squash_type;
     // branch
     logic branch_taken;
     logic [`XDEF] npc;
@@ -33,10 +36,10 @@ typedef struct {
 
 package commit_status_t;
 
-typedef enum logic[1:0] {
-    normal,
-    trapProcess
-} _;
+    typedef enum logic [1:0] {
+        normal,
+        trapProcess
+    } _;
 
 endpackage
 
@@ -44,7 +47,7 @@ endpackage
 
 // DESIGN: branch writeback to ftq and rob
 // when write rob, we need to select the oldest branch which is mispred
-module ROB(
+module ROB (
     input wire clk,
     input wire rst,
 
@@ -57,19 +60,19 @@ module ROB(
     // from dispatch insert, enque
     output wire o_can_enq,
     input wire i_enq_vld,
-    input wire[`WDEF(`RENAME_WIDTH)] i_enq_req,
-    input wire[`WDEF(`RENAME_WIDTH)] i_insert_rob_ismv,
+    input wire [`WDEF(`RENAME_WIDTH)] i_enq_req,
+    input wire [`WDEF(`RENAME_WIDTH)] i_insert_rob_ismv,
     input ROBEntry_t i_new_entry[`RENAME_WIDTH],
-    input ftqOffset_t i_new_entry_ftqOffset[`RENAME_WIDTH],//ftqOffset separate from rob
+    input ftqOffset_t i_new_entry_ftqOffset[`RENAME_WIDTH],  //ftqOffset separate from rob
     output robIdx_t o_alloc_robIdx[`RENAME_WIDTH],
 
     // exu read ftqOffset (exu read from rob)
-    input wire[`WDEF($clog2(`ROB_SIZE))] i_read_ftqOffset_idx[`BRU_NUM],
+    input wire [`WDEF($clog2(`ROB_SIZE))] i_read_ftqOffset_idx[`BRU_NUM],
     output ftqOffset_t o_read_ftqOffset_data[`BRU_NUM],
 
     // write back, from exu
     // common writeback
-    input wire[`WDEF(`COMPLETE_NUM)] i_fu_finished,
+    input wire [`WDEF(`COMPLETE_NUM)] i_fu_finished,
     input comwbInfo_t i_comwbInfo[`COMPLETE_NUM],
     // branch writeback
     input wire i_branchwb_vld,
@@ -80,20 +83,20 @@ module ROB(
 
     // we need to notify commit ptr
     output wire o_commit_vld,
-    output wire[`WDEF($clog2(`ROB_SIZE))] o_commit_rob_idx,
+    output wire [`WDEF($clog2(`ROB_SIZE))] o_commit_rob_idx,
 
     output wire o_commit_ftq_vld,
-    output ftqIdx_t o_commit_ftq_idx,// set the ftq commit_ptr_thre to this
+    output ftqIdx_t o_commit_ftq_idx,  // set the ftq commit_ptr_thre to this
 
     // to rename
-    output wire[`WDEF(`COMMIT_WIDTH)] o_rename_commit,
+    output wire [`WDEF(`COMMIT_WIDTH)] o_rename_commit,
     output renameCommitInfo_t o_rename_commitInfo[`COMMIT_WIDTH],
 
     // read by the last commited insts
     // rob read ftq_startAddress (rob read from ftq)
     output wire o_read_ftq_Vld,
     output ftqIdx_t o_read_ftqIdx,
-    input wire[`XDEF] i_read_ftqStartAddr,
+    input wire [`XDEF] i_read_ftqStartAddr,
 
     // pipeline control
     output wire o_can_dispatch_serialize,
@@ -107,32 +110,29 @@ module ROB(
     reg squash_vld;
     squashInfo_t squashInfo;
     reg commit_stall;
-    wire[`WDEF(`COMMIT_WIDTH)] canCommit_vld;
-    wire[`WDEF(`COMMIT_WIDTH)] willCommit_vld;
-    wire[`WDEF($clog2(`ROB_SIZE))] willCommit_idx[`COMMIT_WIDTH];
+    wire [`WDEF(`COMMIT_WIDTH)] canCommit_vld;
+    wire [`WDEF(`COMMIT_WIDTH)] willCommit_vld;
+    wire [`WDEF($clog2(`ROB_SIZE))] willCommit_idx[`COMMIT_WIDTH];
     ROBEntry_t willCommit_data[`COMMIT_WIDTH];
     wire has_mispred;
     wire has_except;
-    wire has_interrupt=0;//TODO:interrupt
+    wire has_interrupt = 0;  //TODO:interrupt
 
     // if has except, commit_end_inst = (excepted inst - 1)
     ROBEntry_t commit_end_inst;
     // if has except prev_commit_rob_idx = (excepted inst - 1)
-    logic[`WDEF($clog2(`ROB_SIZE))] prev_commit_rob_idx;
+    logic [`WDEF($clog2(`ROB_SIZE))] prev_commit_rob_idx;
 
     wire ptr_flipped[`RENAME_WIDTH];
-    wire[`WDEF($clog2(`ROB_SIZE))] alloc_idx[`RENAME_WIDTH];
+    wire [`WDEF($clog2(`ROB_SIZE))] alloc_idx[`RENAME_WIDTH];
     generate
-        for(i=0;i<`RENAME_WIDTH;i=i+1) begin
-            assign o_alloc_robIdx[i] = '{
-                flipped : ptr_flipped[i],
-                idx     : alloc_idx[i]
-            };
+        for (i = 0; i < `RENAME_WIDTH; i = i + 1) begin
+            assign o_alloc_robIdx[i] = '{flipped : ptr_flipped[i], idx     : alloc_idx[i]};
         end
     endgenerate
-    wire[`WDEF($clog2(`ROB_SIZE))] finished_robIdx[`COMPLETE_NUM];
+    wire [`WDEF($clog2(`ROB_SIZE))] finished_robIdx[`COMPLETE_NUM];
     generate
-        for(i=0;i<`COMPLETE_NUM;i=i+1) begin
+        for (i = 0; i < `COMPLETE_NUM; i = i + 1) begin
             assign finished_robIdx[i] = i_comwbInfo[i].rob_idx.idx;
         end
     endgenerate
@@ -140,78 +140,76 @@ module ROB(
     // we need to stall, only commit first one fetchblock
     ftqOffset_t ftqOffset_buffer[`ROB_SIZE];
     wire dataQue_empty;
-    wire[`WDEF(`RENAME_WIDTH)] enq_vld;
-    wire[`WDEF($clog2(`ROB_SIZE))] enq_idx[`RENAME_WIDTH];
-    dataQue
-    #(
-        .DEPTH          ( `ROB_SIZE     ),
-        .INPORT_NUM     ( `RENAME_WIDTH ),
-        .READPORT_NUM   ( 0             ),
-        .CLEARPORT_NUM  ( `COMPLETE_NUM   ),
-        .COMMIT_WID     ( `COMMIT_WIDTH ),
-        .dtype          ( ROBEntry_t    ),
-        .ISROB          ( 1             )
-    )
-    u_dataQue(
-        .clk              ( clk             ),
-        .rst              ( rst || squash_vld ),
-        .i_stall          ( commit_stall    ),
-        .o_empty          ( dataQue_empty   ),
+    wire [`WDEF(`RENAME_WIDTH)] enq_vld;
+    wire [`WDEF($clog2(`ROB_SIZE))] enq_idx[`RENAME_WIDTH];
+    dataQue #(
+        .DEPTH        (`ROB_SIZE),
+        .INPORT_NUM   (`RENAME_WIDTH),
+        .READPORT_NUM (0),
+        .CLEARPORT_NUM(`COMPLETE_NUM),
+        .COMMIT_WID   (`COMMIT_WIDTH),
+        .dtype        (ROBEntry_t),
+        .ISROB        (1)
+    ) u_dataQue (
+        .clk    (clk),
+        .rst    (rst || squash_vld),
+        .i_stall(commit_stall),
+        .o_empty(dataQue_empty),
 
-        .o_can_enq        ( o_can_enq       ),
-        .i_enq_vld        ( i_enq_vld       ),
-        .i_enq_req        ( i_enq_req       ),
-        .i_enq_req_mark_finished ( i_insert_rob_ismv ),
-        .i_enq_data       ( i_new_entry     ),
-        .o_ptr_flipped    ( ptr_flipped     ),
-        .o_alloc_id       ( alloc_idx       ),
-        .o_enq_vld        ( enq_vld         ),
-        .o_enq_idx        ( enq_idx         ),
+        .o_can_enq              (o_can_enq),
+        .i_enq_vld              (i_enq_vld),
+        .i_enq_req              (i_enq_req),
+        .i_enq_req_mark_finished(i_insert_rob_ismv),
+        .i_enq_data             (i_new_entry),
+        .o_ptr_flipped          (ptr_flipped),
+        .o_alloc_id             (alloc_idx),
+        .o_enq_vld              (enq_vld),
+        .o_enq_idx              (enq_idx),
         // inst finished
-        .i_clear_vld      ( i_fu_finished      ),
-        .i_clear_dqIdx    ( finished_robIdx    ),
+        .i_clear_vld            (i_fu_finished),
+        .i_clear_dqIdx          (finished_robIdx),
 
-        .o_willClear_vld  ( willCommit_vld  ),
-        .o_willClear_idx  ( willCommit_idx  ),
-        .o_willClear_data ( willCommit_data )
+        .o_willClear_vld (willCommit_vld),
+        .o_willClear_idx (willCommit_idx),
+        .o_willClear_data(willCommit_data)
     );
 
     ftqOffset_t read_ftqOffset_data[`BRU_NUM];
-    always_ff @( posedge clk ) begin
+    always_ff @(posedge clk) begin
         int fj;
-        for(fj=0;fj<`RENAME_WIDTH;fj=fj+1) begin
+        for (fj = 0; fj < `RENAME_WIDTH; fj = fj + 1) begin
             // write ftqOffset
             if (enq_vld[fj]) begin
                 ftqOffset_buffer[enq_idx[fj]] <= i_new_entry_ftqOffset[fj];
             end
         end
-        for (fj=0;fj<`BRU_NUM;fj=fj+1) begin
+        for (fj = 0; fj < `BRU_NUM; fj = fj + 1) begin
             read_ftqOffset_data[fj] <= ftqOffset_buffer[i_read_ftqOffset_idx[fj]];
         end
     end
 
     generate
         // read from exu
-        for(i=0;i<`BRU_NUM;i=i+1) begin
+        for (i = 0; i < `BRU_NUM; i = i + 1) begin
             assign o_read_ftqOffset_data[i] = read_ftqOffset_data[i];
         end
     endgenerate
 
 
-/****************************************************************************************************/
-// commit, update the ftq commit_ptr, rename status, storeQue
-// decoupled front commit can be one cycle later than rob commit (actually both in one cycle)
-// rename commit, storeQue commit and rob commit must in one cycle
-/****************************************************************************************************/
+    /****************************************************************************************************/
+    // commit, update the ftq commit_ptr, rename status, storeQue
+    // decoupled front commit can be one cycle later than rob commit (actually both in one cycle)
+    // rename commit, storeQue commit and rob commit must in one cycle
+    /****************************************************************************************************/
     generate
-        for(i=0;i<`COMMIT_WIDTH;i=i+1) begin
+        for (i = 0; i < `COMMIT_WIDTH; i = i + 1) begin
             assign o_rename_commitInfo[i] = '{
-                ismv        : willCommit_data[i].ismv,
-                has_rd      : willCommit_data[i].has_rd,
-                ilrd_idx    : willCommit_data[i].ilrd_idx,
-                iprd_idx    : willCommit_data[i].iprd_idx,
-                prev_iprd_idx : willCommit_data[i].prev_iprd_idx
-            };
+                    ismv        : willCommit_data[i].ismv,
+                    has_rd      : willCommit_data[i].has_rd,
+                    ilrd_idx    : willCommit_data[i].ilrd_idx,
+                    iprd_idx    : willCommit_data[i].iprd_idx,
+                    prev_iprd_idx : willCommit_data[i].prev_iprd_idx
+                };
         end
     endgenerate
 
@@ -222,14 +220,14 @@ module ROB(
     assign o_commit_ftq_idx = has_mispred ? (commit_end_inst.ftq_idx == `FTQ_SIZE-1 ? 0 : commit_end_inst.ftq_idx + 1) : commit_end_inst.ftq_idx;
 
     assign o_rename_commit = squash_vld ? 0 : canCommit_vld;
-/****************************************************************************************************/
-// squash reason process
-// if has mispred, the mispred inst can be committed
-// if has except, the except inst can not be committed
-/****************************************************************************************************/
+    /****************************************************************************************************/
+    // squash reason process
+    // if has mispred, the mispred inst can be committed
+    // if has except, the except inst can not be committed
+    /****************************************************************************************************/
 
     squash_handle shr;
-    always_ff @( posedge clk ) begin
+    always_ff @(posedge clk) begin
         if (rst || squash_vld) begin
             shr.squash_type <= SQUASH_NULL;
         end
@@ -259,15 +257,15 @@ module ROB(
         end
     end
     /* verilator lint_off UNOPTFLAT */
-    wire[`WDEF(`COMMIT_WIDTH)] shr_match_vec;
-    wire[`WDEF(`COMMIT_WIDTH)] temp_0;// which inst can be committed
-    wire[`WDEF(`COMMIT_WIDTH)] temp_1;// one hot: which one is the shr handled
+    wire [`WDEF(`COMMIT_WIDTH)] shr_match_vec;
+    wire [`WDEF(`COMMIT_WIDTH)] temp_0;  // which inst can be committed
+    wire [`WDEF(`COMMIT_WIDTH)] temp_1;  // one hot: which one is the shr handled
     generate
 
-        for(i=0;i<`COMMIT_WIDTH;i=i+1) begin
+        for (i = 0; i < `COMMIT_WIDTH; i = i + 1) begin
             assign shr_match_vec[i] = willCommit_idx[i] == shr.rob_idx.idx;
-            if (i==0) begin
-                assign temp_0[i] = willCommit_vld[i] && !((shr.squash_type==SQUASH_EXCEPT) && shr_match_vec[i]);
+            if (i == 0) begin
+                assign temp_0[i] = willCommit_vld[i] && !((shr.squash_type == SQUASH_EXCEPT) && shr_match_vec[i]);
             end
             else begin
                 assign temp_0[i] = willCommit_vld[i] && temp_0[i-1] && !((shr.squash_type==SQUASH_MISPRED) && shr_match_vec[i-1]);
@@ -277,11 +275,11 @@ module ROB(
         `ASSERT(count_one(temp_1) <= 1);
     endgenerate
 
-    wire[`WDEF(`COMMIT_WIDTH)] except_vec = (shr.squash_type==SQUASH_EXCEPT) ? temp_1 : 0;
-    assign has_except = (shr.squash_type==SQUASH_EXCEPT) && (|temp_1);
-    assign has_mispred = (shr.squash_type==SQUASH_MISPRED) && (|temp_1);
+    wire [`WDEF(`COMMIT_WIDTH)] except_vec = (shr.squash_type == SQUASH_EXCEPT) ? temp_1 : 0;
+    assign has_except = (shr.squash_type == SQUASH_EXCEPT) && (|temp_1);
+    assign has_mispred = (shr.squash_type == SQUASH_MISPRED) && (|temp_1);
 
-/****************************************************************************************************/
+    /****************************************************************************************************/
 
     assign canCommit_vld = temp_0;
 
@@ -293,8 +291,8 @@ module ROB(
 
         o_read_ftqIdx = willCommit_data[0].ftq_idx;
         except_robIdx = willCommit_idx[0];
-        for(ca=0;ca<`COMMIT_WIDTH;ca=ca+1) begin
-            if(canCommit_vld[ca]) begin
+        for (ca = 0; ca < `COMMIT_WIDTH; ca = ca + 1) begin
+            if (canCommit_vld[ca]) begin
                 commit_end_inst = willCommit_data[ca];
                 prev_commit_rob_idx = willCommit_idx[ca];
             end
@@ -305,23 +303,23 @@ module ROB(
         end
     end
 
-/****************************************************************************************************/
-// retire
-// send sqush signal
-// DESIGN: when except or interrupt, stall commit/read ftq -> compute the trap return address -> squash
-// if mispred && (has_except || has_interrupt) mepc = shr.npc else mecp = ftq[ftq_idx[last_commit]] + offset;
-// NOTE: the fetchblock start pc read from ftq, the ftqOffset read from ftqOffset_buffer
-// if trap, we need one more cycle to process trap
-// trap process and csr update in one cycle
-/****************************************************************************************************/
+    /****************************************************************************************************/
+    // retire
+    // send sqush signal
+    // DESIGN: when except or interrupt, stall commit/read ftq -> compute the trap return address -> squash
+    // if mispred && (has_except || has_interrupt) mepc = shr.npc else mecp = ftq[ftq_idx[last_commit]] + offset;
+    // NOTE: the fetchblock start pc read from ftq, the ftqOffset read from ftqOffset_buffer
+    // if trap, we need one more cycle to process trap
+    // trap process and csr update in one cycle
+    /****************************************************************************************************/
 
     commit_status_t::_ status;
-    wire[`XDEF] last_commit_pc;
-    wire[`XDEF] trap_ret_pc;
+    wire [`XDEF] last_commit_pc;
+    wire [`XDEF] trap_ret_pc;
     reg last_commit_isRVC;
     ftqOffset_t ftqOffset;
     reg do_except;
-    always_ff @( posedge clk ) begin
+    always_ff @(posedge clk) begin
         if (rst || squash_vld) begin
             status <= commit_status_t::normal;
             commit_stall <= 0;
@@ -331,7 +329,7 @@ module ROB(
         else begin
             // pipe: (| commit and read ftq (normal) | (trapProcess) | squash)
             // 0                              1               2
-            if ((has_except || has_interrupt) && (status==commit_status_t::normal)) begin
+            if ((has_except || has_interrupt) && (status == commit_status_t::normal)) begin
                 // s1: stall and read ftq;
                 do_except <= 1;
                 commit_stall <= 1;
@@ -378,15 +376,14 @@ module ROB(
     assign o_squashInfo = squashInfo;
 
     assign last_commit_pc = i_read_ftqStartAddr + ftqOffset;
-    assign trap_ret_pc = last_commit_pc + (last_commit_isRVC ? 2:4);
+    assign trap_ret_pc = last_commit_pc + (last_commit_isRVC ? 2 : 4);
 
     assign o_trap_pack = '{
-        has_trap : do_except,
-        epc      : last_commit_pc,
-        cause    : has_interrupt ? 0 :
-                   {{`XLEN - `TRAPCODE_WIDTH{1'b0}}, shr.except_type},
-        tval     : 0
-    };
+            has_trap : do_except,
+            epc      : last_commit_pc,
+            cause    : has_interrupt ? 0 : {{`XLEN - `TRAPCODE_WIDTH{1'b0}}, shr.except_type},
+            tval     : 0
+        };
 
     // for debug
     longint unsigned cycle_count;
@@ -404,14 +401,11 @@ module ROB(
                 cpu_stucked(willCommit_data[0].instmeta, 1);
             end
 
-            for (fa =0; fa <`COMMIT_WIDTH; fa=fa+1) begin
+            for (fa = 0; fa < `COMMIT_WIDTH; fa = fa + 1) begin
                 if (canCommit_vld[fa]) begin
-                    arch_commitInst(
-                        0, // dest type
-                        willCommit_data[fa].ilrd_idx,
-                        willCommit_data[fa].iprd_idx,
-                        willCommit_data[fa].instmeta
-                    );
+                    arch_commitInst(0,  // dest type
+                                    willCommit_data[fa].ilrd_idx, willCommit_data[fa].iprd_idx,
+                                    willCommit_data[fa].instmeta);
                 end
                 if (except_vec[fa]) begin
                     arch_commit_except(shr.except_type);
@@ -428,13 +422,13 @@ module ROB(
     end
 
     // used for debug
-    wire[`WDEF(`RENAME_WIDTH)] AAA_inserte_vec = (o_can_enq && i_enq_vld) ? i_enq_req : 0;
+    wire [`WDEF(`RENAME_WIDTH)] AAA_inserte_vec = (o_can_enq && i_enq_vld) ? i_enq_req : 0;
 
-    wire[`WDEF(`RENAME_WIDTH)] AAA_insert_ismv_nop = (o_can_enq && i_enq_vld) ? i_insert_rob_ismv & i_enq_req : 0;
+    wire [`WDEF(`RENAME_WIDTH)] AAA_insert_ismv_nop = (o_can_enq && i_enq_vld) ? i_insert_rob_ismv & i_enq_req : 0;
 
-    wire[`WDEF(`COMPLETE_NUM)] AAA_fu_finished_vec = i_fu_finished;
+    wire [`WDEF(`COMPLETE_NUM)] AAA_fu_finished_vec = i_fu_finished;
 
-    wire[`WDEF(`COMMIT_WIDTH)] AAA_can_commit_vec = canCommit_vld;
+    wire [`WDEF(`COMMIT_WIDTH)] AAA_can_commit_vec = canCommit_vld;
 
 
 endmodule

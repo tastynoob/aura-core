@@ -2,37 +2,37 @@
 
 
 interface tilelink_if #(
-    parameter int MASTERS = 2,
-    parameter int SLAVES = 2,
-    parameter int ADDR_WIDTH = 32,// bit
-    parameter int DATA_WIDTH = 32// Byte
+    parameter int MASTERS    = 2,
+    parameter int SLAVES     = 2,
+    parameter int ADDR_WIDTH = 32,  // bit
+    parameter int DATA_WIDTH = 32   // Byte
 );
     // A channel
-    logic[`WDEF(3)] a_code;
-    logic[`WDEF(3)] a_param;
-    logic[`WDEF($clog2(DATA_WIDTH))] a_size;
-    logic[`WDEF($clog2(MASTERS))] a_source;
-    logic[`WDEF(ADDR_WIDTH)] a_address;
-    logic[`WDEF(DATA_WIDTH)] a_mask;
-    logic[`WDEF(DATA_WIDTH*8)] a_data;
+    logic [`WDEF(3)] a_code;
+    logic [`WDEF(3)] a_param;
+    logic [`WDEF($clog2(DATA_WIDTH))] a_size;
+    logic [`WDEF($clog2(MASTERS))] a_source;
+    logic [`WDEF(ADDR_WIDTH)] a_address;
+    logic [`WDEF(DATA_WIDTH)] a_mask;
+    logic [`WDEF(DATA_WIDTH*8)] a_data;
     logic a_corrupt;
     logic a_valid;
     logic a_ready;
 
     // D channel
-    logic[`WDEF(3)] d_opcode;
-    logic[`WDEF(2)] d_param;
-    logic[`WDEF($clog2(DATA_WIDTH))] d_size;
-    logic[`WDEF($clog2(MASTERS))] d_source;
-    logic[`WDEF($clog2(SLAVES))] d_sink;
+    logic [`WDEF(3)] d_opcode;
+    logic [`WDEF(2)] d_param;
+    logic [`WDEF($clog2(DATA_WIDTH))] d_size;
+    logic [`WDEF($clog2(MASTERS))] d_source;
+    logic [`WDEF($clog2(SLAVES))] d_sink;
     logic d_denied;
-    logic[`WDEF(DATA_WIDTH*8)] d_data;
+    logic [`WDEF(DATA_WIDTH*8)] d_data;
     logic d_corrupt;
     logic d_valid;
     logic d_ready;
 
 
-    modport m (
+    modport m(
         output a_code,
         output a_param,
         output a_size,
@@ -56,7 +56,7 @@ interface tilelink_if #(
         output d_ready
     );
 
-    modport s (
+    modport s(
         input a_code,
         input a_param,
         input a_size,
@@ -82,11 +82,11 @@ interface tilelink_if #(
 
     function int Ahandshake();
         Ahandshake = a_valid && a_ready;
-    endfunction;
+    endfunction
 
     function int Dhandshake();
         Dhandshake = d_valid && d_ready;
-    endfunction;
+    endfunction
 
 endinterface
 

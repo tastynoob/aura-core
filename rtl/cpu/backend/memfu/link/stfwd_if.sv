@@ -10,17 +10,17 @@ interface stfwd_if;
     // s0: send forward request
     // m->s
     logic s0_vld;
-    lqIdx_t s0_lqIdx; // used for writebackto lq
-    sqIdx_t s0_sqIdx; // store age small than load
-    logic[`XDEF] s0_vaddr;
-    logic[`WDEF(`XLEN/8)] s0_load_vec;
+    lqIdx_t s0_lqIdx;  // used for writebackto lq
+    sqIdx_t s0_sqIdx;  // store age small than load
+    logic [`XDEF] s0_vaddr;
+    logic [`WDEF(`XLEN/8)] s0_load_vec;
 
     // s1: match check
     // m->s
     logic s1_vld;
     paddr_t s1_paddr;
     logic s1_vaddr_match;
-    logic s1_data_rdy; // match and data ready
+    logic s1_data_rdy;  // match and data ready
 
     // s2: send forward response
     // m<-s
@@ -28,10 +28,10 @@ interface stfwd_if;
     lqIdx_t s2_lqIdx;
     logic s2_paddr_match;
     logic s2_match_failed;
-    logic[`WDEF(`XLEN/8)] s2_match_vec; // which byte was forward matched
-    logic[`XDEF] s2_fwd_data;
+    logic [`WDEF(`XLEN/8)] s2_match_vec;  // which byte was forward matched
+    logic [`XDEF] s2_fwd_data;
 
-    modport m (
+    modport m(
         output s0_vld,
         output s0_lqIdx,
         output s0_sqIdx,
@@ -51,7 +51,7 @@ interface stfwd_if;
         input s2_fwd_data
     );
 
-    modport s (
+    modport s(
         input s0_vld,
         input s0_lqIdx,
         input s0_sqIdx,

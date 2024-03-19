@@ -6,13 +6,13 @@ interface csrrw_if;
     logic access;
     csrIdx_t read_idx;
     logic illegal;
-    logic[`XDEF] read_val;
+    logic [`XDEF] read_val;
     // write channel
     logic write;
     csrIdx_t write_idx;
-    logic[`XDEF] write_val;
+    logic [`XDEF] write_val;
 
-    modport m (
+    modport m(
         output access,
         output read_idx,
         input illegal,
@@ -23,7 +23,7 @@ interface csrrw_if;
         output write_val
     );
 
-    modport s (
+    modport s(
         input access,
         input read_idx,
         output illegal,

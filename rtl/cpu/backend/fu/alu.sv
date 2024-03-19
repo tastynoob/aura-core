@@ -13,7 +13,7 @@ module alu (
     // export bypass
     output wire o_willwrite_vld,
     output iprIdx_t o_willwrite_rdIdx,
-    output wire[`XDEF] o_willwrite_data,
+    output wire [`XDEF] o_willwrite_data,
 
     //wb, rd_idx will be used to fast bypass
     input wire i_wb_stall,
@@ -24,8 +24,8 @@ module alu (
     reg saved_vld;
     exeInfo_t saved_fuInfo;
 
-    always_ff @( posedge clk ) begin : blockName
-        if (rst==true) begin
+    always_ff @(posedge clk) begin : blockName
+        if (rst == true) begin
             saved_vld <= 0;
         end
         else if (!i_wb_stall) begin
@@ -38,8 +38,8 @@ module alu (
     end
 
 
-    wire[`XDEF] src0 = saved_fuInfo.srcs[0];
-    wire[`XDEF] src1 = saved_fuInfo.srcs[1];
+    wire [`XDEF] src0 = saved_fuInfo.srcs[0];
+    wire [`XDEF] src1 = saved_fuInfo.srcs[1];
 
     `include "alu.svh.tmp"
 
@@ -58,7 +58,7 @@ module alu (
             comwbInfo.iprd_idx <= saved_fuInfo.iprd;
             comwbInfo.result <= calc_data;
             if (saved_vld) begin
-                assert(saved_fuInfo.issueQueId == `ALUIQ_ID);
+                assert (saved_fuInfo.issueQueId == `ALUIQ_ID);
                 update_instPos(saved_fuInfo.seqNum, difftest_def::AT_wb);
             end
         end

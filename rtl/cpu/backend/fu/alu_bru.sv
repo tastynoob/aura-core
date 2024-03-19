@@ -13,7 +13,7 @@ module alu_bru (
     // export bypass
     output wire o_willwrite_vld,
     output iprIdx_t o_willwrite_rdIdx,
-    output wire[`XDEF] o_willwrite_data,
+    output wire [`XDEF] o_willwrite_data,
 
     //wb, rd_idx will be used to fast bypass
     input wire i_wb_stall,
@@ -25,8 +25,8 @@ module alu_bru (
     reg saved_vld;
     exeInfo_t saved_fuInfo;
 
-    always_ff @( posedge clk ) begin : blockName
-        if (rst==true) begin
+    always_ff @(posedge clk) begin : blockName
+        if (rst == true) begin
             saved_vld <= 0;
         end
         else if (!i_wb_stall) begin
@@ -39,32 +39,32 @@ module alu_bru (
     end
 
 
-    wire[`XDEF] src0 = saved_fuInfo.srcs[0];
-    wire[`XDEF] src1 = saved_fuInfo.srcs[1];
+    wire [`XDEF] src0 = saved_fuInfo.srcs[0];
+    wire [`XDEF] src1 = saved_fuInfo.srcs[1];
 
-/****************************************************************************************************/
-// alu
-/****************************************************************************************************/
+    /****************************************************************************************************/
+    // alu
+    /****************************************************************************************************/
 
     `include "alu.svh.tmp"
 
-/****************************************************************************************************/
-// bru
-/****************************************************************************************************/
+    /****************************************************************************************************/
+    // bru
+    /****************************************************************************************************/
     wire isauipc = (saved_fuInfo.issueQueId == `BRUIQ_ID) && (saved_fuInfo.micOp == MicOp_t::auipc);
     wire isbranch = (saved_fuInfo.issueQueId == `BRUIQ_ID) && (saved_fuInfo.micOp > MicOp_t::auipc && saved_fuInfo.micOp <= MicOp_t::bgeu);
 
 
-    wire[`XDEF] pc = saved_fuInfo.pc;
-    wire[`XDEF] pred_npc = saved_fuInfo.npc;
-    wire[`XDEF] fallthru = saved_fuInfo.pc + 4;
-    wire[`XDEF] imm20 = {{44{saved_fuInfo.imm20[19]}}, saved_fuInfo.imm20};
-    wire[`XDEF] auipc_imm = {{32{saved_fuInfo.imm20[19]}}, saved_fuInfo.imm20, 12'b0};
-    wire[`XDEF] auipc = pc + auipc_imm;
+    wire [`XDEF] pc = saved_fuInfo.pc;
+    wire [`XDEF] pred_npc = saved_fuInfo.npc;
+    wire [`XDEF] fallthru = saved_fuInfo.pc + 4;
+    wire [`XDEF] imm20 = {{44{saved_fuInfo.imm20[19]}}, saved_fuInfo.imm20};
+    wire [`XDEF] auipc_imm = {{32{saved_fuInfo.imm20[19]}}, saved_fuInfo.imm20, 12'b0};
+    wire [`XDEF] auipc = pc + auipc_imm;
 
-    wire[`XDEF] jal_target = pc + imm20;
-    wire[`XDEF] jalr_target = src0 + imm20;
-    wire[`XDEF] br_target = pc + imm20;
+    wire [`XDEF] jal_target = pc + imm20;
+    wire [`XDEF] jalr_target = src0 + imm20;
+    wire [`XDEF] br_target = pc + imm20;
 
     wire beq_taken = (src0 == src1);
     wire bne_taken = !beq_taken;
@@ -89,8 +89,7 @@ module alu_bru (
     (saved_fuInfo.micOp == MicOp_t::jalr) ? jalr_target :
     br_target;
 
-    wire[`XDEF] npc =
-    taken ? target : fallthru;
+    wire [`XDEF] npc = taken ? target : fallthru;
 
     wire mispred = isbranch && (npc != pred_npc);
     //TODO: remove it
@@ -98,7 +97,7 @@ module alu_bru (
     assign branch_type =
     ((saved_fuInfo.micOp == MicOp_t::jalr) && (saved_fuInfo.iprd == 1)) ? BranchType::isCall :
     ((saved_fuInfo.micOp == MicOp_t::jalr) && (saved_fuInfo.iprd == 0)) ? BranchType::isRet : //FIXME: iprs[0] should is 1
-    (saved_fuInfo.micOp == MicOp_t::jalr) ? BranchType::isIndirect :
+        (saved_fuInfo.micOp == MicOp_t::jalr) ? BranchType::isIndirect :
     (saved_fuInfo.micOp == MicOp_t::jal) ? BranchType::isDirect :
     ((saved_fuInfo.micOp >= MicOp_t::beq) && (saved_fuInfo.micOp <= MicOp_t::bgeu)) ? BranchType::isCond :
     BranchType::isNone;
@@ -121,12 +120,12 @@ module alu_bru (
             comwbInfo.iprd_idx <= saved_fuInfo.iprd;
             comwbInfo.result <= o_willwrite_data;
             if (saved_vld) begin
-                assert(saved_fuInfo.issueQueId == `ALUIQ_ID || saved_fuInfo.issueQueId == `BRUIQ_ID);
+                assert (saved_fuInfo.issueQueId == `ALUIQ_ID || saved_fuInfo.issueQueId == `BRUIQ_ID);
                 update_instPos(saved_fuInfo.seqNum, difftest_def::AT_wb);
             end
 
             // jal must be not mispred
-            assert((saved_vld && mispred) ? (saved_fuInfo.micOp != MicOp_t::jal) : 1);
+            assert ((saved_vld && mispred) ? (saved_fuInfo.micOp != MicOp_t::jal) : 1);
             // only writeback when mispred
             branchwb_vld <= saved_vld && isbranch;
             branchwb_info <= '{
@@ -136,7 +135,9 @@ module alu_bru (
                 has_mispred : mispred,
                 branch_taken : taken,
                 //FIXME: fallthruAddr should always point to branch_pc + 4/2
-                fallthruOffset : saved_fuInfo.ftqOffset + 4,
+                fallthruOffset :
+                saved_fuInfo.ftqOffset
+                + 4,
                 target_pc : target,
                 branch_npc : npc
             };

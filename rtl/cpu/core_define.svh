@@ -5,7 +5,7 @@
 `include "decode_define.svh"
 
 package BranchType;
-    typedef enum logic[2:0] {
+    typedef enum logic [2:0] {
         isNone = 0,
         isCond,
         isDirect,
@@ -16,14 +16,14 @@ package BranchType;
 endpackage
 
 
-typedef struct packed{
-    logic[`IDEF] inst;
+typedef struct packed {
+    logic [`IDEF] inst;
     ftqIdx_t ftq_idx;
     ftqOffset_t ftqOffset;
-    logic[`WDEF(`MEMDEP_FOLDPC_WIDTH)] foldpc;
+    logic [`WDEF(`MEMDEP_FOLDPC_WIDTH)] foldpc;
     logic has_except;
     rv_trap_t::exception except;
-    logic[`XDEF] instmeta;
+    logic [`XDEF] instmeta;
 } fetchEntry_t;
 
 
@@ -37,12 +37,12 @@ typedef struct {
     logic branch_taken;
     // branchInst's fallthruOffset
     // NOTE: fallthruOffset may >= FTB_PREDICT_WIDTH
-    logic[`WDEF($clog2(`FTB_PREDICT_WIDTH) + 1)] fallthruOffset;
+    logic [`WDEF($clog2(`FTB_PREDICT_WIDTH) + 1)] fallthruOffset;
     // branchInst's taken pc
-    logic[`XDEF] target_pc;
+    logic [`XDEF] target_pc;
     // branchInst's nextpc
-    logic[`XDEF] branch_npc;
-} branchwbInfo_t;// writeback to rob and ftq
+    logic [`XDEF] branch_npc;
+} branchwbInfo_t;  // writeback to rob and ftq
 
 
 // DESIGN:
@@ -61,11 +61,11 @@ typedef struct {
     logic dueToBranch;
     logic dueToViolation;
     logic branch_taken;
-    logic[`XDEF] arch_pc;
+    logic [`XDEF] arch_pc;
 
     // violation info
-    logic[`WDEF(`MEMDEP_FOLDPC_WIDTH)] store_foldpc;
-    logic[`WDEF(`MEMDEP_FOLDPC_WIDTH)] load_foldpc;
+    logic [`WDEF(`MEMDEP_FOLDPC_WIDTH)] store_foldpc;
+    logic [`WDEF(`MEMDEP_FOLDPC_WIDTH)] load_foldpc;
 } squashInfo_t;
 
 

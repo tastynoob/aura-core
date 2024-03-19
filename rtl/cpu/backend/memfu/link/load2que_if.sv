@@ -11,8 +11,8 @@ interface load2que_if;
     // load issue, calculate vaddr
     logic s0_vld;
     lqIdx_t s0_lqIdx;
-    logic[`XDEF] s0_vaddr;
-    logic[`WDEF(`XLEN/8)] s0_load_vec;
+    logic [`XDEF] s0_vaddr;
+    logic [`WDEF(`XLEN/8)] s0_load_vec;
     logic s0_addr_misalign;
     // s1: loadpipe -> loadQue
     // write tlb translate, check tlb or cache miss
@@ -32,11 +32,11 @@ interface load2que_if;
     logic s2_except;
     // write back forward data
     logic s2_fwd;
-    logic[`WDEF(`XLEN/8)] s2_match_vec;
-    logic[`XDEF] s2_fwd_data;
+    logic [`WDEF(`XLEN/8)] s2_match_vec;
+    logic [`XDEF] s2_fwd_data;
 
 
-    modport m (
+    modport m(
         output s0_lqIdx,
         output s0_vld,
         output s0_vaddr,
@@ -53,7 +53,7 @@ interface load2que_if;
         output s2_except
     );
 
-    modport s (
+    modport s(
         input s0_lqIdx,
         input s0_vld,
         input s0_vaddr,

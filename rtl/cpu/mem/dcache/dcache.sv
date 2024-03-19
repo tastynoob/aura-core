@@ -7,9 +7,9 @@
 //           tlb   |
 module dcache #(
     parameter int BANKS = 0,
-    parameter int SETS = 32,
-    parameter int WAYS = 4
-)(
+    parameter int SETS  = 32,
+    parameter int WAYS  = 4
+) (
     input wire clk,
     input wire rst,
 
@@ -30,7 +30,7 @@ module dcache #(
     // s2
     reg s2_req;
 
-    always_ff @( posedge clk ) begin
+    always_ff @(posedge clk) begin
         int fa;
         if (rst) begin
             s1_req <= 0;
@@ -56,10 +56,10 @@ module dcache #(
     assign if_core.s2_rdy = s2_req;
     generate
         // s2: select
-        for(i = 0; i < `CACHELINE_SIZE; i=i+1) begin
-            always_ff @( posedge clk ) begin
+        for (i = 0; i < `CACHELINE_SIZE; i = i + 1) begin
+            always_ff @(posedge clk) begin
                 if (s1_req) begin
-                    if_core_fetch.s2_data[i*8+7 : i*8] <= read_rom((s1_vaddr<<$clog2(`CACHELINE_SIZE)) + i);
+                    if_core_fetch.s2_data[i*8+7 : i*8] <= read_rom((s1_vaddr << $clog2(`CACHELINE_SIZE)) + i);
                 end
                 else begin
                     if_core_fetch.s2_data[i*8+7 : i*8] <= 0;

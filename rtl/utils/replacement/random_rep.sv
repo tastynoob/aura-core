@@ -15,15 +15,15 @@ module random_rep #(
     input wire clk,
     input wire rst,
 
-    input wire[`WDEF($clog2(SETS))] i_setIdx,
-    output wire[`WDEF(WAYS)] o_replace_vec,
+    input wire [`WDEF($clog2(SETS))] i_setIdx,
+    output wire [`WDEF(WAYS)] o_replace_vec,
     input wire i_update_req,
-    input wire[`WDEF(WAYS)] i_wayhit_vec
+    input wire [`WDEF(WAYS)] i_wayhit_vec
 );
-    reg[`WDEF(WAYS)] rand_bits;
+    reg [`WDEF(WAYS)] rand_bits;
 
 
-    always_ff @( posedge clk ) begin
+    always_ff @(posedge clk) begin
         if (rst) begin
             rand_bits <= 1;
         end

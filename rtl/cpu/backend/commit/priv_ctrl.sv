@@ -19,24 +19,24 @@ module priv_ctrl (
     input wire i_access,
     input csrIdx_t i_read_csrIdx,
     output wire o_read_illegal,
-    output wire[`XDEF] o_read_val,
+    output wire [`XDEF] o_read_val,
 
     input wire i_write,
     input csrIdx_t i_write_csrIdx,
-    input wire[`XDEF] i_write_val
+    input wire [`XDEF] i_write_val
 );
-    reg[`WDEF(2)] cur_mode;
+    reg [`WDEF(2)] cur_mode;
 
-    wire[`XDEF] csr_mapping[4096];
+    wire [`XDEF] csr_mapping[4096];
 
-    wire[`XDEF] mhartid = 0;
+    wire [`XDEF] mhartid = 0;
     mstatus_csr_t mstatus;
     mtvec_csr_t mtvec;
     mip_csr_t mip;
     mie_csr_t mie;
-    reg[`XDEF] mepc;
+    reg [`XDEF] mepc;
     mcause_csr_t mcause;
-    reg[`XDEF] mtval;
+    reg [`XDEF] mtval;
 
     assign csr_mapping[`CSR_MHARTID] = mhartid;
     assign csr_mapping[`CSR_MSTATUS] = mstatus;
@@ -46,12 +46,12 @@ module priv_ctrl (
     assign csr_mapping[`CSR_MTVAL] = mtval;
 
     reg csr_sync;
-    always_ff @( negedge clk ) begin
+    always_ff @(negedge clk) begin
         if (csr_sync) begin
             arch_sync_csrs(mstatus, mepc, mcause);
         end
     end
-    always_ff @( posedge clk ) begin
+    always_ff @(posedge clk) begin
         if (rst) begin
             csr_sync <= 1;
             cur_mode <= `MODE_M;
@@ -70,7 +70,7 @@ module priv_ctrl (
             // write csr
             if (i_write) begin
                 csr_sync <= 1;
-                assert(`GETMODE(i_write_csrIdx) <= cur_mode);
+                assert (`GETMODE(i_write_csrIdx) <= cur_mode);
                 case (i_write_csrIdx)
                     `include "csr_write.svh.tmp"
                     default: begin
@@ -107,16 +107,15 @@ module priv_ctrl (
     // check csr access permissions
     assign o_read_illegal = i_access && (`GETMODE(i_read_csrIdx) > cur_mode);
 
-    assign o_read_val = (i_access && (`GETMODE(i_read_csrIdx) <= cur_mode)) ?
-        csr_mapping[i_read_csrIdx] : 0;
+    assign o_read_val = (i_access && (`GETMODE(i_read_csrIdx) <= cur_mode)) ? csr_mapping[i_read_csrIdx] : 0;
 
 
     assign o_priv_sysInfo = '{
-        mode : cur_mode,
-        status : mstatus,
-        epc : mepc,
-        interrupt_vectored : (mtvec.mode == 1),
-        tvec : {mtvec.base, 2'b00}
-    };
+            mode : cur_mode,
+            status : mstatus,
+            epc : mepc,
+            interrupt_vectored : (mtvec.mode == 1),
+            tvec : {mtvec.base, 2'b00}
+        };
 
 endmodule

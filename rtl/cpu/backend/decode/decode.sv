@@ -27,31 +27,31 @@ module decode (
 
     // from fetchBuffer
     // which inst need to deq from fetchbuffer
-    output wire[`WDEF(`DECODE_WIDTH)] o_can_deq,
-    input wire[`WDEF(`DECODE_WIDTH)] i_inst_vld,
+    output wire [`WDEF(`DECODE_WIDTH)] o_can_deq,
+    input wire [`WDEF(`DECODE_WIDTH)] i_inst_vld,
     input fetchEntry_t i_inst[`DECODE_WIDTH],
     // to rename
-    output reg[`WDEF(`DECODE_WIDTH)] o_decinfo_vld,
+    output reg [`WDEF(`DECODE_WIDTH)] o_decinfo_vld,
     output decInfo_t o_decinfo[`DECODE_WIDTH]
 );
     genvar i;
 
-    wire[`WDEF(`DECODE_WIDTH)] unKnown_inst;
+    wire [`WDEF(`DECODE_WIDTH)] unKnown_inst;
     decInfo_t temp[`DECODE_WIDTH];
-    wire[`WDEF(`DECODE_WIDTH)] temp_val;
+    wire [`WDEF(`DECODE_WIDTH)] temp_val;
     generate
-        for(i=0;i<`DECODE_WIDTH;i=i+1) begin: gen_decode
-            decoder u_decoder(
-                .i_inst           ( i_inst[i].inst      ),
-                .o_unkown_inst    ( unKnown_inst[i]),
-                .o_decinfo        ( temp[i]     )
+        for (i = 0; i < `DECODE_WIDTH; i = i + 1) begin : gen_decode
+            decoder u_decoder (
+                .i_inst       (i_inst[i].inst),
+                .o_unkown_inst(unKnown_inst[i]),
+                .o_decinfo    (temp[i])
             );
             assign temp_val[i] = i_inst[i].has_except;
         end
     endgenerate
 
 
-    reg[`WDEF(`RENAME_WIDTH)] decinfo_vld;
+    reg [`WDEF(`RENAME_WIDTH)] decinfo_vld;
     decInfo_t decinfo[`DECODE_WIDTH];
     always_ff @(posedge clk) begin
         int fa;
@@ -60,7 +60,7 @@ module decode (
         end
         else if (!i_stall) begin
             decinfo_vld <= i_inst_vld;
-            for(fa=0;fa<`DECODE_WIDTH;fa=fa+1) begin
+            for (fa = 0; fa < `DECODE_WIDTH; fa = fa + 1) begin
                 decinfo[fa] <= '{
                     foldpc      : i_inst[fa].foldpc,
                     ftq_idx     : i_inst[fa].ftq_idx,
@@ -84,11 +84,11 @@ module decode (
                 };
                 if (i_inst_vld[fa]) begin
                     update_instMeta(i_inst[fa].instmeta, difftest_def::META_ISBRANCH,
-                    (temp[fa].dispQue_id == `INTBLOCK_ID) && (temp[fa].issueQue_id == `BRUIQ_ID) && (temp[fa].micOp_type > MicOp_t::auipc && temp[fa].micOp_type <= MicOp_t::bgeu));
+                                    (temp[fa].dispQue_id == `INTBLOCK_ID) && (temp[fa].issueQue_id == `BRUIQ_ID) && (temp[fa].micOp_type > MicOp_t::auipc && temp[fa].micOp_type <= MicOp_t::bgeu));
                     update_instMeta(i_inst[fa].instmeta, difftest_def::META_ISLOAD,
-                    (temp[fa].dispQue_id == `MEMBLOCK_ID) && (temp[fa].issueQue_id == `LDUIQ_ID));
+                                    (temp[fa].dispQue_id == `MEMBLOCK_ID) && (temp[fa].issueQue_id == `LDUIQ_ID));
                     update_instMeta(i_inst[fa].instmeta, difftest_def::META_ISSTORE,
-                    (temp[fa].dispQue_id == `MEMBLOCK_ID) && (temp[fa].issueQue_id == `STUIQ_ID));
+                                    (temp[fa].dispQue_id == `MEMBLOCK_ID) && (temp[fa].issueQue_id == `STUIQ_ID));
                     update_instMeta(i_inst[fa].instmeta, difftest_def::META_ISMV, temp[fa].ismv);
 
                     update_instPos(i_inst[fa].instmeta, difftest_def::AT_decode);

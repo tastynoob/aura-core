@@ -7,9 +7,9 @@
 //           tlb   |
 module icache #(
     parameter int BANKS = 0,
-    parameter int SETS = 32,
-    parameter int WAYS = 4
-)(
+    parameter int SETS  = 32,
+    parameter int WAYS  = 4
+) (
     input wire clk,
     input wire rst,
 
@@ -21,13 +21,13 @@ module icache #(
 
     genvar i;
 
-// 3 stage icache simulate
+    // 3 stage icache simulate
     assign if_core_fetch.gnt = if_core_fetch.req;
     reg s1_req;
     reg s1_get2;
-    reg[`BLKDEF] s1_addr;
+    reg [`BLKDEF] s1_addr;
 
-    always_ff @( posedge clk ) begin
+    always_ff @(posedge clk) begin
         int fa;
         if (rst) begin
             s1_req <= 0;
@@ -43,23 +43,23 @@ module icache #(
         end
     end
 
-generate
-    // s2: select
-    for (i = 0; i < `CACHELINE_SIZE; i=i+1) begin
-        always_ff @( posedge clk ) begin
-            if (s1_req) begin
-                if_core_fetch.line0[i*8+7 : i*8] <= read_rom((s1_addr<<$clog2(`CACHELINE_SIZE)) + i);
-                if (s1_get2) begin
-                    if_core_fetch.line1[i*8+7 : i*8] <= read_rom(((s1_addr+1)<<$clog2(`CACHELINE_SIZE)) + i);
+    generate
+        // s2: select
+        for (i = 0; i < `CACHELINE_SIZE; i = i + 1) begin
+            always_ff @(posedge clk) begin
+                if (s1_req) begin
+                    if_core_fetch.line0[i*8+7 : i*8] <= read_rom((s1_addr << $clog2(`CACHELINE_SIZE)) + i);
+                    if (s1_get2) begin
+                        if_core_fetch.line1[i*8+7 : i*8] <= read_rom(((s1_addr + 1) << $clog2(`CACHELINE_SIZE)) + i);
+                    end
+                end
+                else begin
+                    if_core_fetch.line0[i*8+7 : i*8] <= 0;
+                    if_core_fetch.line1[i*8+7 : i*8] <= 0;
                 end
             end
-            else begin
-                if_core_fetch.line0[i*8+7 : i*8] <= 0;
-                if_core_fetch.line1[i*8+7 : i*8] <= 0;
-            end
         end
-    end
-endgenerate
+    endgenerate
 
 
 

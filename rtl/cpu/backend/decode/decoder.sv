@@ -13,13 +13,13 @@
 //mark the (mv x1,x1)-like as nop
 //TODO: finish decode
 module decoder (
-    input wire[`IDEF] i_inst,
+    input wire [`IDEF] i_inst,
 
     output wire o_unkown_inst,
     //decinfo output
     output decInfo_t o_decinfo
 );
-    wire[`IDEF] inst = i_inst;
+    wire [`IDEF] inst = i_inst;
     wire inst_UNIMP = (inst ==? 32'd0);
     wire inst_ADD = (inst ==? 32'b0000000??????????000?????0110011);
     wire inst_ADDI = (inst ==? 32'b?????????????????000?????0010011);
@@ -253,13 +253,13 @@ module decoder (
     wire isImmMath = inst_ADDI | inst_ADDIW | inst_SLLI | inst_SLLIW | inst_SRLI | inst_SRLIW | inst_SRAI | inst_SRAIW | inst_ANDI | inst_ORI | inst_XORI | inst_SLTI | inst_SLTIU ;
     wire use_imm = isImmMath | isCondBranch | isUncondBranch | inst_AUIPC | inst_LUI | isCSR;
 
-    wire[`WDEF(5)] ilrd_idx = inst[11:7];
-    wire[`WDEF(5)] ilrs1_idx = inst[19:15];
-    wire[`WDEF(5)] ilrs2_idx = inst[24:20];
-    wire[`WDEF(12)] csr_idx = inst[31:20];
+    wire [`WDEF(5)] ilrd_idx = inst[11:7];
+    wire [`WDEF(5)] ilrs1_idx = inst[19:15];
+    wire [`WDEF(5)] ilrs2_idx = inst[24:20];
+    wire [`WDEF(12)] csr_idx = inst[31:20];
 
-    wire isCall = inst_JALR & (ilrd_idx==1) & (ilrs1_idx==1);
-    wire isRet = inst_JALR & (ilrd_idx==0) & (ilrs1_idx==1) & (inst[31:20]==0);
+    wire isCall = inst_JALR & (ilrd_idx == 1) & (ilrs1_idx == 1);
+    wire isRet = inst_JALR & (ilrd_idx == 0) & (ilrs1_idx == 1) & (inst[31:20] == 0);
 
     wire has_rd = !(isCondBranch || isStore) && (ilrd_idx != 0);
     wire has_rs1 = !(inst_JAL);
@@ -277,9 +277,9 @@ module decoder (
     //branch
     wire [19:0] inst_b_type_imm = {{8{inst[31]}}, inst[7], inst[30:25], inst[11:8], 1'b0};
     //{csr_idx,csr_zimm}
-    wire [19:0] inst_csr_type_imm = {3'd0, csr_idx ,inst[19:15]};
+    wire [19:0] inst_csr_type_imm = {3'd0, csr_idx, inst[19:15]};
     //shift
-    wire [19:0] inst_shift_type_imm = {15'h0, inst[25:20]}; // RV64 shift imm
+    wire [19:0] inst_shift_type_imm = {15'h0, inst[25:20]};  // RV64 shift imm
 
     wire[19:0] inst_opimm_imm = (inst_SLLI | inst_SLLIW | inst_SRLI | inst_SRLIW | inst_SRAI | inst_SRAIW) ?
                                 inst_shift_type_imm : inst_i_type_imm;
@@ -302,15 +302,7 @@ module decoder (
 
     /********************************************************/
     //regfile write enable
-    wire rd_wen =
-    (ilrd_idx != 0) &
-    (inst_LUI    |
-    inst_AUIPC   |
-    isUncondBranch     |
-    isImmMath   |
-    isIntMath      |
-    isCSR  |
-    isLoad);
+    wire rd_wen = (ilrd_idx != 0) & (inst_LUI | inst_AUIPC | isUncondBranch | isImmMath | isIntMath | isCSR | isLoad);
 
     //寄存器读使能1
     wire ilrs1_ren =
@@ -330,19 +322,16 @@ module decoder (
 
 
     //dispQue select
-    wire[`WDEF(2)] dispQue_id =
-    !(isLoad || isStore) ? `INTBLOCK_ID :
-    (isLoad || isStore) ?  `MEMBLOCK_ID :
-    isUnknow ? `UNKOWNBLOCK_ID :
-    0;
+    wire [
+    `WDEF(2)
+    ] dispQue_id = !(isLoad || isStore) ?
+        `INTBLOCK_ID : (isLoad || isStore) ? `MEMBLOCK_ID : isUnknow ? `UNKOWNBLOCK_ID : 0;
 
     //issueQue select
-    wire[`WDEF(2)] issueQue_id =
-    (isIntMath | isImmMath | inst_LUI) ? `ALUIQ_ID :
-    (isCondBranch | isUncondBranch | inst_AUIPC) ? `BRUIQ_ID :
-    (isMul | isDiv) ? `MDUIQ_ID :
-    (isCSR | isSYS) ? `SCUIQ_ID :
-    0;
+    wire [
+    `WDEF(2)
+    ] issueQue_id = (isIntMath | isImmMath | inst_LUI) ? `ALUIQ_ID : (isCondBranch | isUncondBranch | inst_AUIPC) ?
+        `BRUIQ_ID : (isMul | isDiv) ? `MDUIQ_ID : (isCSR | isSYS) ? `SCUIQ_ID : 0;
 
     //ALU
     MicOp_t::_alu aluop_type;

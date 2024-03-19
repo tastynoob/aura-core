@@ -11,15 +11,15 @@ module alu_scu (
     input exeInfo_t i_fuInfo,
 
     input csr_in_pack_t i_csr_pack,
-    input wire i_illegal_access_csr,// illegal access csr
-    input wire[`WDEF(5)] i_zimm,
+    input wire i_illegal_access_csr,  // illegal access csr
+    input wire [`WDEF(5)] i_zimm,
     input wire i_write_csr,
     input csrIdx_t i_csrIdx,
 
     // export bypass
     output wire o_willwrite_vld,
     output iprIdx_t o_willwrite_rdIdx,
-    output wire[`XDEF] o_willwrite_data,
+    output wire [`XDEF] o_willwrite_data,
 
     // exception wb
     output wire o_has_except,
@@ -33,17 +33,17 @@ module alu_scu (
     syscall_if.m if_syscall,
     output wire o_write_csr,
     output csrIdx_t o_write_csrIdx,
-    output wire[`XDEF] o_write_new_csr
+    output wire [`XDEF] o_write_new_csr
 );
     reg illegal_csr;
 
-    reg[`WDEF(5)] zimm;
-    reg write_csr; // rs1 != 0
+    reg [`WDEF(5)] zimm;
+    reg write_csr;  // rs1 != 0
     csrIdx_t saved_csrIdx;
     reg saved_vld;
     exeInfo_t saved_fuInfo;
 
-    always_ff @( posedge clk ) begin : blockName
+    always_ff @(posedge clk) begin : blockName
         if (rst) begin
             illegal_csr <= 0;
             write_csr <= 0;
@@ -65,18 +65,18 @@ module alu_scu (
     end
 
 
-    wire[`XDEF] src0 = saved_fuInfo.srcs[0];
-    wire[`XDEF] src1 = saved_fuInfo.srcs[1];
+    wire [`XDEF] src0 = saved_fuInfo.srcs[0];
+    wire [`XDEF] src1 = saved_fuInfo.srcs[1];
 
     `include "alu.svh.tmp"
 
-    wire[`XDEF] csr_val = src1;
+    wire [`XDEF] csr_val = src1;
     wire use_zimm = (saved_fuInfo.micOp > MicOp_t::csrrs);
-    wire[`XDEF] n_src0 = use_zimm ? {59'd0, zimm} : src0;
-    wire[`XDEF] new_csr;
-    wire[`XDEF] csr_w = n_src0;
-    wire[`XDEF] csr_c = csr_val & (~n_src0);
-    wire[`XDEF] csr_s = csr_val | n_src0;
+    wire [`XDEF] n_src0 = use_zimm ? {59'd0, zimm} : src0;
+    wire [`XDEF] new_csr;
+    wire [`XDEF] csr_w = n_src0;
+    wire [`XDEF] csr_c = csr_val & (~n_src0);
+    wire [`XDEF] csr_s = csr_val | n_src0;
 
     assign new_csr =
         (saved_fuInfo.micOp == MicOp_t::csrrw) || (saved_fuInfo.micOp == MicOp_t::csrrwi) ? csr_w :
@@ -93,10 +93,7 @@ module alu_scu (
     // NOTE: mret/sret do not cause except if permission is legal
     wire mret = (saved_fuInfo.issueQueId == `SCUIQ_ID) && (saved_fuInfo.micOp == MicOp_t::mret);
     wire sret = (saved_fuInfo.issueQueId == `SCUIQ_ID) && (saved_fuInfo.micOp == MicOp_t::sret);
-    wire illegal_eret =
-        mret ? i_csr_pack.mode < `MODE_M :
-        sret ? i_csr_pack.mode < `MODE_S :
-        0;
+    wire illegal_eret = mret ? i_csr_pack.mode < `MODE_M : sret ? i_csr_pack.mode < `MODE_S : 0;
 
     wire sysexcept = (saved_fuInfo.issueQueId == `SCUIQ_ID) && (ecall || ebreak);
     rv_trap_t::exception syscall_except;
@@ -114,7 +111,7 @@ module alu_scu (
     comwbInfo_t comwbInfo;
     reg _write_csr;
     csrIdx_t _write_csrIdx;
-    reg[`XDEF] _new_csr;
+    reg [`XDEF] _new_csr;
     always_ff @(posedge clk) begin
         if (rst) begin
             _has_except <= 0;
@@ -133,15 +130,14 @@ module alu_scu (
             _has_except <= saved_vld && (instIllegal || sysexcept);
             exceptwbInfo <= '{
                 rob_idx : saved_fuInfo.robIdx,
-                except_type : instIllegal ? rv_trap_t::instIllegal :
-                              sysexcept ? syscall_except : 0
+                except_type : instIllegal ? rv_trap_t::instIllegal : sysexcept ? syscall_except : 0
             };
 
             _write_csr <= saved_vld && write_csr;
             _write_csrIdx <= saved_csrIdx;
             _new_csr <= new_csr;
             if (saved_vld) begin
-                assert(saved_fuInfo.issueQueId == `ALUIQ_ID || saved_fuInfo.issueQueId == `SCUIQ_ID);
+                assert (saved_fuInfo.issueQueId == `ALUIQ_ID || saved_fuInfo.issueQueId == `SCUIQ_ID);
                 update_instPos(saved_fuInfo.seqNum, difftest_def::AT_wb);
             end
         end
@@ -166,10 +162,10 @@ module alu_scu (
     // system call/ret
     reg _mret;
     reg _sret;
-    reg[`XDEF] eret_pc;
+    reg [`XDEF] eret_pc;
 
 
-    always_ff @( posedge clk ) begin
+    always_ff @(posedge clk) begin
         if (rst) begin
             _mret <= 0;
             _sret <= 0;

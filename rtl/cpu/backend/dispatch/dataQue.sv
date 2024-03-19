@@ -5,87 +5,81 @@
 // unorder in,unorder out(alloc id)
 
 module dataQue #(
-    parameter int DEPTH = 30,
-    parameter int INPORT_NUM = 4,
-    parameter int READPORT_NUM = 4,
-    parameter int CLEARPORT_NUM = 4,
-    parameter int COMMIT_WID = 4,
-    parameter type dtype = logic[`XDEF],
-    parameter int ISROB = 0
-)(
+    parameter int  DEPTH         = 30,
+    parameter int  INPORT_NUM    = 4,
+    parameter int  READPORT_NUM  = 4,
+    parameter int  CLEARPORT_NUM = 4,
+    parameter int  COMMIT_WID    = 4,
+    parameter type dtype         = logic [`XDEF],
+    parameter int  ISROB         = 0
+) (
     input wire clk,
     input wire rst,
-    input wire i_stall, // only for rob
+    input wire i_stall,  // only for rob
     output wire o_empty,
     // enq data
     output wire o_can_enq,
-    input wire i_enq_vld, // only when enq_vld is true, dataQue can enq
-    input wire[`WDEF(INPORT_NUM)] i_enq_req,
-    input wire[`WDEF(INPORT_NUM)] i_enq_req_mark_finished,// only for rob
+    input wire i_enq_vld,  // only when enq_vld is true, dataQue can enq
+    input wire [`WDEF(INPORT_NUM)] i_enq_req,
+    input wire [`WDEF(INPORT_NUM)] i_enq_req_mark_finished,  // only for rob
     input dtype i_enq_data[INPORT_NUM],
     output wire o_ptr_flipped[INPORT_NUM],
-    output wire[`WDEF($clog2(DEPTH))] o_alloc_id[INPORT_NUM],
+    output wire [`WDEF($clog2(DEPTH))] o_alloc_id[INPORT_NUM],
     // output the actually enq_vld and enq_idx (only for ftqOffset_buffer)
-    output wire[`WDEF(INPORT_NUM)] o_enq_vld,
-    output wire[`WDEF($clog2(DEPTH))] o_enq_idx[INPORT_NUM],
+    output wire [`WDEF(INPORT_NUM)] o_enq_vld,
+    output wire [`WDEF($clog2(DEPTH))] o_enq_idx[INPORT_NUM],
 
     // read data (only for imm buffer)
-    input wire[`WDEF($clog2(DEPTH))] i_read_dqIdx[READPORT_NUM],
+    input wire [`WDEF($clog2(DEPTH))] i_read_dqIdx[READPORT_NUM],
     output dtype o_read_data[READPORT_NUM],
     // clear data
-    input wire[`WDEF(CLEARPORT_NUM)] i_clear_vld,
-    input wire[`WDEF($clog2(DEPTH))] i_clear_dqIdx[CLEARPORT_NUM],
+    input wire [`WDEF(CLEARPORT_NUM)] i_clear_vld,
+    input wire [`WDEF($clog2(DEPTH))] i_clear_dqIdx[CLEARPORT_NUM],
 
     // used for rob commit (only for commit)
-    output wire[`WDEF(COMMIT_WID)] o_willClear_vld,
-    output wire[`WDEF($clog2(DEPTH))] o_willClear_idx[COMMIT_WID],
+    output wire [`WDEF(COMMIT_WID)] o_willClear_vld,
+    output wire [`WDEF($clog2(DEPTH))] o_willClear_idx[COMMIT_WID],
     output dtype o_willClear_data[COMMIT_WID]
 );
     genvar i;
     int j;
 
-    wire[`WDEF(INPORT_NUM)] enq_req;
+    wire [`WDEF(INPORT_NUM)] enq_req;
     dtype enq_data[INPORT_NUM];
-    reg[`WDEF($clog2(DEPTH))] enq_ptr[INPORT_NUM],head_ptr[COMMIT_WID];
+    reg [`WDEF($clog2(DEPTH))] enq_ptr[INPORT_NUM], head_ptr[COMMIT_WID];
     reg enq_ptr_flipped[INPORT_NUM];
 
-    if(!ISROB) begin:gen_notROB
-        reorder
-        #(
-            .dtype ( dtype ),
-            .NUM   ( INPORT_NUM   )
-        )
-        u_reorder(
-            .i_data_vld      ( i_enq_req      ),
-            .i_datas         ( i_enq_data         ),
-            .o_data_vld      ( enq_req      ),
-            .o_reorder_datas ( enq_data )
+    if (!ISROB) begin : gen_notROB
+        reorder #(
+            .dtype(dtype),
+            .NUM  (INPORT_NUM)
+        ) u_reorder (
+            .i_data_vld     (i_enq_req),
+            .i_datas        (i_enq_data),
+            .o_data_vld     (enq_req),
+            .o_reorder_datas(enq_data)
         );
 
-        redirect
-        #(
-            .dtype ( logic[`WDEF($clog2(DEPTH))] ),
-            .NUM   ( INPORT_NUM   )
-        )
-        u_redirect_0(
-            .i_arch_vld       ( i_enq_req       ),
-            .i_arch_datas     ( enq_ptr     ),
-            .o_redirect_datas ( o_alloc_id )
+        redirect #(
+            .dtype(logic [`WDEF($clog2(DEPTH))]),
+            .NUM  (INPORT_NUM)
+        ) u_redirect_0 (
+            .i_arch_vld      (i_enq_req),
+            .i_arch_datas    (enq_ptr),
+            .o_redirect_datas(o_alloc_id)
         );
-        redirect
-        #(
-            .dtype ( logic ),
-            .NUM   ( INPORT_NUM   )
-        )
-        u_redirect_1(
-            .i_arch_vld       ( i_enq_req       ),
-            .i_arch_datas     ( enq_ptr_flipped     ),
-            .o_redirect_datas ( o_ptr_flipped )
+        redirect #(
+            .dtype(logic),
+            .NUM  (INPORT_NUM)
+        ) u_redirect_1 (
+            .i_arch_vld      (i_enq_req),
+            .i_arch_datas    (enq_ptr_flipped),
+            .o_redirect_datas(o_ptr_flipped)
         );
 
     end
     else begin
-    // if isROB, the enq_req must in order
+        // if isROB, the enq_req must in order
         assign enq_req = i_enq_req;
         assign enq_data = i_enq_data;
 
@@ -95,46 +89,40 @@ module dataQue #(
     end
 
     dtype buffer[DEPTH];
-    reg[`WDEF(DEPTH)] vld_bits;
-    reg[`WDEF(DEPTH)] clear_bits;
-    reg[`SDEF(DEPTH)] count;
-    wire[`SDEF(DEPTH)] remaining = (DEPTH - count);
-    wire[`WDEF(INPORT_NUM)] real_enq_vld = o_can_enq && i_enq_vld ? enq_req : 0;
-    wire[`SDEF(DEPTH)] real_enq_num, enq_num, clear_num;
+    reg [`WDEF(DEPTH)] vld_bits;
+    reg [`WDEF(DEPTH)] clear_bits;
+    reg [`SDEF(DEPTH)] count;
+    wire [`SDEF(DEPTH)] remaining = (DEPTH - count);
+    wire [`WDEF(INPORT_NUM)] real_enq_vld = o_can_enq && i_enq_vld ? enq_req : 0;
+    wire [`SDEF(DEPTH)] real_enq_num, enq_num, clear_num;
     /* verilator lint_off UNOPTFLAT */
-    wire[`WDEF(COMMIT_WID)] can_clear_vld;
+    wire [`WDEF(COMMIT_WID)] can_clear_vld;
 
     assign o_empty = (count == 0);
     assign o_enq_vld = real_enq_vld;
     assign o_enq_idx = enq_ptr;
 
-    count_one
-    #(
-        .WIDTH ( INPORT_NUM     )
-    )
-    u_count_one_0(
-        .i_a   ( i_enq_req      ),
-        .o_sum ( enq_num        )
+    count_one #(
+        .WIDTH(INPORT_NUM)
+    ) u_count_one_0 (
+        .i_a  (i_enq_req),
+        .o_sum(enq_num)
     );
 
     assign o_can_enq = enq_num <= remaining;
 
-    count_one
-    #(
-        .WIDTH ( INPORT_NUM     )
-    )
-    u_count_one_1(
-        .i_a   ( real_enq_vld   ),
-        .o_sum ( real_enq_num   )
+    count_one #(
+        .WIDTH(INPORT_NUM)
+    ) u_count_one_1 (
+        .i_a  (real_enq_vld),
+        .o_sum(real_enq_num)
     );
 
-    count_one
-    #(
-        .WIDTH ( COMMIT_WID     )
-    )
-    u_count_one_2(
-        .i_a   ( can_clear_vld  ),
-        .o_sum ( clear_num      )
+    count_one #(
+        .WIDTH(COMMIT_WID)
+    ) u_count_one_2 (
+        .i_a  (can_clear_vld),
+        .o_sum(clear_num)
     );
 
     always_ff @(posedge clk) begin
@@ -148,7 +136,7 @@ module dataQue #(
                     enq_ptr_flipped[j] <= 0;
                 end
             end
-            for(j=0;j<COMMIT_WID;j=j+1) begin
+            for (j = 0; j < COMMIT_WID; j = j + 1) begin
                 head_ptr[j] <= j;
             end
         end
@@ -156,7 +144,7 @@ module dataQue #(
             count <= count + real_enq_num - clear_num;
             //enq
 
-            for ( j = 0; j < INPORT_NUM; j = j + 1) begin
+            for (j = 0; j < INPORT_NUM; j = j + 1) begin
                 enq_ptr[j] <= (enq_ptr[j] + real_enq_num) < DEPTH ? (enq_ptr[j] + real_enq_num) : (enq_ptr[j] + real_enq_num - DEPTH);
                 if (real_enq_vld[j]) begin
                     vld_bits[enq_ptr[j]] <= true;
@@ -164,7 +152,7 @@ module dataQue #(
                 end
                 if ((enq_ptr[j] + real_enq_num) < DEPTH) begin
                 end
-                else if(ISROB) begin // flipped
+                else if (ISROB) begin  // flipped
                     enq_ptr_flipped[j] <= ~enq_ptr_flipped[j];
                 end
 
@@ -174,14 +162,14 @@ module dataQue #(
             end
 
             // mark can clear
-            for (j=0;j<CLEARPORT_NUM;j=j+1) begin
+            for (j = 0; j < CLEARPORT_NUM; j = j + 1) begin
                 if (i_clear_vld[j]) begin
                     clear_bits[i_clear_dqIdx[j]] <= true;
-                    assert (vld_bits[i_clear_dqIdx[j]]==true);
+                    assert (vld_bits[i_clear_dqIdx[j]] == true);
                 end
             end
             //clear/commit
-            for (j=0;j<COMMIT_WID;j=j+1) begin
+            for (j = 0; j < COMMIT_WID; j = j + 1) begin
                 if (can_clear_vld[j]) begin
                     vld_bits[head_ptr[j]] <= false;
                     clear_bits[head_ptr[j]] <= false;
@@ -193,14 +181,14 @@ module dataQue #(
 
     generate
         if (!ISROB) begin
-        // if is imm reorder buffer
-            for(i=0;i<READPORT_NUM;i=i+1) begin
+            // if is imm reorder buffer
+            for (i = 0; i < READPORT_NUM; i = i + 1) begin
                 assign o_read_data[i] = buffer[i_read_dqIdx[i]];
             end
         end
 
         for (i = 0; i < COMMIT_WID; i = i + 1) begin
-            if (i==0) begin
+            if (i == 0) begin
                 assign can_clear_vld[i] = clear_bits[head_ptr[i]] & (ISROB ? !i_stall : 1);
             end
             else begin
@@ -215,11 +203,11 @@ module dataQue #(
     endgenerate
 
     // used for waveform debug
-    wire[`SDEF(DEPTH)] AAA_count = count;
+    wire [`SDEF(DEPTH)] AAA_count = count;
 
-    wire[`SDEF(DEPTH)] AAA_enq_num = real_enq_num;
+    wire [`SDEF(DEPTH)] AAA_enq_num = real_enq_num;
 
-    wire[`SDEF(DEPTH)] AAA_clear_num = clear_num;
+    wire [`SDEF(DEPTH)] AAA_clear_num = clear_num;
 endmodule
 
 

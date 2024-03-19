@@ -14,14 +14,14 @@ module plru_rep #(
     input wrie clk,
     input wire rst,
 
-    input wire[`WDEF($clog2(SETS))] i_setIdx,
-    output wire[`WDEF(WAYS)] o_replace_vec,
+    input wire [`WDEF($clog2(SETS))] i_setIdx,
+    output wire [`WDEF(WAYS)] o_replace_vec,
     input wire i_update_req,
-    input wire[`WDEF(WAYS)] i_wayhit_vec
+    input wire [`WDEF(WAYS)] i_wayhit_vec
 );
-    localparam int plru_wid = WAYS -1;
+    localparam int plru_wid = WAYS - 1;
 
-    reg[`WDEF(plru_wid)] plru_bits[SETS];
+    reg [`WDEF(plru_wid)] plru_bits[SETS];
 
 
 

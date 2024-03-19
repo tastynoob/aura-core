@@ -5,7 +5,7 @@
 
 # {true,false}
 --compact_indexing_and_selections=true
---expand_coverpoints=true
+--expand_coverpoints=false
 --port_declarations_right_align_packed_dimensions=false
 --port_declarations_right_align_unpacked_dimensions=false
 --wrap_end_else_clauses=true
@@ -17,7 +17,7 @@
 --port_declarations_indentation=indent
 
 # {align,flush-left,preserve,infer}
---assignment_statement_alignment=align
+--assignment_statement_alignment=flush-left
 --case_items_alignment=align
 --class_member_variable_alignment=align
 --distribution_items_alignment=flush-left

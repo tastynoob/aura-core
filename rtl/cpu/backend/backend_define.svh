@@ -55,32 +55,32 @@
 // load position vec
 `define LPV_WIDTH 3
 `define LPV_INIT 3'b001
-typedef logic[`WDEF(`LPV_WIDTH * `LDU_NUM )] lpv_t;
+typedef logic [`WDEF(`LPV_WIDTH * `LDU_NUM )] lpv_t;
 
 typedef struct {
-    logic[`WDEF(`MEMDEP_FOLDPC_WIDTH)] foldpc;
+    logic [`WDEF(`MEMDEP_FOLDPC_WIDTH)] foldpc;
     ftqIdx_t ftq_idx;
     ftqOffset_t ftqOffset;
     logic has_except;
     rv_trap_t::exception except;
     logic isRVC;
-    logic ismv; //used for mov elim
+    logic ismv;  //used for mov elim
     // different inst use different format,NOTE: csr use imm20 = {3'b0,12'csrIdx,5'zimm}
-    logic[`IMMDEF] imm20;
-    logic need_serialize; // if is csr write, need to serialize pipeline
+    logic [`IMMDEF] imm20;
+    logic need_serialize;  // if is csr write, need to serialize pipeline
     logic rd_wen;
     ilrIdx_t ilrd_idx;
-    ilrIdx_t ilrs_idx[`NUMSRCS_INT]; // if has no rs, rs2_idx should be zero
-    logic use_imm; //replace the rs2 source to imm
+    ilrIdx_t ilrs_idx[`NUMSRCS_INT];  // if has no rs, rs2_idx should be zero
+    logic use_imm;  //replace the rs2 source to imm
     //which dispQue should go
-    logic[`WDEF(2)] dispQue_id;
+    logic [`WDEF(2)] dispQue_id;
     //which IQ should go
-    logic[`WDEF(3)] issueQue_id;
+    logic [`WDEF(3)] issueQue_id;
     MicOp_t::_u micOp_type;
     logic isStore;
 
-    logic[`XDEF] instmeta;
-}decInfo_t;
+    logic [`XDEF] instmeta;
+} decInfo_t;
 
 typedef struct {
     ftqIdx_t ftq_idx;
@@ -88,25 +88,25 @@ typedef struct {
     logic has_except;
     rv_trap_t::exception except;
     logic isRVC;
-    logic ismv; //used for mov elim
+    logic ismv;  //used for mov elim
     // different inst use different format,NOTE: csr use imm20 = {3'b0,12'csrIdx,5'zimm}
-    logic[`IMMDEF] imm20;
-    logic need_serialize; // if is csr write, need to serialize pipeline
+    logic [`IMMDEF] imm20;
+    logic need_serialize;  // if is csr write, need to serialize pipeline
     logic rd_wen;
     ilrIdx_t ilrd_idx;
     iprIdx_t iprd_idx;
     iprIdx_t prev_iprd_idx;
 
-    iprIdx_t iprs_idx[`NUMSRCS_INT]; // if has no rs, rs2_idx should be zero
-    logic use_imm; //replace the rs2 source to imm
+    iprIdx_t iprs_idx[`NUMSRCS_INT];  // if has no rs, rs2_idx should be zero
+    logic use_imm;  //replace the rs2 source to imm
     //which dispQue should go
-    logic[`WDEF(2)] dispQue_id;
+    logic [`WDEF(2)] dispQue_id;
     //which RS should go
-    logic[`WDEF(3)] issueQue_id;
+    logic [`WDEF(3)] issueQue_id;
     MicOp_t::_u micOp_type;
     logic isStore;
 
-    logic[`XDEF] instmeta;
+    logic [`XDEF] instmeta;
 } renameInfo_t;
 
 typedef struct {
@@ -121,13 +121,13 @@ typedef struct {
     iprIdx_t iprd;
     iprIdx_t iprs[`NUMSRCS_INT];
     logic useImm;
-    logic[`WDEF(3)] issueQueId;
+    logic [`WDEF(3)] issueQueId;
     MicOp_t::_u micOp;
     // memdep
     logic shouldwait;
     robIdx_t dep_robIdx;
 
-    logic[`XDEF] seqNum;
+    logic [`XDEF] seqNum;
 } microOp_t;
 
 typedef struct {
@@ -142,12 +142,12 @@ typedef struct {
     iprIdx_t iprd;
     iprIdx_t iprs[`NUMSRCS_INT];
     logic useImm;
-    logic[`WDEF(3)] issueQueId;
+    logic [`WDEF(3)] issueQueId;
     MicOp_t::_u micOp;
     // issue states
-    logic[`WDEF(6)] iqIdx;
+    logic [`WDEF(6)] iqIdx;
 
-    logic[`XDEF] seqNum;
+    logic [`XDEF] seqNum;
 } issueState_t;
 
 typedef struct {
@@ -161,21 +161,19 @@ typedef struct {
     logic rdwen;
     iprIdx_t iprd;
     logic useImm;
-    logic[`WDEF(3)] issueQueId;
+    logic [`WDEF(3)] issueQueId;
     MicOp_t::_u micOp;
     // data
-    logic[`XDEF] srcs[`NUMSRCS_INT];
+    logic [`XDEF] srcs[`NUMSRCS_INT];
     imm_t imm20;
     ftqOffset_t ftqOffset;
-    logic[`XDEF] pc;
-    logic[`XDEF] npc;
+    logic [`XDEF] pc;
+    logic [`XDEF] npc;
 
-    logic[`XDEF] seqNum;
+    logic [`XDEF] seqNum;
 } exeInfo_t;
 
-typedef struct {
-    robIdx_t rob_idx;
-} loadQueEntry_t;
+typedef struct {robIdx_t rob_idx;} loadQueEntry_t;
 
 typedef struct {
     robIdx_t rob_idx;
@@ -183,7 +181,7 @@ typedef struct {
     logic use_imm;
     logic rd_wen;
     iprIdx_t iprd_idx;
-    logic[`XDEF] result;
+    logic [`XDEF] result;
 } comwbInfo_t;
 
 typedef struct {
@@ -203,7 +201,7 @@ typedef struct {
     iprIdx_t prev_iprd_idx;
     logic serialized;
 
-    logic[`XDEF] instmeta;
+    logic [`XDEF] instmeta;
 } ROBEntry_t;
 
 typedef struct {
@@ -217,8 +215,8 @@ typedef struct {
 
 
 typedef struct {
-    logic[`WDEF(`MEMDEP_FOLDPC_WIDTH)] store_foldpc;
-    logic[`WDEF(`MEMDEP_FOLDPC_WIDTH)] load_foldpc;
+    logic [`WDEF(`MEMDEP_FOLDPC_WIDTH)] store_foldpc;
+    logic [`WDEF(`MEMDEP_FOLDPC_WIDTH)] load_foldpc;
 } squashMemVio_t;
 
 // DESIGN:

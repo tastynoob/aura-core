@@ -29,19 +29,19 @@
 
 typedef struct {
     // trap info
-    logic[`WDEF(2)] mode;
-    logic[`XDEF] status;
-    logic[`XDEF] epc;
+    logic [`WDEF(2)] mode;
+    logic [`XDEF] status;
+    logic [`XDEF] epc;
     logic interrupt_vectored;
-    logic[`XDEF] tvec;
+    logic [`XDEF] tvec;
 } csr_in_pack_t;
 
 typedef struct {
     // trap handle
     logic has_trap;
-    logic[`XDEF] epc;
-    logic[`XDEF] cause;
-    logic[`XDEF] tval;
+    logic [`XDEF] epc;
+    logic [`XDEF] cause;
+    logic [`XDEF] tval;
 } trap_pack_t;
 
 
@@ -50,22 +50,22 @@ typedef struct {
 `define MSTATUS_WRITE_MASK (64'h80000030_007FFFEA)
 typedef struct packed {
     logic sd;
-    logic[`WDEF(25)] wpri4;
+    logic [`WDEF(25)] wpri4;
     logic mbe;
     logic sbe;
-    logic[`WDEF(2)] sxl;
-    logic[`WDEF(2)] uxl;
-    logic[`WDEF(9)] wpri3;
+    logic [`WDEF(2)] sxl;
+    logic [`WDEF(2)] uxl;
+    logic [`WDEF(9)] wpri3;
     logic tsr;
     logic tw;
     logic tvm;
     logic mxr;
     logic sum;
     logic mprv;
-    logic[`WDEF(2)] xs;
-    logic[`WDEF(2)] fs;
-    logic[`WDEF(2)] mpp;
-    logic[`WDEF(2)] vs;
+    logic [`WDEF(2)] xs;
+    logic [`WDEF(2)] fs;
+    logic [`WDEF(2)] mpp;
+    logic [`WDEF(2)] vs;
     logic spp;
     logic mpie;
     logic ube;
@@ -78,8 +78,8 @@ typedef struct packed {
 } mstatus_csr_t;
 
 typedef struct packed {
-    logic[`WDEF(`XLEN-2)] base;
-    logic[`WDEF(2)] mode;
+    logic [`WDEF(`XLEN-2)] base;
+    logic [`WDEF(2)] mode;
 } mtvec_csr_t;
 
 `define MIP_MIE_WRITE_MASK (64'h555)
@@ -115,7 +115,7 @@ typedef struct packed {
 
 typedef struct packed {
     logic interrupt;
-    logic[`WDEF(63)] except_code;
+    logic [`WDEF(63)] except_code;
 } mcause_csr_t;
 
 

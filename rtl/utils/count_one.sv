@@ -5,7 +5,7 @@
 module count_one #(
     parameter int WIDTH = 4
 ) (
-    input  wire [`WDEF(WIDTH)] i_a,
+    input wire [`WDEF(WIDTH)] i_a,
     output wire [`SDEF(WIDTH)] o_sum
 );
     /* verilator lint_off UNOPTFLAT */
@@ -13,7 +13,7 @@ module count_one #(
     assign buffer[0] = 0;
     generate
         genvar i;
-        for (i = 0; i < WIDTH; i = i + 1) begin: gen_count
+        for (i = 0; i < WIDTH; i = i + 1) begin : gen_count
             assign buffer[i+1] = i_a[i] ? buffer[i] + 1 : buffer[i];
         end
     endgenerate

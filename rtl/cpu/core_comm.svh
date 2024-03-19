@@ -45,73 +45,77 @@
 
 `include "core_priv.svh"
 
-typedef logic[`WDEF(`PALEN)] paddr_t;
+typedef logic [`WDEF(`PALEN)] paddr_t;
 
-typedef logic[`WDEF($clog2(`FTQ_SIZE))] ftqIdx_t;
-typedef logic[`WDEF($clog2(`FTB_PREDICT_WIDTH))] ftqOffset_t;
+typedef logic [`WDEF($clog2(`FTQ_SIZE))] ftqIdx_t;
+typedef logic [`WDEF($clog2(`FTB_PREDICT_WIDTH))] ftqOffset_t;
 typedef struct packed {
     logic flipped;
     logic [`WDEF($clog2(`ROB_SIZE))] idx;
 } robIdx_t;
 // typedef logic [`WDEF($clog2(`ROB_SIZE))] robIdx_t;
-typedef logic [`WDEF($clog2(`IMMBUFFER_SIZE))] irobIdx_t; // the immBuffer idx
+typedef logic [`WDEF($clog2(`IMMBUFFER_SIZE))] irobIdx_t;  // the immBuffer idx
 
 //[int/fp][logic/physic]r[dest/src]Idx
-typedef logic [`WDEF($clog2(32))] ilrIdx_t;//the int logic regfile idx
-typedef logic [`WDEF($clog2(`IPHYREG_NUM))] iprIdx_t;//the int physic regfile idx
-typedef logic [`WDEF(12)] csrIdx_t;//the csr regfile idx
+typedef logic [`WDEF($clog2(32))] ilrIdx_t;  //the int logic regfile idx
+typedef logic [`WDEF($clog2(`IPHYREG_NUM))] iprIdx_t;  //the int physic regfile idx
+typedef logic [`WDEF(12)] csrIdx_t;  //the csr regfile idx
 
 typedef logic [`IMMDEF] imm_t;
 
 typedef struct packed {
     logic flipped;
-    logic[`WDEF($clog2(`LQSIZE))] idx;
+    logic [`WDEF($clog2(`LQSIZE))] idx;
 } lqIdx_t;
 
 typedef struct packed {
     logic flipped;
-    logic[`WDEF($clog2(`SQSIZE))] idx;
+    logic [`WDEF($clog2(`SQSIZE))] idx;
 } sqIdx_t;
 
 package rv_trap_t;
-//mtvec mode:
-//0:Direct All exceptions set pc to BASE.
-//1:Vectored Asynchronous interrupts set pc to BASE+4×cause.
-`define TRAPCODE_WIDTH 16
+    //mtvec mode:
+    //0:Direct All exceptions set pc to BASE.
+    //1:Vectored Asynchronous interrupts set pc to BASE+4×cause.
+    `define TRAPCODE_WIDTH 16
     // mcause (actually, 16bits mcause reg is enough)
-    typedef enum logic[`WDEF(`TRAPCODE_WIDTH)]{
+    typedef enum logic [
+    `WDEF(`TRAPCODE_WIDTH)
+    ] {
         //instruction fetch and decode
-        pcMisaligned=0, // instruction address misaligned
-        fetchFault=1, // instruction access fault
-        instIllegal=2,// Illegal instruction
-        breakpoint=3,
+        pcMisaligned = 0,  // instruction address misaligned
+        fetchFault = 1,  // instruction access fault
+        instIllegal = 2,  // Illegal instruction
+        breakpoint = 3,
         //load, store/AMO
-        loadMisaligned=4,
-        loadFault=5,
-        storeMisaligned=6,
-        storeFault=7,
+        loadMisaligned = 4,
+        loadFault = 5,
+        storeMisaligned = 6,
+        storeFault = 7,
         //env call
-        ucall=8,
-        scall=9,
-        mcall=11,
-        fetchPageFault=12,
-        loadPageFault=13,
-        storePageFault=15,
+        ucall = 8,
+        scall = 9,
+        mcall = 11,
+        fetchPageFault = 12,
+        loadPageFault = 13,
+        storePageFault = 15,
         //NOTE:24-31/48-63, designated for custom use
         //math compute
-        badDivisor=24, // div/fdiv, it would not to throw trap in standard riscv
+        badDivisor = 24,  // div/fdiv, it would not to throw trap in standard riscv
         reserved_exception
-    }exception;
-    typedef enum logic[`WDEF(`TRAPCODE_WIDTH)]{
-        sSoft=1, // Supervisor software interrupt
-        mSoft=3,
-        sTimer=5, // Supervisor timer interrupt
-        mTimer=7,
-        sExter=9, // Supervisor external interrupt
-        mExter=11,
+    } exception;
+    typedef enum logic [
+    `WDEF(`TRAPCODE_WIDTH)
+    ] {
+        sSoft = 1,  // Supervisor software interrupt
+        mSoft = 3,
+        sTimer = 5,  // Supervisor timer interrupt
+        mTimer = 7,
+        sExter = 9,  // Supervisor external interrupt
+        mExter = 11,
         //>=16 Designated for platform use
         reserved_interrupts
-    }interrupt;
+    } interrupt;
 
 endpackage
 
