@@ -75,6 +75,7 @@ class InstMonitor {
 
 InstMeta* read_instmeta(uint64_t seq) {
     InstMeta* instmeta = instMonitor.read_by_seq(seq);
+    assert(instmeta);
     auto it = *(instmeta->it);
     assert(it->seq == instmeta->seq);
     return it;
@@ -132,9 +133,14 @@ extern "C" {
         case InstPos::AT_dispQue:
             break;
         case InstPos::AT_issueQue:
+            DPRINTF(EXECUTE, "%s dispatch to issueQue\n", inst->base().c_str());
             break;
         case InstPos::AT_fu:
             DPRINTF(EXECUTE, "%s start executing\n", inst->base().c_str());
+            break;
+        case InstPos::AT_wb:
+            DPRINTF(EXECUTE, "%s writeback\n", inst->base().c_str());
+            break;
         default:
             break;
         }
@@ -267,6 +273,15 @@ extern "C" {
     void goto_fu(uint64_t instmeta, uint64_t fu_id) {
         InstMeta* inst = read_instmeta(instmeta);
         DPRINTF(EXECUTE, "%s going to fu %lu\n", inst->base().c_str(), fu_id);
+    }
+
+    void cpu_stucked(uint64_t seqNum, uint64_t vld) {
+        DPRINTFA("cpu stucked!!\n")
+        if (vld) {
+            InstMeta* inst = read_instmeta(seqNum);
+            DPRINTFA("stucked inst: %s %s\n", inst->base().c_str(), inst->disassembly().c_str());
+        }
+        mark_exit(true);
     }
 
     void squash_pipe(uint64_t isMispred) {

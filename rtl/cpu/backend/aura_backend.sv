@@ -43,22 +43,12 @@ module aura_backend (
     wire[`WDEF(`RENAME_WIDTH)] toExe_mark_notready_vld;
     iprIdx_t toExe_mark_notready_iprIdx[`RENAME_WIDTH];
 
-    wire[`WDEF(`INTDQ_DISP_WID)] toCtrl_intDQ_deq_vld;
-    wire[`WDEF(`INTDQ_DISP_WID)] toExe_intDQ_deq_req;
-    intDQEntry_t toExe_intDQ_deq_info[`INTDQ_DISP_WID];
-
-    wire[`WDEF(`MEMDQ_DISP_WID)] toCtrl_memDQ_deq_vld;
-    wire[`WDEF(`MEMDQ_DISP_WID)] toExe_memDQ_deq_req;
-    memDQEntry_t toExe_memDQ_deq_info[`MEMDQ_DISP_WID];
-
-
     wire rob_read_ftq_vld;
     ftqIdx_t rob_read_ftqIdx;
     wire[`XDEF] rob_read_ftqStartAddr = i_read_ftqStartAddr[0];
 
-
-    wire[`WDEF(`WBPORT_NUM)] toCtrl_fu_finished;
-    comwbInfo_t toCtrl_comwbInfo[`WBPORT_NUM];
+    wire[`WDEF(`COMPLETE_NUM)] toCtrl_fu_finished;
+    comwbInfo_t toCtrl_comwbInfo[`COMPLETE_NUM];
 
     wire[`WDEF(`BRU_NUM)] exeBlock_branchwb_mispred_vld;
     wire[`WDEF(`BRU_NUM)] exeBlock_branchwb_vld;
@@ -150,6 +140,8 @@ module aura_backend (
 
         .o_read_irob_idx     ( toCtrl_read_irob_idx ),
         .i_read_irob_data    ( toExe_read_irob_data ),
+        .o_immB_clear_vld    ( toCtrl_clear_irob_vld ),
+        .o_immB_clear_idx    ( toCtrl_clear_irob_idx ),
 
         .o_read_ftqIdx       ( exeBlock_read_ftqIdx ),
         .i_read_ftqStartAddr ( i_read_ftqStartAddr  ),
@@ -179,11 +171,6 @@ module aura_backend (
 
 
     generate
-        for(i=0;i<`IMMBUFFER_CLEARPORT_NUM;i=i+1) begin:gen_for
-            // NOTE: toCtrl_fu_finished[`ALU_NUM-1:0] is must be alu's wbInfo
-            assign toCtrl_clear_irob_vld[i] = toCtrl_fu_finished[i] && toCtrl_comwbInfo[i].use_imm;
-            assign toCtrl_clear_irob_idx[i] = toCtrl_comwbInfo[i].irob_idx;
-        end
         for (i=0; i<`BRU_NUM; i=i+1) begin
             assign exeBlock_branchwb_mispred_vld[i] = (exeBlock_branchwb_vld[i] && exeBlock_branchwbInfo[i].has_mispred);
         end

@@ -286,13 +286,13 @@ extern "C" void arch_commitInst(
     }
 
     if (active_exit) {
-        debugChecker.printAll();
+        debugChecker.printAll(curTick());
         debugChecker.clearFlags();
         diffState.enable_diff = false;
         mark_exit(false);
     }
     else if (difftest_failed) {
-        debugChecker.printAll();
+        debugChecker.printAll(curTick());
         printf("difftest failed!\n");\
         fflush(stdout);
         refProxy.isa_reg_display();

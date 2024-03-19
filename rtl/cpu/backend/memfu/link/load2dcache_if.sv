@@ -1,7 +1,15 @@
 `include "backend_define.svh"
 
 
+/*
 
+| agu | get paddr, ptag | get data |
+   |          |
+   V        match?
+ vaddr        V
+           s1_miss
+
+*/
 
 
 interface load2dcache_if;
@@ -16,62 +24,56 @@ interface load2dcache_if;
     // check dcache/tlb miss
     logic s1_req;
     logic s1_rdy;// used for pipeline align
-    logic s1_conflict; // data bank conflict
-    logic s1_tlbhit; // tlb translate finished
-    logic s1_addrMisaligned;// tlb check
-    logic s1_cachehit;
+    logic s1_cft; // bank conflict, replay
+    logic s1_miss; // tlbmiss or cache miss
+    logic s1_pagefault;// mmu page fault
+    logic s1_illegaAddr;// mmu check failed
+    logic s1_mmio; // mmio space
     paddr_t s1_paddr; // translated paddr
 
     // s2:
     logic s2_req;
     logic s2_rdy;
-    logic s2_has_except;
-    rv_trap_t::exception s2_except;
-    logic s2_data_vld;
-    logic[`WDEF(`CACHELINE_SIZE*8)] s2_data;
+    logic[`WDEF(`CACHELINE_SIZE*8)] s2_data;// return one cacheline
 
     modport m (
         output s0_req,
         input s0_gnt,
         output s0_lqIdx,
         output s0_vaddr,
-        output s0_load_vec,
 
         output s1_req,
         input s1_rdy,
-        input s1_conflict,
-        input s1_tlbhit,
-        input s1_cachehit,
+        input s1_cft,
+        input s1_miss,
+        input s1_pagefault,
+        input s1_illegaAddr,
+        input s1_mmio,
         input s1_paddr,
 
         output s2_req,
         input s2_rdy,
-        input s2_has_except,
-        input s2_except,
-        input s2_data_vld,
         input s2_data
     );
 
     modport s (
-        input  s0_req,
+        input s0_req,
         output s0_gnt,
-        input  s0_lqIdx,
-        input  s0_vaddr,
-        input  s0_load_vec,
+        input s0_lqIdx,
+        input s0_vaddr,
 
-        input  s1_req,
+        input s1_req,
         output s1_rdy,
-        output s1_conflict,
-        output s1_tlbhit,
-        output s1_cachehit,
+        output s1_cft,
+        output s1_miss,
+        output s1_pagefault,
+        output s1_illegaAddr,
+        output s1_mmio,
         output s1_paddr,
 
-        input  s2_req,
+        input s2_req,
         output s2_rdy,
-        output s2_has_except,
-        output s2_except,
-        input  s2_data_vld,
-        input  s2_data
+        output s2_data
     );
 endinterface
 

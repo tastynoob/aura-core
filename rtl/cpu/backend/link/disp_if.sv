@@ -12,12 +12,12 @@ interface disp_if;
     // from/to int block
     logic[`WDEF(`INTDQ_DISP_WID)] int_req;
     logic[`WDEF(`INTDQ_DISP_WID)] int_rdy;
-    intDQEntry_t int_info[`INTDQ_DISP_WID];
+    microOp_t int_info[`INTDQ_DISP_WID];
 
     // from/to mem block
     logic[`WDEF(`MEMDQ_DISP_WID)] mem_req;
     logic[`WDEF(`MEMDQ_DISP_WID)] mem_rdy;
-    memDQEntry_t mem_info[`MEMDQ_DISP_WID];
+    microOp_t mem_info[`MEMDQ_DISP_WID];
 
     modport m (
         output int_req,

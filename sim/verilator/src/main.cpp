@@ -7,7 +7,8 @@
 #include "statistics.hpp"
 #include "flags.hpp"
 
-uint64_t max_simTime = 99999999999lu;
+uint64_t trace_start = 0;
+uint64_t max_simTime = UINT64_MAX;
 uint64_t main_time = 0;
 VTOP *top;
 VerilatedVcdC *tfp;
@@ -18,22 +19,22 @@ uint64_t curTick() { return main_time; }
 extern void diff_init(const char* ref_path);
 extern void init_workload(std::string path);
 
-
+#ifdef USE_TRACE
+#define TraceDump if (main_time >= trace_start) tfp->dump(main_time)
+#else
+#define TraceDump
+#endif
 void tick_init_top() {
     top->clk = 0;
     top->rst = 1;
     top->eval();
-#ifdef USE_TRACE
-    tfp->dump(main_time);
-#endif
+    TraceDump;
 
     main_time++;
     top->clk = 1;
     top->rst = 1;
     top->eval();
-#ifdef USE_TRACE
-    tfp->dump(main_time);
-#endif
+    TraceDump;
 
     main_time++;
     top->rst = 0;
@@ -42,9 +43,7 @@ void tick_init_top() {
 void tick_step() {
     top->clk = !top->clk;
     top->eval();
-#ifdef USE_TRACE
-    tfp->dump(main_time);
-#endif
+    TraceDump;
     ++main_time;
 }
 
@@ -65,7 +64,12 @@ int main(int argc, char **argv)
                             false);
     parser.add<uint32_t>("seed", 's', "the seed of x-assign random init", false);
     parser.add<std::string>("diff-so", 'd', "the so of difftest ref", false);
+
+    parser.add<uint64_t>("trace-start", 0, "the trace start tick", false);
+    parser.add<uint64_t>("debug-start", 0, "the debug start tick", false);
+    parser.add<uint64_t>("debug-end", 0, "the debug end tick", false);
     parser.add<std::string>("debug-flags", 0, "the debug flags", false);
+
 #ifdef USE_TRACE
     parser.add<std::string>("trace", 0, "enable trace by specific conditions\n"
                                         "       e.g\n"
@@ -77,7 +81,7 @@ int main(int argc, char **argv)
     parser.parse_check(argc, argv);
 
     if (parser.exist("debug-flags")) {
-        debugChecker.enableFlags(parser.get<std::string>("debug-flags"));
+        debugChecker.parseFlags(parser.get<std::string>("debug-flags"));
     }
     if (parser.exist("exec-file"))
     {
@@ -98,9 +102,29 @@ int main(int argc, char **argv)
         std::random_device rd;
         verilated_seed = rd() % 10000;
     }
-
-    std::cout << "verilated random seed: " << verilated_seed << std::endl;
-
+    if (parser.exist("trace-start"))
+    {
+#ifndef USE_TRACE
+        std::cout << "trace-start is not supported in this build" << std::endl;
+        return 1;
+#endif
+        trace_start = parser.get<uint64_t>("trace-start");
+    }
+    uint64_t debug_start = 0;
+    uint64_t debug_end = UINT64_MAX;
+    if (parser.exist("debug-start"))
+    {
+        debug_start = parser.get<uint64_t>("debug-start");
+    }
+    if (parser.exist("debug-end"))
+    {
+        debug_end = parser.get<uint64_t>("debug-end");
+    }
+    if (debug_end < debug_start) {
+        std::cout << "debug-end should be larger than debug-start" << std::endl;
+        return 1;
+    }
+    debugChecker.setTime(debug_start, debug_end);
     if (parser.exist("end"))
     {
         std::string cmd = parser.get<std::string>("end");
@@ -111,6 +135,9 @@ int main(int argc, char **argv)
             max_simTime = t;
         }
     }
+
+
+    std::cout << "verilated random seed: " << verilated_seed << std::endl;
 
     int verilated_argc = 3;
     char const *verilated_argv[3];
@@ -143,7 +170,7 @@ int main(int argc, char **argv)
     {
         // Evaluate model
         tick_step();
-        debugChecker.printAll();
+        debugChecker.printAll(main_time);
     }
     top->final();
 
@@ -157,7 +184,7 @@ int main(int argc, char **argv)
     int ret_code = 0;
     std::cout<<std::endl;
     if (force_exit() == 1) {
-        std::cout << "**** RUN FAILED! ****\n";
+        std::cout << "**** [" << main_time << "] RUN FAILED! ****\n";
         ret_code = 1;
     }
     else {

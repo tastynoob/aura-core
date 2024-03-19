@@ -299,7 +299,7 @@ module fetcher (
     wire[`WDEF(`FTB_PREDICT_WIDTH/2)] fetched_inst_mask; // 1 | 1 | 1(jal or jalr) | 0 | 0
     wire[`WDEF(`FTB_PREDICT_WIDTH/2)] predec_invalidbranch;
     generate
-        for(i=0; i < `FTB_PREDICT_WIDTH/2; i=i+1) begin : gen_for
+        for (i=0; i < `FTB_PREDICT_WIDTH/2; i=i+1) begin : gen_preDecoder
             assign fetched_insts[i] = {icacheline_merge[i*16 + 31 : i*16]};
             if (i == 0) begin : gen_if
                 assign fetched_32i_OH[i] = fetched_insts[i][1:0]==2'b11;
@@ -324,7 +324,7 @@ module fetcher (
     assign inst_leak = fetched_inst_OH > fetched_inst_mask;
 
     generate
-        for(i=0;i<`FTB_PREDICT_WIDTH/2;i=i+1) begin:gen_for
+        for (i=0;i<`FTB_PREDICT_WIDTH/2;i=i+1) begin
             assign temp_ftqOffset[i] = 2 * i;
         end
     endgenerate

@@ -73,7 +73,7 @@ module FTB_sram #(
         .i_write_data   ( write_data   )
     );
     generate
-        for(i=0;i<WAYS;i=i+1) begin:gen_for
+        for (i=0;i<WAYS;i=i+1) begin
             assign write_data[i] = '{
                 tag: s1_access_addr[`TAG_RANGE],
                 vld: 1,
@@ -131,7 +131,7 @@ module FTB_sram #(
     end
 
     generate
-        for(i=0;i<WAYS;i=i+1) begin:gen_for
+        for (i=0;i<WAYS;i=i+1) begin
             assign s1_req_hit[i] = (read_data[i].tag == s1_access_addr[`TAG_RANGE]) && read_data[i].vld && s1_req;
         end
     endgenerate

@@ -30,7 +30,7 @@ module reorder #(
     assign o_data_vld = count_vld == 0 ? 0 : ((1<<count_vld) - 1);
     generate
         genvar i,j;
-        for(i=0;i<NUM;i=i+1) begin:gen_0
+        for (i=0;i<NUM;i=i+1) begin:gen_countone
                 count_one
                 #(
                     .WIDTH ( i+1 )

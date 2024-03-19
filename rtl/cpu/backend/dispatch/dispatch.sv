@@ -62,8 +62,8 @@ module dispatch (
     logic[`WDEF(`RENAME_WIDTH)] insert_rob_vld;
     logic[`WDEF(`RENAME_WIDTH)] insert_intDQ_vld;
     logic[`WDEF(`RENAME_WIDTH)] insert_memDQ_vld;
-    intDQEntry_t new_intDQEntry[`RENAME_WIDTH];
-    memDQEntry_t new_memDQEntry[`RENAME_WIDTH];
+    microOp_t new_intDQEntry[`RENAME_WIDTH];
+    microOp_t new_memDQEntry[`RENAME_WIDTH];
 
     robIdx_t oldest_except_robIdx;
     rv_trap_t::exception oldest_except;
@@ -71,7 +71,7 @@ module dispatch (
     // new rob entry
     assign insert_rob_vld = i_enq_vld;
     generate
-        for(i=0;i<`RENAME_WIDTH;i=i+1) begin:gen_for
+        for(i=0;i<`RENAME_WIDTH;i=i+1) begin
             assign o_insert_rob_ismv[i] = i_enq_inst[i].ismv;
             // new intDQ entry, skip mv
             assign insert_intDQ_vld[i] = i_enq_vld[i] && (i_enq_inst[i].dispQue_id == `INTBLOCK_ID) && (!i_enq_inst[i].ismv);
@@ -96,33 +96,35 @@ module dispatch (
             assign o_new_robEntry_ftqOffset[i] = i_enq_inst[i].ftqOffset;
             assign new_intDQEntry[i] =
             '{
-                ftq_idx    : i_enq_inst[i].ftq_idx,
-                rob_idx    : i_alloc_robIdx[i],
-                irob_idx   : irob_alloc_idx[i],
-                rd_wen     : i_enq_inst[i].rd_wen,
-                iprd_idx   : i_enq_inst[i].iprd_idx,
-                iprs_idx   : i_enq_inst[i].iprs_idx,
-                use_imm    : i_enq_inst[i].use_imm,
-                issueQue_id  : i_enq_inst[i].issueQue_id,
-                micOp_type : i_enq_inst[i].micOp_type,
+                default     : 0,
+                ftqIdx      : i_enq_inst[i].ftq_idx,
+                robIdx      : i_alloc_robIdx[i],
+                irobIdx     : irob_alloc_idx[i],
+                rdwen       : i_enq_inst[i].rd_wen,
+                iprd        : i_enq_inst[i].iprd_idx,
+                iprs        : i_enq_inst[i].iprs_idx,
+                useImm      : i_enq_inst[i].use_imm,
+                issueQueId  : i_enq_inst[i].issueQue_id,
+                micOp       : i_enq_inst[i].micOp_type,
 
-                instmeta   : i_enq_inst[i].instmeta
+                seqNum      : i_enq_inst[i].instmeta
             };
             assign new_memDQEntry[i] =
             '{
-                ftq_idx    : i_enq_inst[i].ftq_idx,
-                rob_idx    : i_alloc_robIdx[i],
-                irob_idx   : irob_alloc_idx[i],
-                rd_wen     : i_enq_inst[i].rd_wen,
-                iprd_idx   : i_enq_inst[i].iprd_idx,
-                iprs_idx   : i_enq_inst[i].iprs_idx,
-                use_imm    : i_enq_inst[i].use_imm,
-                issueQue_id  : i_enq_inst[i].issueQue_id,
-                micOp_type : i_enq_inst[i].micOp_type,
-                shouldwait : i_mem_shouldwait[i],
-                dep_robIdx : i_mem_dep_robIdx[i],
+                default     : 0,
+                ftqIdx      : i_enq_inst[i].ftq_idx,
+                robIdx      : i_alloc_robIdx[i],
+                irobIdx     : irob_alloc_idx[i],
+                rdwen       : i_enq_inst[i].rd_wen,
+                iprd        : i_enq_inst[i].iprd_idx,
+                iprs        : i_enq_inst[i].iprs_idx,
+                useImm      : i_enq_inst[i].use_imm,
+                issueQueId  : i_enq_inst[i].issueQue_id,
+                micOp       : i_enq_inst[i].micOp_type,
+                shouldwait  : i_mem_shouldwait[i],
+                dep_robIdx  : i_mem_dep_robIdx[i],
 
-                instmeta   : i_enq_inst[i].instmeta
+                seqNum      : i_enq_inst[i].instmeta
             };
         end
     endgenerate
@@ -207,7 +209,7 @@ module dispatch (
         .DEPTH       ( `INTDQ_SIZE     ),
         .INPORT_NUM  ( `RENAME_WIDTH   ),
         .OUTPORT_NUM ( `INTDQ_DISP_WID ),
-        .dtype       ( intDQEntry_t    )
+        .dtype       ( microOp_t    )
     )
     u_int_dispQue(
         .clk        ( clk        ),
@@ -231,14 +233,14 @@ module dispatch (
     generate
         for (i=0; i<`INTDQ_DISP_WID; i=i+1) begin
             assign need_serialize[i] =
-                    intDQ_disp_vec[i] & (if_disp.int_info[i].issueQue_id == `SCUIQ_ID);
+                    intDQ_disp_vec[i] & (if_disp.int_info[i].issueQueId == `SCUIQ_ID);
             if (i==0) begin
                 assign serialize_front[i] =
-                        intDQ_disp_vec[i] & (if_disp.int_info[i].issueQue_id != `SCUIQ_ID);
+                        intDQ_disp_vec[i] & (if_disp.int_info[i].issueQueId != `SCUIQ_ID);
             end
             else begin
                 assign serialize_front[i] =
-                        intDQ_disp_vec[i] & serialize_front[i-1] & (if_disp.int_info[i].issueQue_id != `SCUIQ_ID);
+                        intDQ_disp_vec[i] & serialize_front[i-1] & (if_disp.int_info[i].issueQueId != `SCUIQ_ID);
             end
         end
     endgenerate
@@ -283,7 +285,7 @@ module dispatch (
         .DEPTH       ( `MEMDQ_SIZE     ),
         .INPORT_NUM  ( `RENAME_WIDTH   ),
         .OUTPORT_NUM ( `INTDQ_DISP_WID ),
-        .dtype       ( memDQEntry_t    )
+        .dtype       ( microOp_t    )
     )
     u_mem_dispQue(
         .clk        ( clk        ),

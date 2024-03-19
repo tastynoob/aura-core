@@ -14,6 +14,14 @@
 		//verilog language server use verible
 		"verible.arguments": [
 			"--rules_config=.sv.style"
-		]
+		],
+		"files.watcherExclude": {
+			"**/target": true
+		},
+		"files.associations": {
+			"*.tmp": "systemverilog",
+			"iosfwd": "cpp",
+			"sstream": "cpp"
+		}
 	}
 }

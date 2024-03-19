@@ -37,7 +37,7 @@ module loadQue #(
     output wire o_can_enq,
     input wire i_enq_vld,
     input wire [`WDEF(INPORT_NUM)] i_enq_req,
-    input memDQEntry_t i_enq_data[INPORT_NUM],
+    input microOp_t i_enq_data[INPORT_NUM],
     output lqIdx_t o_alloc_lqIdx[INPORT_NUM],
 
     // loadQue should listen to loadpipe

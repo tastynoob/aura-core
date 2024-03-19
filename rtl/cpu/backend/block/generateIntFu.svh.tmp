@@ -1,0 +1,183 @@
+`ifdef YOU_NEED_DEFINE_THIS_MACRO
+// you must defined parameters outside:
+//  IQ_FUID, BLK_FUID
+// optional macro:
+//  HAS_SCU, HAS_BRU, HAS_MDU
+// you must assign here:
+//  issueStall, wakeFromFu
+
+wire[`WDEF(`NUMSRCS_INT)] srcBypassed;
+wire[`XDEF] bypassedData[`NUMSRCS_INT];
+wire[`XDEF] finalData[`NUMSRCS_INT];
+wire[`XDEF] extendImm = {{44{s1_irob_imm[BLK_FUID][19]}},s1_irob_imm[BLK_FUID]};
+
+// scu needed signals
+`ifdef HAS_SCU
+    csrIdx_t scu_csrIdx;
+    assign scu_csrIdx = s1_irob_imm[BLK_FUID][16:5];
+    wire[`WDEF(5)] scu_zimm = s1_irob_imm[BLK_FUID][4:0];
+    wire scu_write_csr =
+            (s1_issueState[IQ_FUID].issueQueId == `SCUIQ_ID) &&
+            (s1_issueState[IQ_FUID].micOp >= MicOp_t::csrrw) &&
+            (s1_issueState[IQ_FUID].iprs[0] != 0);
+
+    assign if_csrrw.access =
+        s1_issueVec[IQ_FUID] && (s1_issueState[IQ_FUID].issueQueId == `SCUIQ_ID) &&
+        (s1_issueState[IQ_FUID].micOp >= MicOp_t::csrrw);
+    assign if_csrrw.read_idx = scu_csrIdx;
+`endif
+
+// bypass
+for (i=0;i<`NUMSRCS_INT;i=i+1) begin : gen_srcBypass
+    bypass_sel
+    #(
+        .WIDTH ( `BYPASS_WIDTH )
+    )
+    u_bypass_sel(
+        .rst           ( rst ),
+        .i_src_vld     ( i_glob_bp_vec     ),
+        .i_src_idx     ( i_glob_bp_iprd     ),
+        .i_src_data    ( i_glob_bp_data    ),
+        .i_target_idx  ( s1_issueState[IQ_FUID].iprs[i]  ),
+        .o_target_vld  ( srcBypassed[i]  ),
+        .o_target_data ( bypassedData[i] )
+    );
+end
+
+// select final data
+assign finalData[0] =
+    srcBypassed[0] ? bypassedData[0] :
+    i_iprs_data[BLK_FUID][0];
+`ifdef HAS_SCU
+    assign finalData[1] =
+        s1_issueState[IQ_FUID].issueQueId == `SCUIQ_ID ? if_csrrw.read_val :
+        s1_issueState[IQ_FUID].useImm ? extendImm :
+        srcBypassed[1] ? bypassedData[1] :
+        i_iprs_data[BLK_FUID][1];
+`elsif HAS_MDU
+    assign finalData[1] =
+        srcBypassed[1] ? bypassedData[1] :
+        i_iprs_data[BLK_FUID][1];
+`else
+    assign finalData[1] =
+        (s1_issueState[IQ_FUID].useImm && s1_issueState[IQ_FUID].issueQueId == `ALUIQ_ID) ? extendImm :
+        srcBypassed[1] ? bypassedData[1] :
+        i_iprs_data[BLK_FUID][1];
+`endif
+
+`ifdef HAS_BRU
+    // read ftqStartAddr & nextAddr
+    assign o_read_ftqIdx[IQ_FUID] = issueState[IQ_FUID].ftqIdx;
+    // read ftqoffset
+    assign o_read_robIdx[IQ_FUID] = issueState[IQ_FUID].robIdx;
+`endif
+
+`ifndef HAS_MDU
+    // clear imm immediately after issue
+    assign o_immB_clear_vld[BLK_FUID] = s1_issueVec[IQ_FUID] && s1_issueState[IQ_FUID].useImm;
+    assign o_immB_clear_idx[BLK_FUID] = s1_issueState[IQ_FUID].irobIdx;
+`endif
+
+exeInfo_t exeInfo;
+assign exeInfo = '{
+        default : 0,
+        ftqIdx : s1_issueState[IQ_FUID].ftqIdx,
+        robIdx : s1_issueState[IQ_FUID].robIdx,
+        irobIdx : s1_issueState[IQ_FUID].irobIdx,
+        rdwen : s1_issueState[IQ_FUID].rdwen,
+        iprd : s1_issueState[IQ_FUID].iprd,
+        useImm : s1_issueState[IQ_FUID].useImm,
+        issueQueId : s1_issueState[IQ_FUID].issueQueId,
+        micOp : s1_issueState[IQ_FUID].micOp,
+        srcs : finalData,
+    `ifndef HAS_MDU
+        imm20 : s1_irob_imm[BLK_FUID],
+    `endif
+    `ifdef HAS_BRU
+        ftqOffset : i_read_ftqOffset[IQ_FUID],
+        pc : i_read_ftqStartAddr[IQ_FUID] + i_read_ftqOffset[IQ_FUID],
+        npc : i_read_ftqNextAddr[IQ_FUID],
+    `endif
+        seqNum : s1_issueState[IQ_FUID].seqNum
+    };
+
+// generate fu
+`ifdef HAS_SCU
+    assign issueStall[IQ_FUID] = 0;
+    assign wakeFromFu[IQ_FUID] = 0;
+    alu_scu u_alu_scu(
+        .clk               ( clk                ),
+        .rst               ( rst || i_squash_vld ),
+
+        .o_fu_stall        (          ),
+        .i_vld             ( s1_issueComplete[IQ_FUID] ),
+        .i_fuInfo          ( exeInfo     ),
+
+        .i_csr_pack           ( i_csr_pack       ),
+        .i_illegal_access_csr ( if_csrrw.illegal ),
+        .i_zimm               ( scu_zimm             ),
+        .i_write_csr          ( scu_write_csr        ),
+        .i_csrIdx             ( scu_csrIdx           ),
+
+        .o_willwrite_vld   ( bypass_vld[BLK_FUID]  ),
+        .o_willwrite_rdIdx ( bypass_iprd[BLK_FUID] ),
+        .o_willwrite_data  ( bypass_data[BLK_FUID]    ),
+
+        .o_has_except      ( o_exceptwb_vld  ),
+        .o_exceptwbInfo    ( o_exceptwb_info ),
+
+        .i_wb_stall         ( 0     ),
+        .o_fu_finished      ( fu_finished[BLK_FUID]    ),
+        .o_comwbInfo        ( comwbInfo[BLK_FUID]      ),
+
+        .if_syscall         ( if_syscall         ),
+        .o_write_csr        ( if_csrrw.write     ),
+        .o_write_csrIdx     ( if_csrrw.write_idx ),
+        .o_write_new_csr    ( if_csrrw.write_val )
+    );
+`elsif HAS_BRU
+    assign issueStall[IQ_FUID] = 0;
+    assign wakeFromFu[IQ_FUID] = 0;
+    alu_bru u_alu_bru(
+        .clk               ( clk                ),
+        .rst               ( rst || i_squash_vld ),
+
+        .o_fu_stall        ( ),
+        .i_vld             ( s1_issueComplete[IQ_FUID] ),
+        .i_fuInfo          ( exeInfo          ),
+
+        .o_willwrite_vld   ( bypass_vld[BLK_FUID]  ),
+        .o_willwrite_rdIdx ( bypass_iprd[BLK_FUID] ),
+        .o_willwrite_data  ( bypass_data[BLK_FUID]    ),
+
+        .i_wb_stall        ( 0     ),
+        .o_fu_finished     ( fu_finished[BLK_FUID]         ),
+        .o_comwbInfo       ( comwbInfo[BLK_FUID]         ),
+
+        .o_branchwb_vld    ( o_branchWB_vld[IQ_FUID] ),
+        .o_branchwbInfo    ( o_branchwb_info[IQ_FUID] )
+    );
+`elsif HAS_MDU
+    unimplemented
+`else
+    assign issueStall[IQ_FUID] = 0;
+    assign wakeFromFu[IQ_FUID] = 0;
+    alu u_alu(
+        .clk               ( clk                ),
+        .rst               ( rst || i_squash_vld ),
+
+        .o_fu_stall        ( ),
+        .i_vld             ( s1_issueComplete[IQ_FUID] ),
+        .i_fuInfo          ( exeInfo          ),
+
+        .o_willwrite_vld   ( bypass_vld[BLK_FUID]  ),
+        .o_willwrite_rdIdx ( bypass_iprd[BLK_FUID] ),
+        .o_willwrite_data  ( bypass_data[BLK_FUID]    ),
+
+        .i_wb_stall        ( 0     ),
+        .o_fu_finished     ( fu_finished[BLK_FUID]         ),
+        .o_comwbInfo       ( comwbInfo[BLK_FUID]         )
+    );
+`endif
+
+`endif

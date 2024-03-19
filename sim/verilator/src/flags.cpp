@@ -26,11 +26,12 @@ DebugChecker debugChecker;
 
 DebugChecker::DebugChecker()
 {
+    tmp_debug_flags.resize(DebugFlag::NUM_DEBUGFLAGS, false);
     debug_flags.resize(DebugFlag::NUM_DEBUGFLAGS, false);
     dprint_buf.resize(DebugFlag::NUM_DEBUGFLAGS);
 }
 
-void DebugChecker::enableFlags(std::string flags)
+void DebugChecker::parseFlags(std::string flags)
 {
     char flag[20];
     int pos = 0;
@@ -41,7 +42,7 @@ void DebugChecker::enableFlags(std::string flags)
             auto flag_name = debugflag_name.find(std::string(flag));
             if (flag_name != debugflag_name.end()) {
                 printf("enable flag: %s\n", flag);
-                debug_flags[flag_name->second] = true;
+                tmp_debug_flags[flag_name->second] = true;
             }
             else {
                 printf("can not find flag: %s!\n", flag);
@@ -52,6 +53,11 @@ void DebugChecker::enableFlags(std::string flags)
             flag[pos++] = flags[i];
         }
     }
+}
+
+void DebugChecker::enableFlags()
+{
+    debug_flags = tmp_debug_flags;
     enable_flag = true;
 }
 
@@ -73,9 +79,15 @@ void DebugChecker::putin(DebugFlag flag, const char * str)
     dprint_buf[flag] << str;
 }
 
-void DebugChecker::printAll()
+void DebugChecker::printAll(uint64_t tick)
 {
-    if (enable_flag) {
+    if (!enable_flag && tick >= debug_start) [[unlikely]] {
+        enableFlags();
+    }
+    if (enable_flag) [[likely]] {
+        if (tick > debug_end) [[unlikely]] {
+            clearFlags();
+        }
         for (auto& it : dprint_buf) {
             if (it.rdbuf()->in_avail()) {
                 std::cout << it.str();
@@ -84,6 +96,7 @@ void DebugChecker::printAll()
             }
         }
     }
+
     if (dprinta_buf.rdbuf()->in_avail()) {
         std::cout << dprinta_buf.str();
         dprinta_buf.str("");

@@ -1,0 +1,121 @@
+`ifdef YOU_NEED_DEFINE_THIS_MACRO
+// must defined parameters outside:
+//  IQ_SIZE, IQ_INOUT, PORT_OFFSET
+// you must defined signals outside:
+//  canEnq, enqReq, enqMicroOp, enqIprsRdy
+// optional macro:
+//  NEED_IMM
+
+wire[`WDEF(IQ_INOUT)] issueStall;
+wire[`WDEF(IQ_INOUT)] issueVec;
+issueState_t issueState[IQ_INOUT];
+
+wire[`WDEF(IQ_INOUT)] issueSuccess;
+wire[`WDEF(IQ_INOUT)] issueReplay;
+wire[`WDEF($clog2(IQ_SIZE))] feedbackIdx[IQ_INOUT];
+
+reg[`WDEF(IQ_INOUT)] s1_issueComplete;
+reg[`WDEF(IQ_INOUT)] s1_issueVec;
+issueState_t s1_issueState[IQ_INOUT];
+
+logic[`WDEF(IQ_INOUT)] cancelled;
+logic[`WDEF(IQ_INOUT)] s1_cancelled;
+
+wire[`WDEF(IQ_INOUT)] wakeFromFu;
+iprIdx_t wakeFromFuIprd[IQ_INOUT];
+
+issueQue
+#(
+    .DEPTH              ( IQ_SIZE       ),
+    .INOUTPORT_NUM      ( IQ_INOUT      ),
+    .EXTERNAL_WAKEUPNUM ( `INTWAKE_WIDTH )
+)
+u_issueQue (
+    .clk ( clk ),
+    .rst ( rst || i_squash_vld ),
+
+    .o_can_enq      ( canEnq     ),
+    .i_enq_req      ( enqReq     ),
+    .i_microOp      ( enqMicroOp ),
+    .i_enq_iprs_rdy ( enqIprsRdy ),
+
+    .i_fu_busy    ( issueStall ),
+    .o_can_issue  ( issueVec   ),
+    .o_issueState ( issueState ),
+
+    .i_issueSuccess ( issueSuccess ),
+    .i_issueReplay  ( issueReplay  ),
+    .i_feedbackIdx  ( feedbackIdx  ),
+
+    .if_loadwake    ( if_loadwake ),
+    .i_ext_wk_vec   ( wake_vec  ),
+    .i_ext_wk_iprd  ( wake_iprd ),
+    .i_ext_wk_lpv   ( wake_lpv  )
+);
+
+
+for (i=0;i<IQ_INOUT;i=i+1) begin
+    // wake others
+    assign wake_vec[i + PORT_OFFSET] = wakeFromFu[i] ||
+        (!issueStall[i]) && issueVec[i] && (issueState[i].issueQueId != `MDUIQ_ID);
+    assign wake_iprd[i + PORT_OFFSET] =
+        wakeFromFu[i] ? wakeFromFuIprd[i] : issueState[i].iprd;
+    `ASSERT(wakeFromFu[i] ? issueStall[i] : 1);// should stall if wakeFromFu
+
+    // read regfile
+    for (j=0;j<`NUMSRCS_INT;j=j+1) begin
+        assign o_iprs_idx[i + PORT_OFFSET][j] = issueState[i].iprs[j];
+    end
+
+    // read immediate
+`ifdef NEED_IMM
+    assign o_immB_idx[i + PORT_OFFSET] = issueState[i].irobIdx;
+`endif
+
+    // issue complete/failed
+    // if stall, no need replay s1, replay s0 next cycle
+    assign issueSuccess[i] = s1_issueVec[i] && (s1_issueComplete[i] && !s1_cancelled[i]);
+    assign issueReplay[i] = s1_issueVec[i] && (!s1_issueComplete[i] || s1_cancelled[i]);
+    assign feedbackIdx[i] = s1_issueState[i].iqIdx;
+end
+
+
+always_comb begin
+    int ca,cb,cc;
+    for (ca=0;ca<IQ_INOUT;ca=ca+1) begin
+        cancelled[ca] = 0;
+        s1_cancelled[ca] = 0;
+    end
+end
+
+
+always_ff @( posedge clk ) begin
+    int fa;
+    if (rst || i_squash_vld) begin
+        s1_issueVec <= 0;
+        s1_issueComplete <= 0;
+    end
+    else begin
+        // s0: read regfile
+        // s1: bypass
+        s1_issueVec <= issueVec;
+        s1_issueState <= issueState;
+
+        for (fa=0;fa<IQ_INOUT;fa=fa+1) begin
+            if (issueStall[fa] || cancelled[fa]) begin
+                s1_issueComplete[fa] <= 0;
+            end
+            else begin
+                s1_issueComplete[fa] <= issueVec[fa];
+            end
+        end
+
+        for (fa=0;fa<IQ_INOUT;fa=fa+1) begin
+            if (issueVec[fa]) begin
+                goto_fu(issueState[fa].seqNum, fa + PORT_OFFSET);
+            end
+        end
+    end
+end
+
+`endif

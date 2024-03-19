@@ -30,8 +30,8 @@ module ctrlBlock (
 
     // write back, from exu
     // common writeback
-    input wire[`WDEF(`WBPORT_NUM)] i_fu_finished,
-    input comwbInfo_t i_comwbInfo[`WBPORT_NUM],
+    input wire[`WDEF(`COMPLETE_NUM)] i_fu_finished,
+    input comwbInfo_t i_comwbInfo[`COMPLETE_NUM],
     // branch writeback (branch taken or mispred)
     input wire i_branchwb_vld,
     input branchwbInfo_t i_branchwb_info,
@@ -129,7 +129,7 @@ module ctrlBlock (
 /****************************************************************************************************/
     wire[`WDEF(`MEMDEP_FOLDPC_WIDTH)] toMemDep_foldpc[`RENAME_WIDTH];
     generate
-        for (i=0;i<`RENAME_WIDTH;i=i+1) begin:gen_for
+        for (i=0;i<`RENAME_WIDTH;i=i+1) begin
             assign toMemDep_foldpc[i] = toRename_decInfo[i].foldpc;
         end
     endgenerate
@@ -174,7 +174,7 @@ module ctrlBlock (
     robIdx_t mem_dep_robIdx[`RENAME_WIDTH];
 
     generate
-        for (i=0;i<`RENAME_WIDTH;i=i+1) begin : gen_for
+        for (i=0;i<`RENAME_WIDTH;i=i+1) begin
             assign toMemDep_insert_store[i] = toDIspatch_vld[i] && toDIspatch_renameInfo[i].isStore;
         end
     endgenerate
@@ -257,7 +257,7 @@ module ctrlBlock (
     );
 
     generate
-        for(i=0;i<`RENAME_WIDTH;i=i+1) begin : gen_for
+        for(i=0;i<`RENAME_WIDTH;i=i+1) begin
             assign o_disp_mark_notready_vld[i] = toDispatch_can_insert && toROB_insert_vld && toROB_insert_req[i] && (!toROB_insert_ismv[i]);
             assign o_disp_mark_notready_iprIdx[i] = toROB_new_entry[i].iprd_idx;
         end

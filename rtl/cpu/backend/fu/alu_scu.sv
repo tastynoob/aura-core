@@ -8,7 +8,7 @@ module alu_scu (
     output wire o_fu_stall,
     //ctrl info
     input wire i_vld,
-    input fuInfo_t i_fuInfo,
+    input exeInfo_t i_fuInfo,
 
     input csr_in_pack_t i_csr_pack,
     input wire i_illegal_access_csr,// illegal access csr
@@ -41,7 +41,7 @@ module alu_scu (
     reg write_csr; // rs1 != 0
     csrIdx_t saved_csrIdx;
     reg saved_vld;
-    fuInfo_t saved_fuInfo;
+    exeInfo_t saved_fuInfo;
 
     always_ff @( posedge clk ) begin : blockName
         if (rst) begin
@@ -59,7 +59,7 @@ module alu_scu (
             saved_vld <= i_vld;
             saved_fuInfo <= i_fuInfo;
             if (i_vld) begin
-                update_instPos(i_fuInfo.instmeta, difftest_def::AT_fu);
+                update_instPos(i_fuInfo.seqNum, difftest_def::AT_fu);
             end
         end
     end
@@ -85,20 +85,20 @@ module alu_scu (
         0;
 
     wire[`XDEF] final_result =
-        (saved_fuInfo.issueQue_id == `ALUIQ_ID) ? calc_data :
-        (saved_fuInfo.issueQue_id == `SCUIQ_ID) ? csr_val : 0;
+        (saved_fuInfo.issueQueId == `ALUIQ_ID) ? calc_data :
+        (saved_fuInfo.issueQueId == `SCUIQ_ID) ? csr_val : 0;
 
-    wire ecall = (saved_fuInfo.issueQue_id == `SCUIQ_ID) && (saved_fuInfo.micOp == MicOp_t::ecall);
-    wire ebreak = (saved_fuInfo.issueQue_id == `SCUIQ_ID) && (saved_fuInfo.micOp == MicOp_t::ebreak);
+    wire ecall = (saved_fuInfo.issueQueId == `SCUIQ_ID) && (saved_fuInfo.micOp == MicOp_t::ecall);
+    wire ebreak = (saved_fuInfo.issueQueId == `SCUIQ_ID) && (saved_fuInfo.micOp == MicOp_t::ebreak);
     // NOTE: mret/sret do not cause except if permission is legal
-    wire mret = (saved_fuInfo.issueQue_id == `SCUIQ_ID) && (saved_fuInfo.micOp == MicOp_t::mret);
-    wire sret = (saved_fuInfo.issueQue_id == `SCUIQ_ID) && (saved_fuInfo.micOp == MicOp_t::sret);
+    wire mret = (saved_fuInfo.issueQueId == `SCUIQ_ID) && (saved_fuInfo.micOp == MicOp_t::mret);
+    wire sret = (saved_fuInfo.issueQueId == `SCUIQ_ID) && (saved_fuInfo.micOp == MicOp_t::sret);
     wire illegal_eret =
         mret ? i_csr_pack.mode < `MODE_M :
         sret ? i_csr_pack.mode < `MODE_S :
         0;
 
-    wire sysexcept = (saved_fuInfo.issueQue_id == `SCUIQ_ID) && (ecall || ebreak);
+    wire sysexcept = (saved_fuInfo.issueQueId == `SCUIQ_ID) && (ecall || ebreak);
     rv_trap_t::exception syscall_except;
     assign syscall_except =
         ecall ? (rv_trap_t::ucall + i_csr_pack.mode) :
@@ -123,16 +123,16 @@ module alu_scu (
         end
         else if (!i_wb_stall) begin
             fu_finished <= saved_vld;
-            comwbInfo.rob_idx <= saved_fuInfo.rob_idx;
-            comwbInfo.irob_idx <= saved_fuInfo.irob_idx;
-            comwbInfo.use_imm <= saved_fuInfo.use_imm;
-            comwbInfo.rd_wen <= saved_fuInfo.rd_wen;
-            comwbInfo.iprd_idx <= saved_fuInfo.iprd_idx;
+            comwbInfo.rob_idx <= saved_fuInfo.robIdx;
+            comwbInfo.irob_idx <= saved_fuInfo.irobIdx;
+            comwbInfo.use_imm <= saved_fuInfo.useImm;
+            comwbInfo.rd_wen <= saved_fuInfo.rdwen;
+            comwbInfo.iprd_idx <= saved_fuInfo.iprd;
             comwbInfo.result <= final_result;
 
             _has_except <= saved_vld && (instIllegal || sysexcept);
             exceptwbInfo <= '{
-                rob_idx : saved_fuInfo.rob_idx,
+                rob_idx : saved_fuInfo.robIdx,
                 except_type : instIllegal ? rv_trap_t::instIllegal :
                               sysexcept ? syscall_except : 0
             };
@@ -141,14 +141,14 @@ module alu_scu (
             _write_csrIdx <= saved_csrIdx;
             _new_csr <= new_csr;
             if (saved_vld) begin
-                assert(saved_fuInfo.issueQue_id == `ALUIQ_ID || saved_fuInfo.issueQue_id == `SCUIQ_ID);
-                update_instPos(saved_fuInfo.instmeta, difftest_def::AT_wb);
+                assert(saved_fuInfo.issueQueId == `ALUIQ_ID || saved_fuInfo.issueQueId == `SCUIQ_ID);
+                update_instPos(saved_fuInfo.seqNum, difftest_def::AT_wb);
             end
         end
     end
 
-    assign o_willwrite_vld = saved_vld && saved_fuInfo.rd_wen;
-    assign o_willwrite_rdIdx = saved_fuInfo.iprd_idx;
+    assign o_willwrite_vld = saved_vld && saved_fuInfo.rdwen;
+    assign o_willwrite_rdIdx = saved_fuInfo.iprd;
     assign o_willwrite_data = calc_data;
 
     assign o_fu_stall = i_wb_stall;
@@ -175,8 +175,8 @@ module alu_scu (
             _sret <= 0;
         end
         else if (saved_vld) begin
-            _mret <= saved_vld && (saved_fuInfo.issueQue_id == `SCUIQ_ID) && (saved_fuInfo.micOp == MicOp_t::mret);
-            _sret <= saved_vld && (saved_fuInfo.issueQue_id == `SCUIQ_ID) && (saved_fuInfo.micOp == MicOp_t::sret);
+            _mret <= saved_vld && (saved_fuInfo.issueQueId == `SCUIQ_ID) && (saved_fuInfo.micOp == MicOp_t::mret);
+            _sret <= saved_vld && (saved_fuInfo.issueQueId == `SCUIQ_ID) && (saved_fuInfo.micOp == MicOp_t::sret);
             eret_pc <= i_csr_pack.epc;
         end
         else begin

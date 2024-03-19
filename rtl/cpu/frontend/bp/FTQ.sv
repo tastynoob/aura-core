@@ -109,7 +109,7 @@ module FTQ (
     assign o_ftq_rdy = (!ftqFull);
 
     generate
-        for(i=0;i<`FTQ_SIZE;i=i+1) begin : gen_for
+        for (i=0;i<`FTQ_SIZE;i=i+1) begin
             assign buffer_mispred[i] = buf_brInfo[i].mispred;
         end
     endgenerate
@@ -259,7 +259,7 @@ module FTQ (
     wire[`WDEF(`BRU_NUM)] can_wb;
     branchwbInfo_t branchwbInfo[`BRU_NUM];
     generate
-        for(i=0;i<`BRU_NUM;i=i+1) begin:gen_for
+        for (i=0;i<`BRU_NUM;i=i+1) begin
             assign can_wb[i] = i_backend_branchwb_vld[i];
             assign branchwbInfo[i] = i_backend_branchwbInfo[i];
         end

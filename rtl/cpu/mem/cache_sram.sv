@@ -69,7 +69,7 @@ module cache_sram #(
     );
 
     generate
-        for(i=0;i<WAYS;i=i+1) begin:gen_for
+        for (i=0;i<WAYS;i=i+1) begin
             assign write_data[i] = i_write_data;
         end
     endgenerate
@@ -129,7 +129,7 @@ module cache_sram #(
     end
 
     generate
-        for(i=0;i<WAYS;i=i+1) begin:gen_for
+        for (i=0;i<WAYS;i=i+1) begin
             // FIXME: use meta sram
             assign s1_req_hit[i] = (read_data[i].tag == s1_access_addr[`TAG_RANGE]) && read_data[i].vld && s1_req;
         end

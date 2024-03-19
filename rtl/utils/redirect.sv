@@ -20,19 +20,19 @@ module redirect #(
     generate
         genvar i;
         //todo: finish it
-        for(i=0;i<NUM;i=i+1)begin:gen_for
-            if (i==0) begin:gen_if
+        for (i=0;i<NUM;i=i+1) begin:gen_countone
+            if (i==0) begin
                 assign sel_offset[0] = 0;
             end
-            else begin:gen_else
-            count_one
-            #(
-                .WIDTH ( i+1 )
-            )
-            u_count_one(
-                .i_a   ( i_arch_vld[i-1:0]),
-                .o_sum ( sel_offset[i] )
-            );
+            else begin
+                count_one
+                #(
+                    .WIDTH ( i+1 )
+                )
+                u_count_one(
+                    .i_a   ( i_arch_vld[i-1:0]),
+                    .o_sum ( sel_offset[i] )
+                );
             end
 
             always_comb begin

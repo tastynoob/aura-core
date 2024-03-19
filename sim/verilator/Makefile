@@ -1,7 +1,7 @@
 TOP ?= tb
 seed ?= 123
 
-ADDITIONAL_PARAM = --x-assign unique --x-initial unique --assert -O3
+ADDITIONAL_PARAM = --x-assign unique --x-initial unique --assert
 
 EMU_DEFINES = -DSIMULATION -DDEBUG
 WARNING_OFF = -Wno-WIDTH -Wno-PINMISSING -Wno-TIMESCALEMOD -Wno-ENUMVALUE
@@ -54,3 +54,14 @@ aura:
 		echo "**********make build successfully**********"; \
 	fi
 
+preprocess:
+	@echo "**********verilator generating**********"
+	verilator \
+	rtl/cpu/backend/block/intBlock.sv -E \
+	$(CXX_SOURCES) \
+	$(CXX_FLAGS) \
+	$(SV_INCLUDE_PATH_PARAM) \
+	$(ADDITIONAL_PARAM) \
+	$(EMU_DEFINES) \
+	$(WARNING_OFF) \
+	-Mdir $(AURA_HOME)/build -o aura 

@@ -66,7 +66,7 @@ module fifo #(
     reg[`WDEF($clog2(DEPTH))] arch_deq_ptr;
     reg[`SDEF(DEPTH)] count, arch_count;
 
-    if (USE_RENAME) begin : gen_if
+    if (USE_RENAME) begin : gen_freelist
         // DESIGN:
         // commit ont inst with rd
         // the arch_deq_ptr increment by 1
@@ -151,7 +151,7 @@ module fifo #(
     assign remaining = DEPTH - count;
 
     generate
-        for (i = 0; i < OUTPORT_NUM; i = i + 1) begin : gen_output
+        for (i = 0; i < OUTPORT_NUM; i = i + 1) begin
             assign o_can_deq[i] = ((i+1) <= existing);
             assign o_deq_data[i] = buffer[deq_ptr[i]];
         end
@@ -160,7 +160,7 @@ module fifo #(
 
     // use for waveform debug
     wire[`SDEF(DEPTH)] AAA_count = count;
-    if (USE_RENAME) begin:gen_if
+    if (USE_RENAME) begin
         wire[`SDEF(DEPTH)] AAA_arch_count = arch_count;
     end
 

@@ -22,12 +22,12 @@ module age_schedule #(
 
 
 generate
-    for (i=0;i<OUTS;i=i+1) begin : gen_for
+    for (i=0;i<OUTS;i=i+1) begin : gen_select
         wire[`WDEF(WIDTH)] tofind_vld;
-        if (i==0) begin : gen_if
+        if (i==0) begin
             assign tofind_vld = i_vld;
         end
-        else begin : gen_else
+        else begin
             assign tofind_vld = i_vld & (~entry_selected[i-1]);
         end
         robIdx_t rob_idx;

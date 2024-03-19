@@ -34,20 +34,28 @@ extern uint64_t curTick();
 
 class DebugChecker {
     bool enable_flag = false;
+    uint64_t debug_start = 0;
+    uint64_t debug_end = UINT64_MAX;
+    std::vector<bool> tmp_debug_flags;
     std::vector<bool> debug_flags;
     std::vector<std::stringstream> dprint_buf;
     public:
     std::stringstream dprinta_buf; // not controlled by debugflag
     char strBuf[1024];
     DebugChecker();
-
+    void setTime(uint64_t start, uint64_t end)
+    {
+        debug_start = start;
+        debug_end = end;
+    }
     // such as: FETCH,DECODE
-    void enableFlags(std::string flags);
+    void parseFlags(std::string flags);
+    void enableFlags();
     void clearFlags();
     bool checkFlag(DebugFlag flag);
 
     void putin(DebugFlag flag, const char * str);
-    void printAll();
+    void printAll(uint64_t tick);
 };
 
 extern DebugChecker debugChecker;

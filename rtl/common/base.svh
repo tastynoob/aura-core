@@ -17,6 +17,13 @@ typedef enum logic {
 `define ASSERT(x) always_ff @(posedge clk) if (!rst) assert((``x``))
 `define ORDER_CHECK(x) `ASSERT(funcs::continuous_one(``x``) == funcs::count_one(``x``))
 
+`define PICK_ARRAY_MEMBER(pick_vec, array, member, size) \
+generate                                        \
+    for(genvar tmp_expand=0;tmp_expand<``size``;tmp_expand=tmp_expand+1) begin \
+        assign ``pick_vec``[tmp_expand] = ``array``[tmp_expand].``member``; \
+    end \
+endgenerate
+
 `define DEBUG_EXP(x) ``x``
 `undef DEBUG_EXP
 

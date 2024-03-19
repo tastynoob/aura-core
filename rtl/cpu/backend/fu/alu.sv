@@ -8,7 +8,7 @@ module alu (
     output wire o_fu_stall,
     //ctrl info
     input wire i_vld,
-    input fuInfo_t i_fuInfo,
+    input exeInfo_t i_fuInfo,
 
     // export bypass
     output wire o_willwrite_vld,
@@ -22,7 +22,7 @@ module alu (
 );
 
     reg saved_vld;
-    fuInfo_t saved_fuInfo;
+    exeInfo_t saved_fuInfo;
 
     always_ff @( posedge clk ) begin : blockName
         if (rst==true) begin
@@ -32,7 +32,7 @@ module alu (
             saved_vld <= i_vld;
             saved_fuInfo <= i_fuInfo;
             if (i_vld) begin
-                update_instPos(i_fuInfo.instmeta, difftest_def::AT_fu);
+                update_instPos(i_fuInfo.seqNum, difftest_def::AT_fu);
             end
         end
     end
@@ -51,21 +51,21 @@ module alu (
         end
         else if (!i_wb_stall) begin
             fu_finished <= saved_vld;
-            comwbInfo.rob_idx <= saved_fuInfo.rob_idx;
-            comwbInfo.irob_idx <= saved_fuInfo.irob_idx;
-            comwbInfo.use_imm <= saved_fuInfo.use_imm;
-            comwbInfo.rd_wen <= saved_fuInfo.rd_wen;
-            comwbInfo.iprd_idx <= saved_fuInfo.iprd_idx;
+            comwbInfo.rob_idx <= saved_fuInfo.robIdx;
+            comwbInfo.irob_idx <= saved_fuInfo.irobIdx;
+            comwbInfo.use_imm <= saved_fuInfo.useImm;
+            comwbInfo.rd_wen <= saved_fuInfo.rdwen;
+            comwbInfo.iprd_idx <= saved_fuInfo.iprd;
             comwbInfo.result <= calc_data;
             if (saved_vld) begin
-                assert(saved_fuInfo.issueQue_id == `ALUIQ_ID);
-                update_instPos(saved_fuInfo.instmeta, difftest_def::AT_wb);
+                assert(saved_fuInfo.issueQueId == `ALUIQ_ID);
+                update_instPos(saved_fuInfo.seqNum, difftest_def::AT_wb);
             end
         end
     end
 
-    assign o_willwrite_vld = saved_vld && saved_fuInfo.rd_wen;
-    assign o_willwrite_rdIdx = saved_fuInfo.iprd_idx;
+    assign o_willwrite_vld = saved_vld && saved_fuInfo.rdwen;
+    assign o_willwrite_rdIdx = saved_fuInfo.iprd;
     assign o_willwrite_data = calc_data;
 
     assign o_fu_stall = i_wb_stall;

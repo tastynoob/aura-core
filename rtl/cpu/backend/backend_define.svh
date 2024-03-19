@@ -1,8 +1,61 @@
 `ifndef __BACKEND_DEFINE_SVH__
 `define __BACKEND_DEFINE_SVH__
 
-
 `include "core_define.svh"
+
+// can not change
+
+`define NUMSRCS_INT 2
+
+`define INTBLOCK_ID 0
+`define MEMBLOCK_ID 1
+`define FLTBLOCK_ID 2
+`define UNKOWNBLOCK_ID 3
+
+`define ALUIQ_ID 0
+`define BRUIQ_ID 1
+`define MDUIQ_ID 2
+`define SCUIQ_ID 3
+`define LDUIQ_ID 4
+`define STUIQ_ID 5
+
+`define ALU_NUM 4
+`define BRU_NUM 2
+`define MDU_NUM 2
+
+`define LDU_NUM 2
+`define STU_NUM 2
+
+// immBuffer read port
+// 4 alu + 2 ld + 2 sta
+`define IMMBUFFER_READPORT_NUM (`ALU_NUM + `LDU_NUM + `STU_NUM)
+`define IMMBUFFER_CLEARPORT_NUM `IMMBUFFER_READPORT_NUM
+`define IMMBUFFER_COMMIT_WID 8
+
+// 6
+`define INT_COMPLETE_NUM (`ALU_NUM + `MDU_NUM)
+// 4
+`define MEM_COMPLETE_NUM (`LDU_NUM + `STU_NUM)
+// 10
+`define COMPLETE_NUM (`ALU_NUM + `MDU_NUM + `LDU_NUM + `STU_NUM)
+// 6
+`define INT_WBPORT_NUM (`ALU_NUM + `MDU_NUM)
+// 2
+`define MEM_WBPORT_NUM (`LDU_NUM)
+// 8
+`define WBPORT_NUM (`ALU_NUM + `MDU_NUM + `LDU_NUM)
+
+`define INT_SWAKE_WIDTH (`ALU_NUM + `MDU_NUM)
+// 12 = 6 int specwakechannel + 8 wbwakechannel
+`define INTWAKE_WIDTH (`INT_SWAKE_WIDTH + `WBPORT_NUM)
+// 2 stage issue + 1 stage writeback
+// loadpipe no bypass channel
+`define BYPASS_WIDTH (`INT_WBPORT_NUM * 2 + `WBPORT_NUM)
+
+// load position vec
+`define LPV_WIDTH 3
+`define LPV_INIT 3'b001
+typedef logic[`WDEF(`LPV_WIDTH * `LDU_NUM )] lpv_t;
 
 typedef struct {
     logic[`WDEF(`MEMDEP_FOLDPC_WIDTH)] foldpc;
@@ -57,103 +110,72 @@ typedef struct {
 } renameInfo_t;
 
 typedef struct {
-    ftqIdx_t ftq_idx;
-    robIdx_t rob_idx;
-    irobIdx_t irob_idx;
-
-    logic rd_wen;
-    iprIdx_t iprd_idx;
-    iprIdx_t iprs_idx[`NUMSRCS_INT];
-    logic use_imm;
-    logic[`WDEF(3)] issueQue_id;
-    MicOp_t::_u micOp_type;
-
-    logic[`XDEF] instmeta;
-} intDQEntry_t;// to exeIntBlock
-
-typedef intDQEntry_t intExeInfo_t;
-
-typedef struct {
-    ftqIdx_t ftq_idx;
-    robIdx_t rob_idx;
-    irobIdx_t irob_idx;
-
-    logic rd_wen;
-    iprIdx_t iprd_idx;
-    iprIdx_t iprs_idx[`NUMSRCS_INT];
-    logic use_imm;
-    logic[`WDEF(3)] issueQue_id;
-    MicOp_t::_u micOp_type;
+    // pointer
+    ftqIdx_t ftqIdx;
+    robIdx_t robIdx;
+    irobIdx_t irobIdx;
+    lqIdx_t lqIdx;
+    sqIdx_t sqIdx;
+    // ctrl
+    logic rdwen;
+    iprIdx_t iprd;
+    iprIdx_t iprs[`NUMSRCS_INT];
+    logic useImm;
+    logic[`WDEF(3)] issueQueId;
+    MicOp_t::_u micOp;
     // memdep
     logic shouldwait;
     robIdx_t dep_robIdx;
 
-    logic[`XDEF] instmeta;
-} memDQEntry_t;
-
+    logic[`XDEF] seqNum;
+} microOp_t;
 
 typedef struct {
-    ftqIdx_t ftq_idx;
-    robIdx_t rob_idx;
-    irobIdx_t irob_idx;
+    // pointer
+    ftqIdx_t ftqIdx;
+    robIdx_t robIdx;
+    irobIdx_t irobIdx;
+    lqIdx_t lqIdx;
+    sqIdx_t sqIdx;
+    // ctrl
+    logic rdwen;
+    iprIdx_t iprd;
+    iprIdx_t iprs[`NUMSRCS_INT];
+    logic useImm;
+    logic[`WDEF(3)] issueQueId;
+    MicOp_t::_u micOp;
+    // issue states
+    logic[`WDEF(6)] iqIdx;
 
-    logic rd_wen;
-    iprIdx_t iprd_idx;// only for load
-    iprIdx_t iprs_idx;// ld: rs1, sta: rs1, std: rs2
-    logic use_imm;
-    logic[`WDEF(3)] issueQue_id;
-    MicOp_t::_u micOp_type;
-    // memdep
-    logic shouldwait;
-    robIdx_t dep_robIdx;
+    logic[`XDEF] seqNum;
+} issueState_t;
 
-    logic[`XDEF] instmeta;
-} memExeInfo_t;
+typedef struct {
+    // pointer
+    ftqIdx_t ftqIdx;
+    robIdx_t robIdx;
+    irobIdx_t irobIdx;
+    lqIdx_t lqIdx;
+    sqIdx_t sqIdx;
+    // ctrl
+    logic rdwen;
+    iprIdx_t iprd;
+    logic useImm;
+    logic[`WDEF(3)] issueQueId;
+    MicOp_t::_u micOp;
+    // data
+    logic[`XDEF] srcs[`NUMSRCS_INT];
+    imm_t imm20;
+    ftqOffset_t ftqOffset;
+    logic[`XDEF] pc;
+    logic[`XDEF] npc;
+
+    logic[`XDEF] seqNum;
+} exeInfo_t;
 
 typedef struct {
     robIdx_t rob_idx;
 } loadQueEntry_t;
-
-
-typedef struct {
-    ftqIdx_t ftq_idx;
-    robIdx_t rob_idx;
-    irobIdx_t irob_idx;
-    logic use_imm;
-    logic rd_wen;
-    iprIdx_t iprd_idx;
-    logic[`XDEF] srcs[`NUMSRCS_INT];
-    // only for bru
-    ftqOffset_t ftqOffset;
-    logic[`XDEF] pc;
-    logic[`XDEF] npc;
-    imm_t imm20;
-
-    logic[`WDEF(3)] issueQue_id;
-    MicOp_t::_u micOp;
-
-    logic[`XDEF] instmeta;
-} fuInfo_t;
-
-typedef struct {
-    ftqIdx_t ftq_idx;
-    robIdx_t rob_idx;
-    irobIdx_t irob_idx;
-    lqIdx_t lq_idx; // only for loadpipe
-    sqIdx_t sq_idx;
-    logic use_imm;
-    logic rd_wen;
-    iprIdx_t iprd_idx;
-    logic[`XDEF] srcs[2];
-
-    logic[`WDEF(3)] issueQue_id;
-    MicOp_t::_u micOp;
-
-    logic[`XDEF] instmeta;
-} lsfuInfo_t;
-
-
-
 
 typedef struct {
     robIdx_t rob_idx;
@@ -199,9 +221,13 @@ typedef struct {
     logic[`WDEF(`MEMDEP_FOLDPC_WIDTH)] load_foldpc;
 } squashMemVio_t;
 
-
-
-
+// DESIGN:
+// if:
+// i1 (alu0 if (!replay) wakeOthers ) | i2 (alu1) | e1(div stall) | ... | writeback
+// only replay alu0
+// div will writeback at n (n > 2) tick
+// alu1 will writeback at 2 tick
+// so alu1 can execute parallel with div
 
 
 

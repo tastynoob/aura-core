@@ -25,7 +25,8 @@ module loadfu (
 
     output wire o_stall,
     input wire i_vld,
-    input lsfuInfo_t i_fuInfo,
+    input exeInfo_t i_fuInfo,
+
     // from/to loadque
     load2que_if.m if_load2que,
     // from/to storeque/sbuffer
@@ -37,12 +38,14 @@ module loadfu (
     input wire i_wb_stall,
     output wire o_fu_finished,
     output comwbInfo_t o_comwbInfo,
+
+    output wire o_has_except,
     output exceptwbInfo_t o_exceptwbInfo
 );
 
     reg s0_vld;
     wire s0_continue;
-    lsfuInfo_t s0_fuInfo;
+    exeInfo_t s0_fuInfo;
 
     always_ff @( posedge clk ) begin
         if (rst) begin
@@ -56,15 +59,13 @@ module loadfu (
     wire[`WDEF(`XLEN/8)] s0_load_vec;
     wire[`WDEF($clog2(`CACHELINE_SIZE))] s0_load_size;
     wire[`XDEF] s0_vaddr;
-    wire[`WDEF(3)] s0_addrLow3;
-    wire loadaddr_misaligned;
+    wire load_misaligned;
     assign s0_vaddr = s0_fuInfo.srcs[0] + s0_fuInfo.srcs[1];
-    assign s0_addrLow3 = s0_vaddr[2:0];
     assign s0_load_vec =
-    (((s0_fuInfo.micOp == MicOp_t::lb) || (s0_fuInfo.micOp == MicOp_t::lbu)) ? 8'b0000_0001 :
+    ((s0_fuInfo.micOp == MicOp_t::lb) || (s0_fuInfo.micOp == MicOp_t::lbu)) ? 8'b0000_0001 :
     ((s0_fuInfo.micOp == MicOp_t::lh) || (s0_fuInfo.micOp == MicOp_t::lhu)) ? 8'b0000_0011 :
     ((s0_fuInfo.micOp == MicOp_t::lw) || (s0_fuInfo.micOp == MicOp_t::lwu)) ? 8'b0000_1111 :
-    8'b1111_1111) << s0_addrLow3;
+    8'b1111_1111;
 
     assign s0_load_size =
     ((s0_fuInfo.micOp == MicOp_t::lb) || (s0_fuInfo.micOp == MicOp_t::lbu)) ? 1 :
@@ -72,14 +73,13 @@ module loadfu (
     ((s0_fuInfo.micOp == MicOp_t::lw) || (s0_fuInfo.micOp == MicOp_t::lwu)) ? 4 :
     8 ;
 
-    assign loadaddr_misaligned = (s0_vaddr[3:0] & (s0_load_size - 1)) != 0;
+    assign load_misaligned = (s0_vaddr[3:0] & (s0_load_size - 1)) != 0;
 
     /********************/
-    // s0: send vaddr to tlb, cache
+    // s0: send vaddr to tlb
     assign if_load2cache.s0_req = s0_vld;
     assign if_load2cache.s0_lqIdx = s0_fuInfo.lq_idx;
     assign if_load2cache.s0_vaddr = s0_vaddr;// fully addr
-    assign if_load2cache.s0_load_vec = s0_load_vec;
 
     assign s0_continue = if_load2cache.s0_gnt;
     assign o_stall = !if_load2cache.s0_gnt;
@@ -100,49 +100,47 @@ module loadfu (
     /********************/
     // s1: get paddr
     // except check
-    lsfuInfo_t s1_fuInfo;
+    exeInfo_t s1_fuInfo;
     reg[`WDEF(`XLEN/8)] s1_load_vec;
     reg s1_vld;
     wire s1_cacherdy;
-    lqIdx_t s1_lqIdx;
 
-    wire s1_replay;// s1 replay due to tlb miss, cache miss
+    wire s1_replay;
     wire s1_continue;
     wire s1_conflict;
-    wire s1_tlbhit;
-    wire s1_addrMisaligned;// addr misaligned should be check by tlb, because it may be mmio access
-    wire s1_cachehit;
-    wire s1_stfwd_data_nrdy;
+    wire s1_miss;
+    wire s1_pagefault;
+    wire s1_illegaAddr;
+    wire s1_mmio;
+    wire s1_stfwd_data_rdy;
+    reg s1_misagained;
     paddr_t s1_paddr;
     always_ff @( posedge clk ) begin
         if (rst) begin
-            s1_vld <= 0;
-        end
-        else if (s1_addrMisaligned) begin
-            // addr misaligneded exception;
             s1_vld <= 0;
         end
         else begin
             s1_fuInfo <= s0_fuInfo;
             s1_load_vec <= s0_load_vec;
             s1_vld <= s0_vld;
-            s1_lqIdx <= s0_fuInfo.lq_idx;
+            s1_misagained <= load_misaligned;
         end
     end
 
     assign if_load2cache.s1_req = s1_vld;
 
     assign s1_cacherdy = if_load2cache.s1_rdy;
-    assign s1_conflict = if_load2cache.s1_conflict;
-    assign s1_tlbhit = if_load2cache.s1_tlbhit;
-    assign s1_addrMisaligned = if_load2cache.s1_addrMisaligned;
-    assign s1_cachehit = if_load2cache.s1_cachehit;
+    assign s1_conflict = if_load2cache.s1_cft;
+    assign s1_miss = if_load2cache.s1_miss;
+    assign s1_pagefault = if_load2cache.s1_pagefault;
+    assign s1_illegaAddr = if_load2cache.s1_illegaAddr;
+    assign s1_mmio = if_load2cache.s1_mmio;
     assign s1_paddr = if_load2cache.s1_paddr;
-
-    assign s1_stfwd_data_nrdy = if_stfwd.s1_vaddr_match && if_stfwd.s1_data_nrdy;
-
-    assign s1_continue = s1_vld && ((s1_tlbhit && !s1_conflict));
-    assign s1_replay = s1_vld && (!s1_tlbhit || s1_cachehit || s1_conflict || s1_stfwd_data_nrdy);
+    assign s1_stfwd_data_rdy = if_stfwd.s1_vaddr_match ? if_stfwd.s1_data_rdy : 1;// if not exist match, default true
+    assign s1_replay = s1_vld && s1_conflict;
+    // actually specwake no need to careabout load except
+    assign s1_specwake = s1_vld && s1_stfwd_data_rdy && !(s1_conflict || s1_miss || s1_mmio || s1_pagefault || s1_illegaAddr || s1_misagained);
+    assign s1_continue = s1_vld && !s1_replay;
 
     // if s0 cache was gnt
     // s1 must access for this request
@@ -156,7 +154,7 @@ module loadfu (
     assign if_stfwd.s1_vld = s1_vld;
     assign if_stfwd.s1_lqIdx = s1_fuInfo.lq_idx;
     assign if_stfwd.s1_sqIdx = s1_fuInfo.sq_idx;
-    assign uf_stfwd.s1_paddr = s1_paddr;
+    assign if_stfwd.s1_paddr = s1_paddr;
 
     // if cache miss, load pipe should notify loadQue
 
@@ -165,9 +163,10 @@ module loadfu (
     // get the dcache data
     // get the forward data
     // if cachemiss, write the forward data to loadque
-    lsfuInfo_t s2_fuInfo;
+    exeInfo_t s2_fuInfo;
     reg s2_vld;
     reg s2_cachemiss;
+    vaddr_t s2_vaddr;
     wire s2_need_squash;
     lqIdx_t s2_lqIdx;
     always_ff @( posedge clk ) begin
@@ -184,8 +183,38 @@ module loadfu (
             s2_vld <= 0;
         end
     end
+
     wire[`WDEF(`CACHELINE_SIZE*8)] s2_cacheline;
+    wire[`WDEF(8)] s2_split8[`CACHELINE_SIZE];
+    wire[`WDEF(16)] s2_split16[`CACHELINE_SIZE/2];
+    wire[`WDEF(32)] s2_split32[`CACHELINE_SIZE/4];
+    wire[`WDEF(64)] s2_split64[`CACHELINE_SIZE/8];
+    wire[`WDEF(64)] s2_loadData;
     assign s2_cacheline = if_load2cache.s2_data;
+    generate
+        for (i=0; i<`CACHELINE_SIZE; i=i+1) begin
+            assign s2_split8[i] = s2_cacheline[(i+1)*8 - 1: i*8];
+        end
+        for (i=0; i<`CACHELINE_SIZE/2; i=i+1) begin
+            assign s2_split16[i] = s2_cacheline[(i+1)*16 - 1: i*16];
+        end
+        for (i=0; i<`CACHELINE_SIZE/4; i=i+1) begin
+            assign s2_split32[i] = s2_cacheline[(i+1)*32 - 1: i*32];
+        end
+        for (i=0; i<`CACHELINE_SIZE/8; i=i+1) begin
+            assign s2_split64[i] = s2_cacheline[(i+1)*64 - 1: i*64];
+        end
+    endgenerate
+    wire[`WDEF(8)] s2_load8 = s2_split8[s2_vaddr[$clog2(`CACHELINE_SIZE)-1:0]];
+    wire[`WDEF(16)] s2_load16 = s2_split16[s2_vaddr[$clog2(`CACHELINE_SIZE)-1:1]];
+    wire[`WDEF(32)] s2_load32 = s2_split16[s2_vaddr[$clog2(`CACHELINE_SIZE)-1:2]];
+    wire[`WDEF(64)] s2_load64 = s2_split16[s2_vaddr[$clog2(`CACHELINE_SIZE)-1:4]];
+    // signed extension in s3
+    assign s2_loadData =
+    ((s2_fuInfo.micOp == MicOp_t::lb) || (s2_fuInfo.micOp == MicOp_t::lbu)) ? {56'd0, s2_load8} :
+    ((s2_fuInfo.micOp == MicOp_t::lh) || (s2_fuInfo.micOp == MicOp_t::lhu)) ? {40'd0, s2_load16} :
+    ((s2_fuInfo.micOp == MicOp_t::lw) || (s2_fuInfo.micOp == MicOp_t::lwu)) ? {32'd0, s2_load32} :
+    s2_load64;
 
     // notify loadQue, writeback forward data if cachemiss
 
@@ -196,13 +225,28 @@ module loadfu (
     assign if_load2que.s2_match_vec = if_stfwd.s2_match_vec;
     assign if_load2que.s2_fwd_data = if_stfwd.s2_fwd_data;
 
-
     assign s2_need_squash = if_stfwd.s2_match_failed;
 
+    // merge data
+    wire[`XDEF] merged_data;
+    generate
+        for (i=0; i<`XLEN/8; i=i+1) begin
+            assign merged_data[(i+1)*8-1 : i*8] =
+                if_stfwd.s2_match_vec[i] ? if_stfwd.s2_fwd_data[(i+1)*8-1 : i*8] : s2_loadData[(i+1)*8-1 : i*8];
+        end
+    endgenerate
+    // sext data
+    wire[`XDEF] sext_data;
+    assign sext_data =
+        s2_fuInfo.micOp == MicOp_t::lb ? {{56{merged_data[7]}}, merged_data[7:0]} :
+        s2_fuInfo.micOp == MicOp_t::lh ? {{48{merged_data[15]}}, merged_data[15:0]} :
+        s2_fuInfo.micOp == MicOp_t::lw ? {{32{merged_data[31]}}, merged_data[31:0]} :
+        merged_data;
 
     /********************/
     // s3
-    // merge data and output
+    // output
+    reg load_except;
     reg load_finished;
     comwbInfo_t commwbInfo;
     exceptwbInfo_t exceptwbInfo;
@@ -210,33 +254,32 @@ module loadfu (
         if (rst) begin
             load_finished <= 0;
         end
-        else if (s1_addrMisaligned) begin
-            load_finished <= 0;
-            // early finish due to exception
-            exceptwbInfo <= '{
-                rob_idx : s2_fuInfo.rob_idx,
-                except_type : rv_trap_t::loadMisaligneded
-            };
-            commwbInfo <= '{
-                rob_idx : s2_fuInfo.rob_idx,
-                irob_idx : s2_fuInfo.irob_idx,
-                use_imm : s2_fuInfo.use_imm,
-                rd_wen : s2_fuInfo.rd_wen,
-                iprd_idx : s2_fuInfo.iprd_idx,
-                result : 0
-            };
+        else begin
+            if (s1_pagefault || s1_illegaAddr || s1_misagained) begin
+                load_except <= 1;
+                // early finish due to exception
+                exceptwbInfo <= '{
+                    rob_idx : s1_fuInfo.rob_idx,
+                    except_type : rv_trap_t::loadMisaligneded
+                };
+            end
+            else begin
+                load_except <= 0;
+            end
+
+            if (s2_vld) begin
+                load_finished <= 0;
+                commwbInfo <= '{
+                    rob_idx : s2_fuInfo.rob_idx,
+                    irob_idx : s2_fuInfo.irob_idx,
+                    use_imm : s2_fuInfo.use_imm,
+                    rd_wen : s2_fuInfo.rd_wen,
+                    iprd_idx : s2_fuInfo.iprd_idx,
+                    result : sext_data
+                };
+            end
         end
-        else if (s2_vld) begin
-            load_finished <= 0;
-            commwbInfo <= '{
-                rob_idx : s2_fuInfo.rob_idx,
-                irob_idx : s2_fuInfo.irob_idx,
-                use_imm : s2_fuInfo.use_imm,
-                rd_wen : s2_fuInfo.rd_wen,
-                iprd_idx : s2_fuInfo.iprd_idx,
-                result : 0
-            };
-        end
+
     end
 
     assign o_fu_finished = load_finished;

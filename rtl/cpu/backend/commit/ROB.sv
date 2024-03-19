@@ -14,6 +14,7 @@ import "DPI-C" function void arch_commit_except(uint64_t except);
 import "DPI-C" function void squash_pipe(uint64_t isMispred);
 import "DPI-C" function void cycle_step();
 import "DPI-C" function void commit_idle(uint64_t c);
+import "DPI-C" function void cpu_stucked(uint64_t seqNum, uint64_t vld);
 
 const logic[`WDEF(2)] SQUASH_NULL = 0;
 const logic[`WDEF(2)] SQUASH_MISPRED = 1;
@@ -68,8 +69,8 @@ module ROB(
 
     // write back, from exu
     // common writeback
-    input wire[`WDEF(`WBPORT_NUM)] i_fu_finished,
-    input comwbInfo_t i_comwbInfo[`WBPORT_NUM],
+    input wire[`WDEF(`COMPLETE_NUM)] i_fu_finished,
+    input comwbInfo_t i_comwbInfo[`COMPLETE_NUM],
     // branch writeback
     input wire i_branchwb_vld,
     input branchwbInfo_t i_branchwb_info,
@@ -122,16 +123,16 @@ module ROB(
     wire ptr_flipped[`RENAME_WIDTH];
     wire[`WDEF($clog2(`ROB_SIZE))] alloc_idx[`RENAME_WIDTH];
     generate
-        for(i=0;i<`RENAME_WIDTH;i=i+1) begin:gen_for
+        for(i=0;i<`RENAME_WIDTH;i=i+1) begin
             assign o_alloc_robIdx[i] = '{
                 flipped : ptr_flipped[i],
                 idx     : alloc_idx[i]
             };
         end
     endgenerate
-    wire[`WDEF($clog2(`ROB_SIZE))] finished_robIdx[`WBPORT_NUM];
+    wire[`WDEF($clog2(`ROB_SIZE))] finished_robIdx[`COMPLETE_NUM];
     generate
-        for(i=0;i<`COMMIT_WIDTH;i=i+1) begin:gen_for
+        for(i=0;i<`COMPLETE_NUM;i=i+1) begin
             assign finished_robIdx[i] = i_comwbInfo[i].rob_idx.idx;
         end
     endgenerate
@@ -146,7 +147,7 @@ module ROB(
         .DEPTH          ( `ROB_SIZE     ),
         .INPORT_NUM     ( `RENAME_WIDTH ),
         .READPORT_NUM   ( 0             ),
-        .CLEARPORT_NUM  ( `WBPORT_NUM   ),
+        .CLEARPORT_NUM  ( `COMPLETE_NUM   ),
         .COMMIT_WID     ( `COMMIT_WIDTH ),
         .dtype          ( ROBEntry_t    ),
         .ISROB          ( 1             )
@@ -191,7 +192,7 @@ module ROB(
 
     generate
         // read from exu
-        for(i=0;i<`BRU_NUM;i=i+1) begin:gen_for
+        for(i=0;i<`BRU_NUM;i=i+1) begin
             assign o_read_ftqOffset_data[i] = read_ftqOffset_data[i];
         end
     endgenerate
@@ -203,7 +204,7 @@ module ROB(
 // rename commit, storeQue commit and rob commit must in one cycle
 /****************************************************************************************************/
     generate
-        for(i=0;i<`COMMIT_WIDTH;i=i+1) begin:gen_for
+        for(i=0;i<`COMMIT_WIDTH;i=i+1) begin
             assign o_rename_commitInfo[i] = '{
                 ismv        : willCommit_data[i].ismv,
                 has_rd      : willCommit_data[i].has_rd,
@@ -263,12 +264,12 @@ module ROB(
     wire[`WDEF(`COMMIT_WIDTH)] temp_1;// one hot: which one is the shr handled
     generate
 
-        for(i=0;i<`COMMIT_WIDTH;i=i+1) begin:gen_for
+        for(i=0;i<`COMMIT_WIDTH;i=i+1) begin
             assign shr_match_vec[i] = willCommit_idx[i] == shr.rob_idx.idx;
-            if (i==0) begin:gen_if
+            if (i==0) begin
                 assign temp_0[i] = willCommit_vld[i] && !((shr.squash_type==SQUASH_EXCEPT) && shr_match_vec[i]);
             end
-            else begin:gen_else
+            else begin
                 assign temp_0[i] = willCommit_vld[i] && temp_0[i-1] && !((shr.squash_type==SQUASH_MISPRED) && shr_match_vec[i-1]);
             end
             assign temp_1[i] = willCommit_vld[i] && shr_match_vec[i] && (shr.squash_type != SQUASH_NULL);
@@ -400,7 +401,7 @@ module ROB(
         else if ((!squash_vld) && (!commit_stall)) begin
             cycle_count <= cycle_count + 1;
             if (cycle_count - lastCommitCycle > 100) begin
-                assert(false); // cpu stucked
+                cpu_stucked(willCommit_data[0].instmeta, 1);
             end
 
             for (fa =0; fa <`COMMIT_WIDTH; fa=fa+1) begin
@@ -431,7 +432,7 @@ module ROB(
 
     wire[`WDEF(`RENAME_WIDTH)] AAA_insert_ismv_nop = (o_can_enq && i_enq_vld) ? i_insert_rob_ismv & i_enq_req : 0;
 
-    wire[`WDEF(`WBPORT_NUM)] AAA_fu_finished_vec = i_fu_finished;
+    wire[`WDEF(`COMPLETE_NUM)] AAA_fu_finished_vec = i_fu_finished;
 
     wire[`WDEF(`COMMIT_WIDTH)] AAA_can_commit_vec = canCommit_vld;
 

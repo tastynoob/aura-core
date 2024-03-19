@@ -18,11 +18,9 @@ interface stfwd_if;
     // s1: match check
     // m->s
     logic s1_vld;
-    lqIdx_t s1_lqIdx;
-    sqIdx_t s1_sqIdx;
     paddr_t s1_paddr;
     logic s1_vaddr_match;
-    logic s1_data_nrdy; // match but data not ready
+    logic s1_data_rdy; // match and data ready
 
     // s2: send forward response
     // m<-s
@@ -30,21 +28,20 @@ interface stfwd_if;
     lqIdx_t s2_lqIdx;
     logic s2_paddr_match;
     logic s2_match_failed;
-    logic[`WDEF(`XLEN/8)] s2_match_vec; // which bit was forward matched
+    logic[`WDEF(`XLEN/8)] s2_match_vec; // which byte was forward matched
     logic[`XDEF] s2_fwd_data;
 
     modport m (
+        output s0_vld,
         output s0_lqIdx,
         output s0_sqIdx,
         output s0_vaddr,
         output s0_load_vec,
 
         output s1_vld,
-        output s1_lqIdx,
-        output s1_sqIdx,
         output s1_paddr,
         input s1_vaddr_match,
-        input s1_data_nrdy,
+        input s1_data_rdy,
 
         input s2_rdy,
         input s2_lqIdx,
@@ -55,17 +52,16 @@ interface stfwd_if;
     );
 
     modport s (
+        input s0_vld,
         input s0_lqIdx,
         input s0_sqIdx,
         input s0_vaddr,
         input s0_load_vec,
 
         input s1_vld,
-        input s1_lqIdx,
-        input s1_sqIdx,
         input s1_paddr,
         output s1_vaddr_match,
-        output s1_data_nrdy,
+        output s1_data_rdy,
 
         output s2_rdy,
         output s2_lqIdx,
