@@ -1,5 +1,4 @@
 TOP ?= tb
-seed ?= 123
 
 ADDITIONAL_PARAM = --x-assign unique --x-initial unique --assert
 

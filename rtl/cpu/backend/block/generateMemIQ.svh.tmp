@@ -1,15 +1,104 @@
 `ifdef YOU_NEED_DEFINE_THIS_MACRO
+// must defined parameters outside:
+//  IQ_SIZE, IQ_INOUT, PORT_OFFSET
+// you must defined signals outside:
+//  canEnq, enqReq, enqMicroOp, enqIprsRdy
+// optional macro:
+//  NEED_IMM
 
+wire[`WDEF(IQ_INOUT)] issueStall;
+wire[`WDEF(IQ_INOUT)] issueVec;
+issueState_t issueState[IQ_INOUT];
 
+wire[`WDEF(IQ_INOUT)] issueSuccess;
+wire[`WDEF(IQ_INOUT)] issueReplay;
+wire[`WDEF($clog2(IQ_SIZE))] feedbackIdx[IQ_INOUT];
 
+reg[`WDEF(IQ_INOUT)] s1_issueComplete;
+reg[`WDEF(IQ_INOUT)] s1_issueVec;
+issueState_t s1_issueState[IQ_INOUT];
 
+logic[`WDEF(IQ_INOUT)] cancelled;
+logic[`WDEF(IQ_INOUT)] s1_cancelled;
 
+issueQue_mem
+#(
+    .DEPTH              ( IQ_SIZE       ),
+    .INOUTPORT_NUM      ( IQ_INOUT      ),
+    .EXTERNAL_WAKEUPNUM ( `MEMWAKE_WIDTH )
+)
+u_issueQue (
+    .clk ( clk ),
+    .rst ( rst || i_squash_vld ),
 
+    .o_can_enq      ( canEnq     ),
+    .i_enq_req      ( enqReq     ),
+    .i_microOp      ( enqMicroOp ),
+    .i_enq_iprs_rdy ( enqIprsRdy ),
+    .i_enq_memdep_rdy ( enqDepRdy ),
 
+    .i_fu_busy    ( issueStall ),
+    .o_can_issue  ( issueVec   ),
+    .o_issueState ( issueState ),
 
+    .i_issueSuccess ( issueSuccess ),
+    .i_issueReplay  ( issueReplay  ),
+    .i_feedbackIdx  ( feedbackIdx  ),
 
+    .i_stu_wk        ( depwk_vec ),
+    .i_stu_wk_robIdx ( depwk_robIdx ),
 
+    .i_ext_wk_vec   ( wake_vec  ),
+    .i_ext_wk_iprd  ( wake_iprd ),
+    .i_ext_wk_lpv   ( wake_lpv  )
+);
 
+for (i=0;i<IQ_INOUT;i=i+1) begin
+    // read regfile (NOTE: ldu/stau/stdu only has one source)
+    assign o_iprs_idx[i + PORT_OFFSET] = issueState[i].iprs[0];
 
+    // read immediate (ldu/stau only)
+`ifdef NEED_IMM
+    assign o_immB_idx[i + PORT_OFFSET] = issueState[i].irobIdx;
+`endif
+
+end
+
+always_comb begin
+    int ca,cb,cc;
+    for (ca=0;ca<IQ_INOUT;ca=ca+1) begin
+        cancelled[ca] = 0;
+        s1_cancelled[ca] = 0;
+    end
+end
+
+always_ff @( posedge clk ) begin
+    int fa;
+    if (rst || i_squash_vld) begin
+        s1_issueVec <= 0;
+        s1_issueComplete <= 0;
+    end
+    else begin
+        // s0: read regfile
+        // s1: bypass
+        s1_issueVec <= issueVec;
+        s1_issueState <= issueState;
+
+        for (fa=0;fa<IQ_INOUT;fa=fa+1) begin
+            if (issueStall[fa] || cancelled[fa]) begin
+                s1_issueComplete[fa] <= 0;
+            end
+            else begin
+                s1_issueComplete[fa] <= issueVec[fa];
+            end
+        end
+
+        for (fa=0;fa<IQ_INOUT;fa=fa+1) begin
+            if (issueVec[fa]) begin
+                goto_fu(issueState[fa].seqNum, 4 + fa + PORT_OFFSET);
+            end
+        end
+    end
+end
 
 `endif

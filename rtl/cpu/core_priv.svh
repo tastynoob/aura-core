@@ -114,7 +114,7 @@ typedef struct packed {
 } mie_csr_t;
 
 typedef struct packed {
-    logic interrupt;
+    logic inter;
     logic [`WDEF(63)] except_code;
 } mcause_csr_t;
 

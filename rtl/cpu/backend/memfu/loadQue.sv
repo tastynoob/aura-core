@@ -26,14 +26,14 @@ typedef struct {
 // use virtual index -> read meta sram -> tag compare -> read data sram -> return data
 // use virtual tag   ->  TLB translate -^
 module loadQue #(
-    parameter int INPORT_NUM  = 4,
+    parameter int INPORT_NUM  = 2,
     parameter int OUTPORT_NUM = 4,
     parameter int DEPTH       = `LQSIZE
 ) (
     input wire clk,
     input wire rst,
     input wire i_flush,
-    // enq (from dispatch)
+    // enq
     output wire o_can_enq,
     input wire i_enq_vld,
     input wire [`WDEF(INPORT_NUM)] i_enq_req,
@@ -45,7 +45,7 @@ module loadQue #(
 
     // from/to loadque
     load2que_if.s if_load2que[`LDU_NUM],
-
+    // store execute, violation check
     sta2ldque_if.s if_sta2ldque[`STU_NUM]
 
 
@@ -84,7 +84,7 @@ module loadQue #(
 
     always_ff @(posedge clk) begin
         int fa;
-        if ((rst == true) || (i_flush == true)) begin
+        if (rst || i_flush) begin
             count <= 0;
             enq_ptr_flipped <= 0;
             for (fa = 0; fa < INPORT_NUM; fa = fa + 1) begin

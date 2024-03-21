@@ -12,6 +12,10 @@ def get_svfiles(path):
             if subpath.endswith('.sv') or subpath.endswith('.svh'):
                 svfiles.append(subpath)
 
+def is_modified(file):
+    return os.system('git diff --quiet ' + file) != 0
+
+
 aura_home = os.environ.get('AURA_HOME')
 rtlpath = (aura_home + '/' if aura_home else '') + 'rtl'
 get_svfiles(rtlpath)
@@ -19,7 +23,8 @@ get_svfiles(rtlpath)
 
 formatCommand = 'verible-verilog-format --flagfile .sv.format --inplace'
 for svfile in svfiles:
-    command = formatCommand + ' ' + svfile
-    print(command)
-    os.system(command)
+    if is_modified(svfile):
+        command = formatCommand + ' ' + svfile
+        print(command)
+        os.system(command)
 

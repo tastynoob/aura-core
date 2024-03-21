@@ -10,10 +10,6 @@
 `define DECODE_WIDTH 4
 `define RENAME_WIDTH `DECODE_WIDTH
 
-// dispatch
-`define INTDQ_DISP_WID 4
-`define MEMDQ_DISP_WID 4
-
 `define ENABLE_MEMPRED 1
 
 `define STORE_ISSUE_WIDTH 2

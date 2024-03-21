@@ -119,7 +119,7 @@ module dispatch (
                     issueQueId  : i_enq_inst[i].issueQue_id,
                     micOp       : i_enq_inst[i].micOp_type,
                     shouldwait  : i_mem_shouldwait[i],
-                    dep_robIdx  : i_mem_dep_robIdx[i],
+                    depIdx      : i_mem_dep_robIdx[i],
 
                     seqNum      : i_enq_inst[i].instmeta
                 };

@@ -46,7 +46,8 @@ module issueQue_mem #(
     output wire o_can_enq,
     input wire [`WDEF(INOUTPORT_NUM)] i_enq_req,
     input microOp_t i_microOp[INOUTPORT_NUM],
-    input wire [`WDEF(`NUMSRCS_INT)] i_enq_iprs_rdy[INOUTPORT_NUM],
+    input wire [`WDEF(INOUTPORT_NUM)] i_enq_iprs_rdy,
+    input wire [`WDEF(INOUTPORT_NUM)] i_enq_memdep_rdy,
 
     //output INOUTPORT_NUM entrys with the highest priority which is ready
     input wire [`WDEF(INOUTPORT_NUM)] i_fu_busy,
@@ -57,6 +58,10 @@ module issueQue_mem #(
     input wire [`WDEF(INOUTPORT_NUM)] i_issueReplay,
     input wire [`WDEF($clog2(DEPTH))] i_feedbackIdx[INOUTPORT_NUM],
 
+    // memdep wake
+    input wire [`WDEF(`STU_NUM)] i_stu_wk,
+    input robIdx_t i_stu_wk_robIdx[`STU_NUM],
+
     input wire [`WDEF(EXTERNAL_WAKEUPNUM)] i_ext_wk_vec,
     input iprIdx_t i_ext_wk_iprd[EXTERNAL_WAKEUPNUM],
     input lpv_t i_ext_wk_lpv[EXTERNAL_WAKEUPNUM][`NUMSRCS_INT]
@@ -65,7 +70,8 @@ module issueQue_mem #(
     typedef struct {
         logic vld;  //unused in compressed RS
         logic issued;  // flag issued
-        logic [`WDEF(`NUMSRCS_INT)] srcRdy;  // update by writeback
+        logic srcRdy;
+        logic memdepRdy;
 
         microOp_t info;
     } IQEntry;
@@ -73,7 +79,8 @@ module issueQue_mem #(
     genvar i, j;
 
     IQEntry buffer[DEPTH];
-    logic [`WDEF(`NUMSRCS_INT)] nxtSrcRdy[DEPTH];
+    logic nxtSrcRdy[DEPTH];
+    logic nxtDepRdy[DEPTH];
 
     //find the entry idx of buffer which can issue
     logic [`WDEF(INOUTPORT_NUM)] enq_find_free, deqRdy;  //is find the entry which is ready to issue
@@ -89,7 +96,7 @@ module issueQue_mem #(
 
     generate
         for (i = 0; i < DEPTH; i = i + 1) begin
-            assign entry_ready[i] = buffer[i].vld && (!buffer[i].issued) && (&(nxtSrcRdy[i]));
+            assign entry_ready[i] = buffer[i].vld && (!buffer[i].issued) && nxtSrcRdy[i] && buffer[i].memdepRdy;
         end
     endgenerate
 
@@ -143,6 +150,7 @@ module issueQue_mem #(
                     buffer[enq_idx[fa]].info <= i_microOp[fa];
                     buffer[enq_idx[fa]].issued <= 0;
                     buffer[enq_idx[fa]].srcRdy <= i_enq_iprs_rdy[fa];
+                    buffer[enq_idx[fa]].memdepRdy <= i_enq_memdep_rdy[fa];
 
                     update_instPos(i_microOp[fa].seqNum, difftest_def::AT_issueQue);
                 end
@@ -196,6 +204,7 @@ module issueQue_mem #(
             for (fa = 0; fa < DEPTH; fa = fa + 1) begin
                 if (buffer[fa].vld) begin
                     buffer[fa].srcRdy <= nxtSrcRdy[fa];
+                    buffer[fa].memdepRdy <= nxtDepRdy[fa];
                 end
             end
         end
@@ -226,16 +235,22 @@ module issueQue_mem #(
     logic [`WDEF(DEPTH)] AAA_buffer_vld;
 
     always_comb begin
-        int ca, cb, cc;
+        int ca, cb;
         for (ca = 0; ca < DEPTH; ca = ca + 1) begin
             AAA_buffer_vld[ca] = buffer[ca].vld;
             nxtSrcRdy[ca] = buffer[ca].srcRdy;
-            for (cb = 0; cb < `NUMSRCS_INT; cb = cb + 1) begin
-                // wake
-                for (cc = 0; cc < EXTERNAL_WAKEUPNUM; cc = cc + 1) begin
-                    if ((buffer[ca].info.iprs[cb] == i_ext_wk_iprd[cc]) && i_ext_wk_vec[cc]) begin
-                        nxtSrcRdy[ca][cb] = 1;
-                    end
+            nxtDepRdy[ca] = buffer[ca].memdepRdy;
+
+            // wake
+            for (cb = 0; cb < EXTERNAL_WAKEUPNUM; cb = cb + 1) begin
+                if ((buffer[ca].info.iprs[0] == i_ext_wk_iprd[cb]) && i_ext_wk_vec[cb]) begin
+                    nxtSrcRdy[ca] = 1;
+                end
+            end
+
+            for (cb = 0; cb < `STU_NUM; cb = cb + 1) begin
+                if ((buffer[ca].info.depIdx == i_stu_wk_robIdx[cb]) && i_stu_wk[cb]) begin
+                    nxtDepRdy[ca] = 1;
                 end
             end
         end

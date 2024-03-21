@@ -66,7 +66,7 @@ module exeBlock (
                 assign disp_check_iprsIdx[i] = if_disp.int_info[i/2].iprs[i%2];
             end
             else if (i < TOTALDISPWIDTH * `NUMSRCS_INT) begin
-                assign disp_check_iprsIdx[i] = if_disp.mem_info[(i-`INTDQ_DISP_WID)/2].iprs[(i-`INTDQ_DISP_WID)%2];
+                assign disp_check_iprsIdx[i] = if_disp.mem_info[(i-`INTDQ_DISP_WID * `NUMSRCS_INT)/2].iprs[(i-`INTDQ_DISP_WID * `NUMSRCS_INT)%2];
             end
         end
         for (i = 0; i < `INTDQ_DISP_WID; i = i + 1) begin
@@ -157,8 +157,8 @@ module exeBlock (
         .i_iprs_ready(toIntBlock_iprs_rdy),
         .i_iprs_data (toIntBlock_iprs_data),
 
-        .o_immB_idx      (o_read_irob_idx[0:3]),
-        .i_imm_data      (i_read_irob_data[0:3]),
+        .o_immB_idx      (intBlock_irob_idx),
+        .i_imm_data      (toIntBlock_imm),
         .o_immB_clear_vld(o_immB_clear_vld[3:0]),
         .o_immB_clear_idx(o_immB_clear_idx[0:3]),
 
@@ -207,7 +207,7 @@ module exeBlock (
     wire toMemBlk_iprs_rdy[MEMBLOCK_IPRFREADPORTS];
     wire [`XDEF] toMemBlk_iprs_data[MEMBLOCK_IPRFREADPORTS];
 
-    assign disp_mem_dep_rdy = {0, 0, 0, 0};
+    assign disp_mem_dep_rdy = {1, 1, 1, 1};
 
     irobIdx_t memBlock_irob_idx[`LDU_NUM + `STU_NUM];
     imm_t toMemBlock_imm[`LDU_NUM + `STU_NUM];
@@ -218,6 +218,7 @@ module exeBlock (
     wire [`WDEF(`MEM_WBPORT_NUM)] memBlk_wk_vec;
     iprIdx_t memBlk_wk_iprd[`MEM_WBPORT_NUM];
 
+    // memblk have not bypass channel
     wire [`WDEF(`MEM_WBPORT_NUM)] memBlk_bp_vec;
     iprIdx_t memBlk_bp_iprd[`MEM_WBPORT_NUM];
     wire [`XDEF] memBlk_bp_data[`MEM_WBPORT_NUM];
@@ -237,8 +238,10 @@ module exeBlock (
         .i_iprs_ready(toMemBlk_iprs_rdy),
         .i_iprs_data (toMemBlk_iprs_data),
 
-        .o_immB_idx(memBlock_irob_idx),
-        .i_imm_data(toMemBlock_imm),
+        .o_immB_idx      (memBlock_irob_idx),
+        .i_imm_data      (toMemBlock_imm),
+        .o_immB_clear_vld(o_immB_clear_vld[7:4]),
+        .o_immB_clear_idx(o_immB_clear_idx[4:7]),
 
         .i_wb_stall   (0),
         .o_fu_finished(memBlk_fu_finished),
@@ -249,21 +252,20 @@ module exeBlock (
 
         .if_loadwake(if_loadwake),
 
-        .o_exp_bp_vec (memBlk_bp_vec),
-        .o_exp_bp_iprd(memBlk_bp_iprd),
-        .o_exp_bp_data(memBlk_bp_data),
+        .o_exp_bp_vec (),
+        .o_exp_bp_iprd(),
+        .o_exp_bp_data(),
 
-        .i_ext_swk_vec (),
-        .i_ext_swk_iprd(),
+        .i_ext_swk_vec (intBlk_swk_vec),
+        .i_ext_swk_iprd(intBlk_swk_iprd),
+
+        .i_glob_wbwk_vec (intRF_write_vec),
+        .i_glob_wbwk_iprd(intRF_write_iprd),
 
         .i_glob_bp_vec (glob_bp_vec),
         .i_glob_bp_iprd(glob_bp_iprd),
         .i_glob_bp_data(glob_bp_data)
     );
-
-    assign o_immB_clear_vld[7:4] = 0;
-
-
 
     reg [`WDEF(`INT_WBPORT_NUM)] nxtIntWBVec;
     iprIdx_t nxtIntWBIprd[`INT_WBPORT_NUM];
@@ -338,9 +340,9 @@ module exeBlock (
                 assign intRF_write_data[i] = intBlk_comwbInfo[i].result;
             end
             else begin
-                assign intRF_write_vec[i] = 0;
-                assign intRF_write_iprd[i] = 0;
-                assign intRF_write_data[i] = 0;
+                assign intRF_write_vec[i] = memBlk_fu_finished[i - `ALU_NUM + `MDU_NUM] && memBlk_comwbInfo[i - `ALU_NUM + `MDU_NUM].rd_wen;
+                assign intRF_write_iprd[i] = memBlk_comwbInfo[i - `ALU_NUM + `MDU_NUM].iprd_idx;
+                assign intRF_write_data[i] = memBlk_comwbInfo[i - `ALU_NUM + `MDU_NUM].result;
             end
         end
     endgenerate

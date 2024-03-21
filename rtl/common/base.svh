@@ -24,6 +24,11 @@ generate                                        \
     end \
 endgenerate
 
+`define ARRAY_TO_VECTOR(vector, array) \
+    for (genvar tmp_expand=0; tmp_expand<`SIZE; tmp_expand=tmp_expand+1) begin \
+        assign vector[tmp_expand] = array[tmp_expand]; \
+    end
+
 `define DEBUG_EXP(x) ``x``
 `undef DEBUG_EXP
 

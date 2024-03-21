@@ -33,14 +33,7 @@ module redirect #(
                 );
             end
 
-            always_comb begin
-                if (i_arch_vld[i]) begin
-                    o_redirect_datas[i] = i_arch_datas[sel_offset[i]];
-                end
-                else begin
-                    o_redirect_datas[i] = 0;
-                end
-            end
+            assign o_redirect_datas[i] = i_arch_datas[sel_offset[i]];
         end
     endgenerate
 endmodule

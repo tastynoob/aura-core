@@ -251,7 +251,7 @@ module decoder (
     wire isIntMath = isAdd | isSub | isShift | isLogic | isCompare;
     // replace rs2 to imm
     wire isImmMath = inst_ADDI | inst_ADDIW | inst_SLLI | inst_SLLIW | inst_SRLI | inst_SRLIW | inst_SRAI | inst_SRAIW | inst_ANDI | inst_ORI | inst_XORI | inst_SLTI | inst_SLTIU ;
-    wire use_imm = isImmMath | isCondBranch | isUncondBranch | inst_AUIPC | inst_LUI | isCSR;
+    wire use_imm = isImmMath | isCondBranch | isUncondBranch | inst_AUIPC | inst_LUI | isLoad | isStore | isCSR;
 
     wire [`WDEF(5)] ilrd_idx = inst[11:7];
     wire [`WDEF(5)] ilrs1_idx = inst[19:15];
@@ -324,14 +324,15 @@ module decoder (
     //dispQue select
     wire [
     `WDEF(2)
-    ] dispQue_id = !(isLoad || isStore) ?
-        `INTBLOCK_ID : (isLoad || isStore) ? `MEMBLOCK_ID : isUnknow ? `UNKOWNBLOCK_ID : 0;
+    ] dispQue_id = !(isLoad || isStore || isUnknow) ?
+        `INTBLOCK_ID : (isLoad || isStore) ? `MEMBLOCK_ID : `UNKOWNBLOCK_ID;
 
     //issueQue select
     wire [
-    `WDEF(2)
-    ] issueQue_id = (isIntMath | isImmMath | inst_LUI) ? `ALUIQ_ID : (isCondBranch | isUncondBranch | inst_AUIPC) ?
-        `BRUIQ_ID : (isMul | isDiv) ? `MDUIQ_ID : (isCSR | isSYS) ? `SCUIQ_ID : 0;
+    `WDEF(3)
+    ] issueQue_id = (isIntMath | isImmMath | inst_LUI) ?
+        `ALUIQ_ID : (isCondBranch | isUncondBranch | inst_AUIPC) ? `BRUIQ_ID : (isLoad) ?
+        `LDUIQ_ID : (isStore) ? `STUIQ_ID : (isMul | isDiv) ? `MDUIQ_ID : (isCSR | isSYS) ? `SCUIQ_ID : 0;
 
     //ALU
     MicOp_t::_alu aluop_type;
@@ -386,6 +387,19 @@ module decoder (
     MicOp_t::none;
     wire use_bru = (bruop_type != MicOp_t::none);
 
+    // LDU
+    MicOp_t::_ldu lduop_type;
+    assign lduop_type =
+    inst_LB ? MicOp_t::lb :
+    inst_LBU ? MicOp_t::lbu :
+    inst_LH ? MicOp_t::lh :
+    inst_LHU ? MicOp_t::lhu :
+    inst_LW ? MicOp_t::lw :
+    inst_LWU ? MicOp_t::lwu :
+    inst_LD ? MicOp_t::ld :
+    MicOp_t::none;
+    wire use_ldu = (lduop_type != MicOp_t::none);
+
     //MDU
     MicOp_t::_mdu mduop_type;
     assign mduop_type =
@@ -421,6 +435,7 @@ module decoder (
     use_alu ? aluop_type :
     use_scu ? scuop_type :
     use_bru ? bruop_type :
+    use_ldu ? lduop_type :
     use_mdu ? mduop_type :
     0;
 

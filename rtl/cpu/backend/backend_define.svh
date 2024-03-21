@@ -7,6 +7,10 @@
 
 `define NUMSRCS_INT 2
 
+// dispatch
+`define INTDQ_DISP_WID 4
+`define MEMDQ_DISP_WID 4
+
 `define INTBLOCK_ID 0
 `define MEMBLOCK_ID 1
 `define FLTBLOCK_ID 2
@@ -46,11 +50,18 @@
 `define WBPORT_NUM (`ALU_NUM + `MDU_NUM + `LDU_NUM)
 
 `define INT_SWAKE_WIDTH (`ALU_NUM + `MDU_NUM)
-// 12 = 6 int specwakechannel + 8 wbwakechannel
+`define MEM_SWAKE_WIDTH `LDU_NUM
+
+// 12 = 6 int specwakechannel + 8 wbwakechannel, NOTE: load specwake use loadwake_if
 `define INTWAKE_WIDTH (`INT_SWAKE_WIDTH + `WBPORT_NUM)
+// 14 = 2 mem specwakechannel + 6 int specwakechannel + 8
+`define MEMWAKE_WIDTH (`MEM_SWAKE_WIDTH + `INT_SWAKE_WIDTH + `WBPORT_NUM)
 // 2 stage issue + 1 stage writeback
 // loadpipe no bypass channel
 `define BYPASS_WIDTH (`INT_WBPORT_NUM * 2 + `WBPORT_NUM)
+
+`define MAX_ISSUEQUE_SIZE 64
+typedef logic [`WDEF($clog2(`MAX_ISSUEQUE_SIZE))] iqIdx_t;
 
 // load position vec
 `define LPV_WIDTH 3
@@ -125,7 +136,7 @@ typedef struct {
     MicOp_t::_u micOp;
     // memdep
     logic shouldwait;
-    robIdx_t dep_robIdx;
+    robIdx_t depIdx;
 
     logic [`XDEF] seqNum;
 } microOp_t;
@@ -145,7 +156,7 @@ typedef struct {
     logic [`WDEF(3)] issueQueId;
     MicOp_t::_u micOp;
     // issue states
-    logic [`WDEF(6)] iqIdx;
+    iqIdx_t iqIdx;
 
     logic [`XDEF] seqNum;
 } issueState_t;
@@ -169,6 +180,7 @@ typedef struct {
     ftqOffset_t ftqOffset;
     logic [`XDEF] pc;
     logic [`XDEF] npc;
+    iqIdx_t iqIdx;  // load only
 
     logic [`XDEF] seqNum;
 } exeInfo_t;

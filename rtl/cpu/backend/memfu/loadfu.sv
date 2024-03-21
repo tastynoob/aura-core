@@ -1,4 +1,3 @@
-
 `include "backend_define.svh"
 
 // replay at s1:
@@ -27,12 +26,19 @@ module loadfu (
     input wire i_vld,
     input exeInfo_t i_fuInfo,
 
+    output wire o_issue_success,
+    output wire o_issue_replay,
+    output iqIdx_t o_feedback_iqIdx,
+
     // from/to loadque
     load2que_if.m if_load2que,
     // from/to storeque/sbuffer
     stfwd_if.m if_stfwd,
     // from/to dcache
     load2dcache_if.m if_load2cache,
+
+    output wire o_exp_swk_vld,
+    output iprIdx_t o_exp_swk_iprd,
 
     // writeback to regfile
     input wire i_wb_stall,
@@ -42,29 +48,32 @@ module loadfu (
     output wire o_has_except,
     output exceptwbInfo_t o_exceptwbInfo
 );
+    assign o_exp_swk_vld = 0;
+
+    genvar i;
 
     reg s0_vld;
-    wire s0_continue;
     exeInfo_t s0_fuInfo;
 
     always_ff @(posedge clk) begin
         if (rst) begin
             s0_vld <= 0;
         end
-        else if (s0_continue) begin
+        else begin
             s0_vld <= i_vld;
             s0_fuInfo <= i_fuInfo;
         end
     end
-    wire [`WDEF(`XLEN/8)] s0_load_vec;
-    wire [`WDEF($clog2(`CACHELINE_SIZE))] s0_load_size;
     wire [`XDEF] s0_vaddr;
-    wire load_misaligned;
     assign s0_vaddr = s0_fuInfo.srcs[0] + s0_fuInfo.srcs[1];
+
+    wire [`WDEF(`XLEN/8)] s0_load_vec;
+    wire [`WDEF($clog2(8))] s0_load_size;
+    wire load_misaligned;
     assign s0_load_vec =
-    ((s0_fuInfo.micOp == MicOp_t::lb) || (s0_fuInfo.micOp == MicOp_t::lbu)) ? 8'b0000_0001 :
-    ((s0_fuInfo.micOp == MicOp_t::lh) || (s0_fuInfo.micOp == MicOp_t::lhu)) ? 8'b0000_0011 :
-    ((s0_fuInfo.micOp == MicOp_t::lw) || (s0_fuInfo.micOp == MicOp_t::lwu)) ? 8'b0000_1111 :
+    ((s0_fuInfo.micOp == MicOp_t::lb) || (s0_fuInfo.micOp == MicOp_t::lbu)) ? (8'b0000_0001 << s0_vaddr[2:0]) :
+    ((s0_fuInfo.micOp == MicOp_t::lh) || (s0_fuInfo.micOp == MicOp_t::lhu)) ? (8'b0000_0011 << s0_vaddr[2:0]) :
+    ((s0_fuInfo.micOp == MicOp_t::lw) || (s0_fuInfo.micOp == MicOp_t::lwu)) ? (8'b0000_1111 << s0_vaddr[2:0]) :
     8'b1111_1111;
 
     assign s0_load_size =
@@ -73,62 +82,60 @@ module loadfu (
     ((s0_fuInfo.micOp == MicOp_t::lw) || (s0_fuInfo.micOp == MicOp_t::lwu)) ? 4 :
     8 ;
 
-    assign load_misaligned = (s0_vaddr[3:0] & (s0_load_size - 1)) != 0;
+    assign load_misaligned = (s0_vaddr[2:0] & (s0_load_size - 1)) != 0;
 
     /********************/
+    assign o_stall = 0;
+
     // s0: send vaddr to tlb
     assign if_load2cache.s0_req = s0_vld;
-    assign if_load2cache.s0_lqIdx = s0_fuInfo.lq_idx;
+    assign if_load2cache.s0_lqIdx = s0_fuInfo.lqIdx;
     assign if_load2cache.s0_vaddr = s0_vaddr;  // fully addr
-
-    assign s0_continue = if_load2cache.s0_gnt;
-    assign o_stall = !if_load2cache.s0_gnt;
-
-    // notify loadQue
-    assign if_load2que.s0_lqIdx = s0_fuInfo.lq_idx;
-    assign if_load2que.s0_vld = s0_vld && s0_continue;
-    assign if_load2que.s0_vaddr = s0_vaddr;
-    assign if_load2que.s0_load_vec = s0_load_vec;
 
     // notify storeQue/storeBuffer
     assign if_stfwd.s0_vld = s0_vld;
-    assign if_stfwd.s0_lqIdx = s0_fuInfo.lq_idx;
-    assign if_stfwd.s0_sqIdx = s0_fuInfo.sq_idx;
+    assign if_stfwd.s0_lqIdx = s0_fuInfo.lqIdx;
+    assign if_stfwd.s0_sqIdx = s0_fuInfo.sqIdx;
     assign if_stfwd.s0_vaddr = s0_vaddr;
     assign if_stfwd.s0_load_vec = s0_load_vec;
 
     /********************/
     // s1: get paddr
     // except check
-    exeInfo_t s1_fuInfo;
-    reg [`WDEF(`XLEN/8)] s1_load_vec;
     reg s1_vld;
-    wire s1_cacherdy;
+    exeInfo_t s1_fuInfo;
+    reg [`XDEF] s1_vaddr;
+    reg [`WDEF(`XLEN/8)] s1_load_vec;
+    reg s1_misaligned;
 
-    wire s1_replay;
-    wire s1_continue;
+    wire s1_cacherdy;
     wire s1_conflict;
     wire s1_miss;
     wire s1_pagefault;
     wire s1_illegaAddr;
     wire s1_mmio;
-    wire s1_stfwd_data_rdy;
-    reg s1_misagained;
+    wire s1_stfwd_notRdy;
     paddr_t s1_paddr;
+
+    wire s1_replay;
+    wire s1_fault;
+    rv_trap_t::exception s1_ldexcept;
     always_ff @(posedge clk) begin
         if (rst) begin
             s1_vld <= 0;
         end
         else begin
-            s1_fuInfo <= s0_fuInfo;
-            s1_load_vec <= s0_load_vec;
             s1_vld <= s0_vld;
-            s1_misagained <= load_misaligned;
+            s1_fuInfo <= s0_fuInfo;
+            s1_vaddr <= s0_vaddr;
+            s1_load_vec <= s0_load_vec;
+            s1_misaligned <= load_misaligned;
         end
     end
 
-    assign if_load2cache.s1_req = s1_vld;
-
+    // if s0 misaligned, do not access memory
+    assign if_load2cache.s1_req = s1_vld && !s1_misaligned;
+    // get mmu check info
     assign s1_cacherdy = if_load2cache.s1_rdy;
     assign s1_conflict = if_load2cache.s1_cft;
     assign s1_miss = if_load2cache.s1_miss;
@@ -136,53 +143,53 @@ module loadfu (
     assign s1_illegaAddr = if_load2cache.s1_illegaAddr;
     assign s1_mmio = if_load2cache.s1_mmio;
     assign s1_paddr = if_load2cache.s1_paddr;
-    assign s1_stfwd_data_rdy = if_stfwd.s1_vaddr_match ? if_stfwd.s1_data_rdy : 1;  // if not exist match, default true
-    assign s1_replay = s1_vld && s1_conflict;
-    // actually specwake no need to careabout load except
-    assign s1_specwake = s1_vld && s1_stfwd_data_rdy && !(s1_conflict || s1_miss || s1_mmio || s1_pagefault || s1_illegaAddr || s1_misagained);
-    assign s1_continue = s1_vld && !s1_replay;
+
+    // get loadforward checko info
+    assign s1_stfwd_notRdy = if_stfwd.s1_vaddr_match ? !if_stfwd.s1_data_rdy : 0;  // if not exist match, default true
+
+    // replay if cache miss or conflict or ismmio or forward fail
+    assign s1_replay = s1_conflict || s1_miss || s1_mmio || s1_stfwd_notRdy;
+    // fault
+    assign s1_fault = s1_misaligned || s1_pagefault || s1_illegaAddr;
+    assign s1_ldexcept =
+        s1_misaligned ? rv_trap_t::loadMisaligned :
+        s1_pagefault ? rv_trap_t::loadPageFault :
+        s1_illegaAddr ? rv_trap_t::loadFault : rv_trap_t::loadFault;
 
     // if s0 cache was gnt
     // s1 must access for this request
     `ASSERT(s1_vld ? s1_cacherdy : 1);
 
-    // notify loadQue
-    assign if_load2que.s1_lqIdx = s1_fuInfo.lq_idx;
-    assign if_load2que.s1_tlbmiss = !s1_tlbhit;
-
     // notify storeque
-    assign if_stfwd.s1_vld = s1_vld;
-    assign if_stfwd.s1_lqIdx = s1_fuInfo.lq_idx;
-    assign if_stfwd.s1_sqIdx = s1_fuInfo.sq_idx;
+    assign if_stfwd.s1_vld = s1_vld && !(s1_replay || s1_fault);
     assign if_stfwd.s1_paddr = s1_paddr;
 
-    // if cache miss, load pipe should notify loadQue
+    assign o_issue_success = s1_vld && !(s1_replay);
+    assign o_issue_replay = s1_vld && s1_replay;
+    assign o_feedback_iqIdx = s1_fuInfo.iqIdx;
 
     /********************/
     // s2
     // get the dcache data
     // get the forward data
-    // if cachemiss, write the forward data to loadque
-    exeInfo_t s2_fuInfo;
     reg s2_vld;
-    reg s2_cachemiss;
-    vaddr_t s2_vaddr;
+    logic [`XDEF] s2_vaddr;
+    exeInfo_t s2_fuInfo;
+    paddr_t s2_paddr;
     wire s2_need_squash;
-    lqIdx_t s2_lqIdx;
     always_ff @(posedge clk) begin
         if (rst) begin
             s2_vld <= 0;
         end
-        else if (s1_continue) begin
-            s2_fuInfo <= s1_fuInfo;
-            s2_vld <= s1_vld;
-            s2_lqIdx <= s1_fuInfo.lq_idx;
-            s2_cachemiss <= s1_vld && (!s1_cachehit);
-        end
         else begin
-            s2_vld <= 0;
+            s2_vld <= s1_vld && !(s1_replay || s1_fault);
+            s2_vaddr <= s1_vaddr;
+            s2_fuInfo <= s1_fuInfo;
+            s2_paddr <= s1_paddr;
         end
     end
+    // low provability event
+    assign s2_need_squash = if_stfwd.s2_match_failed;
 
     wire [`WDEF(`CACHELINE_SIZE*8)] s2_cacheline;
     wire [`WDEF(8)] s2_split8[`CACHELINE_SIZE];
@@ -207,8 +214,8 @@ module loadfu (
     endgenerate
     wire [`WDEF(8)] s2_load8 = s2_split8[s2_vaddr[$clog2(`CACHELINE_SIZE)-1:0]];
     wire [`WDEF(16)] s2_load16 = s2_split16[s2_vaddr[$clog2(`CACHELINE_SIZE)-1:1]];
-    wire [`WDEF(32)] s2_load32 = s2_split16[s2_vaddr[$clog2(`CACHELINE_SIZE)-1:2]];
-    wire [`WDEF(64)] s2_load64 = s2_split16[s2_vaddr[$clog2(`CACHELINE_SIZE)-1:4]];
+    wire [`WDEF(32)] s2_load32 = s2_split32[s2_vaddr[$clog2(`CACHELINE_SIZE)-1:2]];
+    wire [`WDEF(64)] s2_load64 = s2_split64[s2_vaddr[$clog2(`CACHELINE_SIZE)-1:3]];
     // signed extension in s3
     assign s2_loadData =
     ((s2_fuInfo.micOp == MicOp_t::lb) || (s2_fuInfo.micOp == MicOp_t::lbu)) ? {56'd0, s2_load8} :
@@ -216,16 +223,12 @@ module loadfu (
     ((s2_fuInfo.micOp == MicOp_t::lw) || (s2_fuInfo.micOp == MicOp_t::lwu)) ? {32'd0, s2_load32} :
     s2_load64;
 
-    // notify loadQue, writeback forward data if cachemiss
-
-    assign if_load2que.s2_lqIdx = s2_fuInfo.lq_idx;
-    assign if_load2que.s2_finished = 0;
-    assign if_load2que.s2_except = 0;
-    assign if_load2que.s2_fwd = if_stfwd.s2_match && (!if_stfwd.s2_data_nrdy);
-    assign if_load2que.s2_match_vec = if_stfwd.s2_match_vec;
-    assign if_load2que.s2_fwd_data = if_stfwd.s2_fwd_data;
-
-    assign s2_need_squash = if_stfwd.s2_match_failed;
+    // notify loadQue
+    assign if_load2que.vld = s2_vld;
+    assign if_load2que.lqIdx = s2_fuInfo.lqIdx;
+    assign if_load2que.vaddr = s2_vaddr;
+    assign if_load2que.paddr = s2_paddr;
+    assign if_load2que.loadmask = 0;
 
     // merge data
     wire [`XDEF] merged_data;
@@ -252,36 +255,30 @@ module loadfu (
     exceptwbInfo_t exceptwbInfo;
     always_ff @(posedge clk) begin
         if (rst) begin
+            load_except <= 0;
             load_finished <= 0;
         end
         else begin
-            if (s1_pagefault || s1_illegaAddr || s1_misagained) begin
-                load_except <= 1;
-                // early finish due to exception
-                exceptwbInfo <= '{rob_idx : s1_fuInfo.rob_idx, except_type : rv_trap_t::loadMisaligneded};
-            end
-            else begin
-                load_except <= 0;
-            end
+            load_except <= s1_vld && s1_fault;
+            exceptwbInfo <= '{rob_idx : s1_fuInfo.robIdx, except_type : s1_ldexcept};
 
-            if (s2_vld) begin
-                load_finished <= 0;
-                commwbInfo <= '{
-                    rob_idx : s2_fuInfo.rob_idx,
-                    irob_idx : s2_fuInfo.irob_idx,
-                    use_imm : s2_fuInfo.use_imm,
-                    rd_wen : s2_fuInfo.rd_wen,
-                    iprd_idx : s2_fuInfo.iprd_idx,
-                    result : sext_data
-                };
-            end
+            load_finished <= s2_vld || load_except;
+            commwbInfo <= '{
+                rob_idx : s2_fuInfo.robIdx,
+                irob_idx : s2_fuInfo.irobIdx,
+                use_imm : s2_fuInfo.useImm,
+                rd_wen : s2_fuInfo.rdwen,
+                iprd_idx : s2_fuInfo.iprd,
+                result : (load_except ? 0 : sext_data)
+            };
         end
-
     end
 
     assign o_fu_finished = load_finished;
+    assign o_comwbInfo = commwbInfo;
 
-
+    assign o_has_except = load_except;
+    assign o_exceptwbInfo = exceptwbInfo;
 
 endmodule
 

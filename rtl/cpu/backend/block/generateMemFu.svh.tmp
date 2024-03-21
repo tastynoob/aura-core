@@ -1,0 +1,103 @@
+`ifdef YOU_NEED_DEFINE_THIS_MACRO
+// you must defined parameters outside:
+//  IQ_FUID, BLK_FUID
+
+wire[`WDEF(`NUMSRCS_INT)] srcBypassed;
+wire[`XDEF] bypassedData[`NUMSRCS_INT];
+wire[`XDEF] finalData[`NUMSRCS_INT];
+wire[`XDEF] extendImm = {{44{s1_irob_imm[BLK_FUID][19]}},s1_irob_imm[BLK_FUID]};
+
+// bypass
+bypass_sel
+#(
+    .WIDTH ( `BYPASS_WIDTH )
+)
+u_bypass_sel(
+    .rst           ( rst ),
+    .i_src_vld     ( i_glob_bp_vec     ),
+    .i_src_idx     ( i_glob_bp_iprd     ),
+    .i_src_data    ( i_glob_bp_data    ),
+    .i_target_idx  ( s1_issueState[IQ_FUID].iprs[0]  ),
+    .o_target_vld  ( srcBypassed[0]  ),
+    .o_target_data ( bypassedData[0] )
+);
+
+// select final data
+assign finalData[0] =
+    srcBypassed[0] ? bypassedData[0] :
+    i_iprs_data[BLK_FUID];
+`ifndef HAS_STDU
+    // ldu/stau
+    assign finalData[1] = extendImm;
+`else
+    // stdu
+    assign finalData[1] = 0;
+`endif
+
+`ifdef HAS_STAU
+    // clear imm immediately after issue
+    assign o_immB_clear_vld[BLK_FUID] = s1_issueVec[IQ_FUID] && s1_issueState[IQ_FUID].useImm;
+    assign o_immB_clear_idx[BLK_FUID] = s1_issueState[IQ_FUID].irobIdx;
+`endif
+
+exeInfo_t exeInfo;
+assign exeInfo = '{
+        default : 0,
+        ftqIdx : s1_issueState[IQ_FUID].ftqIdx,
+        robIdx : s1_issueState[IQ_FUID].robIdx,
+        irobIdx : s1_issueState[IQ_FUID].irobIdx,
+        lqIdx   : s1_issueState[IQ_FUID].lqIdx,
+        sqIdx   : s1_issueState[IQ_FUID].sqIdx,
+        rdwen : s1_issueState[IQ_FUID].rdwen,
+        iprd : s1_issueState[IQ_FUID].iprd,
+        useImm : s1_issueState[IQ_FUID].useImm,
+        issueQueId : s1_issueState[IQ_FUID].issueQueId,
+        micOp : s1_issueState[IQ_FUID].micOp,
+        srcs : finalData,
+        iqIdx : s1_issueState[IQ_FUID].iqIdx,
+
+        seqNum : s1_issueState[IQ_FUID].seqNum
+    };
+
+// generate fu
+`ifdef HAS_LDU
+    assign issueStall[IQ_FUID] = 0;
+    loadfu u_loadfu(
+        .clk            ( clk   ),
+        .rst            ( rst || i_squash_vld   ),
+
+        .o_stall        (           ),
+        .i_vld          ( s1_issueComplete[IQ_FUID] ),
+        .i_fuInfo       ( exeInfo   ),
+
+        .o_issue_success ( issueSuccess[IQ_FUID] ),
+        .o_issue_replay  ( issueReplay[IQ_FUID] ),
+        .o_feedback_iqIdx ( feedbackIdx[IQ_FUID] ),
+
+        .if_load2que    ( if_load2que[IQ_FUID]   ),
+        .if_stfwd       ( if_stfwd[IQ_FUID]      ),
+        .if_load2cache  ( if_load2cache[IQ_FUID] ),
+
+        .o_exp_swk_vld  ( wake_vec[IQ_FUID] ),
+        .o_exp_swk_iprd ( wake_iprd[IQ_FUID] ),
+
+        .i_wb_stall     ( 0    ),
+        .o_fu_finished  ( fu_finished[BLK_FUID] ),
+        .o_comwbInfo    ( comwbInfo[BLK_FUID]   ),
+
+        .o_has_except   ( ),
+        .o_exceptwbInfo ( )
+    );
+
+    // clear imm immediately after load finished
+    assign o_immB_clear_vld[BLK_FUID] = fu_finished[BLK_FUID] && comwbInfo[BLK_FUID].use_imm;
+    assign o_immB_clear_idx[BLK_FUID] = comwbInfo[BLK_FUID].irob_idx;
+`elsif HAS_STAU
+
+`elsif HAS_STDU
+    unimplemented
+`else
+    unimplemented
+`endif
+
+`endif
