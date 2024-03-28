@@ -261,11 +261,6 @@ module decoder (
     wire isCall = inst_JALR & (ilrd_idx == 1) & (ilrs1_idx == 1);
     wire isRet = inst_JALR & (ilrd_idx == 0) & (ilrs1_idx == 1) & (inst[31:20] == 0);
 
-    wire has_rd = !(isCondBranch || isStore) && (ilrd_idx != 0);
-    wire has_rs1 = !(inst_JAL);
-    wire has_rs2 = !(isImmMath || isUncondBranch);
-
-
     //jalr、load、opimm
     wire [19:0] inst_i_type_imm = {{8{inst[31]}}, inst[31:20]};
     //store
@@ -302,23 +297,13 @@ module decoder (
 
     /********************************************************/
     //regfile write enable
-    wire rd_wen = (ilrd_idx != 0) & (inst_LUI | inst_AUIPC | isUncondBranch | isImmMath | isIntMath | isCSR | isLoad);
+    wire rd_wen = (ilrd_idx != 0) && (inst_LUI | inst_AUIPC | isUncondBranch | isImmMath | isIntMath | isCSR | isLoad);
 
     //寄存器读使能1
-    wire ilrs1_ren =
-    (ilrs1_idx!=0 ) &
-    (inst_JALR   |
-    isCondBranch |
-    isLoad       |
-    isStore      |
-    isImmMath    |
-    isIntMath    |
-    inst_CSRRW   |
-    inst_CSRRS   |
-    inst_CSRRC);
+    wire ilrs1_ren = (ilrs1_idx!=0) && !(inst_LUI | inst_AUIPC | inst_JAL);
 
     //寄存器读使能2
-    wire ilrs2_ren = (ilrs2_idx != 0) & (isCondBranch | isStore | isIntMath);
+    wire ilrs2_ren = (ilrs2_idx!= 0) && (isCondBranch | isStore | isIntMath);
 
 
     //dispQue select
@@ -425,8 +410,8 @@ module decoder (
     assign o_decinfo.need_serialize = isCSR | isSYS;
     assign o_decinfo.rd_wen = rd_wen;
     assign o_decinfo.ilrd_idx = (rd_wen ? ilrd_idx : 0);
-    assign o_decinfo.ilrs_idx[0] = has_rs1 ? ilrs1_idx : 0;
-    assign o_decinfo.ilrs_idx[1] = has_rs2 ? ilrs2_idx : 0;
+    assign o_decinfo.ilrs_idx[0] = ilrs1_ren ? ilrs1_idx : 0;
+    assign o_decinfo.ilrs_idx[1] = ilrs2_ren ? ilrs2_idx : 0;
     assign o_decinfo.use_imm = use_imm && (!ismv);
     assign o_decinfo.dispQue_id = dispQue_id;
     assign o_decinfo.issueQue_id = issueQue_id;

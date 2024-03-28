@@ -18,8 +18,7 @@ wire[`XDEF] extendImm = {{44{s1_irob_imm[BLK_FUID][19]}},s1_irob_imm[BLK_FUID]};
     wire[`WDEF(5)] scu_zimm = s1_irob_imm[BLK_FUID][4:0];
     wire scu_write_csr =
             (s1_issueState[IQ_FUID].issueQueId == `SCUIQ_ID) &&
-            (s1_issueState[IQ_FUID].micOp >= MicOp_t::csrrw) &&
-            (s1_issueState[IQ_FUID].iprs[0] != 0);
+            (s1_issueState[IQ_FUID].micOp >= MicOp_t::csrrw);
 
     assign if_csrrw.access =
         s1_issueVec[IQ_FUID] && (s1_issueState[IQ_FUID].issueQueId == `SCUIQ_ID) &&

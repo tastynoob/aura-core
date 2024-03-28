@@ -79,7 +79,7 @@ module fetcher (
     );
 
 
-    reg stall_dueto_pcMisaligned;
+    reg fetchExcept_stall;
 
     wire toIcache_req;
     ftqIdx_t toIcache_ftqIdx;
@@ -110,7 +110,7 @@ module fetcher (
 
         .o_icache_fetch_req   (toIcache_req),
         .o_icache_fetch_ftqIdx(toIcache_ftqIdx),
-        .i_icache_fetch_rdy   (stall_dueto_pcMisaligned ? 0 : if_core_fetch.gnt),
+        .i_icache_fetch_rdy   (fetchExcept_stall ? 0 : if_core_fetch.gnt),
         .o_icache_fetchInfo   (toIcache_info),
 
         .i_read_ftqIdx      (i_read_ftqIdx),
@@ -128,7 +128,8 @@ module fetcher (
     // icache port
     // 3 stage icache
     /****************************************************************************************************/
-    wire pcMisaligned = toIcache_info.startAddr[0] == 1;
+    wire pcMisaligned = (toIcache_info.startAddr[0] == 1);
+    wire fetchFault = (toIcache_info.startAddr < `INIT_PC);
 
     assign if_core_fetch.req = toIcache_req;
     assign if_core_fetch.get2 = 1;
@@ -168,14 +169,14 @@ module fetcher (
     fetchEntry_t new_inst[`FTB_PREDICT_WIDTH/2];
 
     wire [`WDEF(`FTB_PREDICT_WIDTH/2)] new_inst_vld_wire;
-    assign new_inst_vld_wire = stall_dueto_pcMisaligned ? 1 : ((if_core_fetch.rsp && s2_fetch_vld) ? reordered_inst_OH : 0);
+    assign new_inst_vld_wire = fetchExcept_stall ? 1 : ((if_core_fetch.rsp && s2_fetch_vld) ? reordered_inst_OH : 0);
     always_ff @(posedge clk) begin
         int fa;
         if (rst || i_squash_vld || falsepred) begin
             new_inst_vld <= 0;
             s1_fetch_vld <= 0;
             s2_fetch_vld <= 0;
-            stall_dueto_pcMisaligned <= 0;
+            fetchExcept_stall <= 0;
             falsepred <= 0;
         end
         else begin
@@ -183,7 +184,7 @@ module fetcher (
 
             // s1:
             s1_fetch_vld <= toIcache_req && if_core_fetch.gnt && (!pcMisaligned) && (!i_backend_stall);
-            stall_dueto_pcMisaligned <= toIcache_req ? pcMisaligned : 0;
+            fetchExcept_stall <= toIcache_req ? (pcMisaligned || fetchFault) : 0;
             if (!i_backend_stall) begin
                 s1_ftqIdx <= toIcache_ftqIdx;
             end
@@ -230,8 +231,8 @@ module fetcher (
                             ftq_idx     : s2_ftqIdx,
                             ftqOffset   : reordered_ftqOffset[fa],
                             foldpc      : (s2_reordered_inst_pcs[fa] >> 1),
-                            has_except  : stall_dueto_pcMisaligned,
-                            except      : rv_trap_t::pcMisaligned,
+                            has_except  : fetchExcept_stall,
+                            except      : fetchFault ? rv_trap_t::fetchFault : rv_trap_t::pcMisaligned,
 
                             instmeta    : build_instmeta(s2_reordered_inst_pcs[fa], reordered_insts[fa])
                         };

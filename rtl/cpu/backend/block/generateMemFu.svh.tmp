@@ -85,8 +85,8 @@ assign exeInfo = '{
         .o_fu_finished  ( fu_finished[BLK_FUID] ),
         .o_comwbInfo    ( comwbInfo[BLK_FUID]   ),
 
-        .o_has_except   ( ),
-        .o_exceptwbInfo ( )
+        .o_has_except   ( has_except[BLK_FUID] ),
+        .o_exceptwbInfo ( exceptwbInfo[BLK_FUID] )
     );
 
     // clear imm immediately after load finished

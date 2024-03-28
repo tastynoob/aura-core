@@ -421,14 +421,5 @@ module ROB (
         end
     end
 
-    // used for debug
-    wire [`WDEF(`RENAME_WIDTH)] AAA_inserte_vec = (o_can_enq && i_enq_vld) ? i_enq_req : 0;
-
-    wire [`WDEF(`RENAME_WIDTH)] AAA_insert_ismv_nop = (o_can_enq && i_enq_vld) ? i_insert_rob_ismv & i_enq_req : 0;
-
-    wire [`WDEF(`COMPLETE_NUM)] AAA_fu_finished_vec = i_fu_finished;
-
-    wire [`WDEF(`COMMIT_WIDTH)] AAA_can_commit_vec = canCommit_vld;
-
 
 endmodule

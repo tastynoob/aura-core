@@ -214,6 +214,8 @@ module exeBlock (
 
     wire [`WDEF(MEMBLOCK_FUs)] memBlk_fu_finished;
     comwbInfo_t memBlk_comwbInfo[MEMBLOCK_FUs];
+    wire memBlk_exceptwb_vld;
+    exceptwbInfo_t memBlk_exceptwb;
 
     wire [`WDEF(`MEM_WBPORT_NUM)] memBlk_wk_vec;
     iprIdx_t memBlk_wk_iprd[`MEM_WBPORT_NUM];
@@ -247,8 +249,8 @@ module exeBlock (
         .o_fu_finished(memBlk_fu_finished),
         .o_comwbInfo  (memBlk_comwbInfo),
 
-        .o_exceptwb_vld (),
-        .o_exceptwb_info(),
+        .o_exceptwb_vld (memBlk_exceptwb_vld),
+        .o_exceptwb_info(memBlk_exceptwb),
 
         .if_loadwake(if_loadwake),
 
@@ -378,7 +380,12 @@ module exeBlock (
     assign o_branchwb_vld = intBlock_branchwb_vld;
     assign o_branchwb_info = intBlock_branchwb;
 
-    assign o_exceptwb_vld = intBlock_exceptwb_vld;
-    assign o_exceptwb_info = intBlock_exceptwb;
+    assign o_exceptwb_vld =
+        intBlock_exceptwb_vld || memBlk_exceptwb_vld;
+    assign o_exceptwb_info =
+        (intBlock_exceptwb_vld && memBlk_exceptwb_vld) ? (
+            intBlock_exceptwb.rob_idx < memBlk_exceptwb.rob_idx ? intBlock_exceptwb : memBlk_exceptwb
+        ) :
+        intBlock_exceptwb_vld ? intBlock_exceptwb : memBlk_exceptwb;
 
 endmodule

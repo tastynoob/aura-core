@@ -105,6 +105,9 @@ module memBlock #(
     wire [`WDEF(FU_NUM)] fu_finished;
     comwbInfo_t comwbInfo[FU_NUM];
 
+    wire[`WDEF(FU_NUM)] has_except;
+    exceptwbInfo_t exceptwbInfo[FU_NUM];
+
     wire LSQ_ready, IQ0_ready, IQ1_ready;
 
     wire [`WDEF(INPUT_NUM)] select_ldu, select_stu;
@@ -309,6 +312,7 @@ module memBlock #(
     // IQ1/2: 2 stdu + 2 stau
     /****************************************************************************************************/
     assign fu_finished[3:2] = 0;
+    assign has_except[3:2] = 0;
     assign o_immB_clear_vld[3:2] = 0;
     assign IQ1_ready = 1;
 
@@ -339,6 +343,32 @@ module memBlock #(
     );
 
 
+    logic[`WDEF($clog2(FU_NUM))] oldest_except;
+    robIdx_t oldest_except_robIdx;
+    always_comb begin
+        int ca;
+        oldest_except = 0;
+        oldest_except_robIdx = exceptwbInfo[0].rob_idx;
+        for (ca=0;ca<FU_NUM;ca=ca+1) begin
+            if (has_except[ca] && (oldest_except_robIdx > exceptwbInfo[ca].rob_idx)) begin
+                oldest_except = ca;
+                oldest_except_robIdx = exceptwbInfo[ca].rob_idx;
+            end
+        end
+    end
+
+    reg except_vld;
+    exceptwbInfo_t final_except;
+    always_ff @( posedge clk ) begin
+        if (rst || i_squash_vld) begin
+            except_vld <= 0;
+        end
+        else begin
+            except_vld <= |has_except;
+            final_except <= exceptwbInfo[oldest_except];
+        end
+    end
+
 
 
 
@@ -356,5 +386,8 @@ module memBlock #(
 
     assign o_fu_finished = fu_finished;
     assign o_comwbInfo = comwbInfo;
+
+    assign o_exceptwb_vld = except_vld;
+    assign o_exceptwb_info = final_except;
 
 endmodule

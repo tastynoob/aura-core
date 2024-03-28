@@ -72,7 +72,7 @@ module dispatch (
     assign insert_rob_vld = i_enq_vld;
     generate
         for (i = 0; i < `RENAME_WIDTH; i = i + 1) begin
-            assign o_insert_rob_ismv[i] = i_enq_inst[i].ismv;
+            assign o_insert_rob_ismv[i] = i_enq_inst[i].ismv || (i_enq_inst[i].dispQue_id == `UNKOWNBLOCK_ID);
             // new intDQ entry, skip mv
             assign insert_intDQ_vld[i] = i_enq_vld[i] && (i_enq_inst[i].dispQue_id == `INTBLOCK_ID) && (!i_enq_inst[i].ismv);
             // new memDQ entry
@@ -164,19 +164,14 @@ module dispatch (
     // delay it by one cycle
     /****************************************************************************************************/
 
-    reg [`WDEF(`RENAME_WIDTH)] has_except;
+    logic [`WDEF(`RENAME_WIDTH)] has_except;
     exceptwbInfo_t oldest_except_info;
-    always_ff @(posedge clk) begin
+    always_comb begin
         int fa;
-        if (rst) begin
-            has_except <= 0;
+        for (fa = `RENAME_WIDTH - 1; fa >= 0; fa = fa - 1) begin
+            has_except[fa] = insert_rob_vld[fa] && i_enq_inst[fa].has_except && can_dispatch;
         end
-        else begin
-            for (fa = `RENAME_WIDTH - 1; fa >= 0; fa = fa - 1) begin
-                has_except[fa] <= insert_rob_vld[fa] && i_enq_inst[fa].has_except && can_dispatch;
-            end
-            oldest_except_info <= '{rob_idx : oldest_except_robIdx, except_type: oldest_except};
-        end
+        oldest_except_info = '{rob_idx : oldest_except_robIdx, except_type: oldest_except};
     end
 
     assign o_exceptwb_vld = (|has_except);
