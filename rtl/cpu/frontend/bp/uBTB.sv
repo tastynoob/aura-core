@@ -26,9 +26,7 @@ typedef struct packed {
     logic [`WDEF($clog2(`FTB_PREDICT_WIDTH))] fallthruOffset;
     logic [`WDEF(`TARGET_WIDTH)] targetAddr;
     BranchType::_ branch_type;
-} uBTBEntry_t;
-
-
+} uFTBEntry_t;
 
 module uBTB #(
     parameter int DEPTH = 32
@@ -46,9 +44,9 @@ module uBTB #(
     input wire [`WDEF(`BRHISTORYLENGTH)] i_arch_gbh,
     input uBTBInfo_t i_updateInfo
 );
-    localparam int PHTDEPTH = DEPTH * 2;
+    localparam int PHTDEPTH = DEPTH * 4;
 
-    uBTBEntry_t btb[DEPTH];
+    uFTBEntry_t uftb[DEPTH];
     reg [`WDEF(2)] pht[PHTDEPTH];
 
     // lookup
@@ -59,9 +57,9 @@ module uBTB #(
     assign index_pht = i_lookup_pc[$clog2(PHTDEPTH)+1:2] ^ i_gbh[$clog2(PHTDEPTH)-1:0];
     assign tag = (i_lookup_pc[`TAG_WIDTH:1] ^ i_lookup_pc[2*`TAG_WIDTH:`TAG_WIDTH+1]);
 
-    uBTBEntry_t indexed_data;
+    uFTBEntry_t indexed_data;
     wire [`WDEF(2)] indexed_scnt;
-    assign indexed_data = btb[index_btb];
+    assign indexed_data = uftb[index_btb];
     assign indexed_scnt = pht[index_pht];
 
     wire hit = (indexed_data.tag == tag) && indexed_data.vld;
@@ -96,7 +94,7 @@ module uBTB #(
         int fa;
         if (rst) begin
             for (fa = 0; fa < DEPTH; fa = fa + 1) begin
-                btb[fa].vld = 0;
+                uftb[fa].vld = 0;
             end
             for (fa = 0; fa < PHTDEPTH; fa = fa + 1) begin
                 pht[fa] = 1;
@@ -105,7 +103,7 @@ module uBTB #(
         else begin
             ubtb_loookup(i_lookup_pc, fallthruAddr, targetAddr, hit, taken, index_btb);
             if (i_update) begin
-                btb[uindex_btb] <= '{
+                uftb[uindex_btb] <= '{
                     vld : 1,
                     tag : utag,
                     fallthruOffset : ufallthruOffset,

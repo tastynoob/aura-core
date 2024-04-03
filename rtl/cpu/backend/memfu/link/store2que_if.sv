@@ -9,15 +9,11 @@
 interface store2que_if;
     // stau
     logic vld;
-    lqIdx_t lqIdx;
     sqIdx_t sqIdx;
-    logic[`XDEF] vaddr;
+    logic [`XDEF] vaddr;
     paddr_t paddr;
+    logic [`XDEF] data;  // only for stdu
 
-    // stdu
-    logic vld;
-    sqIdx_t sqIdx;
-    logic[`XDEF] data;
-
+    modport m(output vld, output sqIdx, output vaddr, output paddr, output data);
 
 endinterface

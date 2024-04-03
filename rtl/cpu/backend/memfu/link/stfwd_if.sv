@@ -1,4 +1,4 @@
-
+`include "backend_define.svh"
 
 
 // use virtual addr forward
@@ -10,7 +10,7 @@ interface stfwd_if;
     // s0: send forward request
     // m->s
     logic s0_vld;
-    lqIdx_t s0_lqIdx;  // used for writebackto lq
+    lqIdx_t s0_lqIdx;
     sqIdx_t s0_sqIdx;  // store age small than load
     logic [`XDEF] s0_vaddr;
     logic [`WDEF(`XLEN/8)] s0_load_vec;

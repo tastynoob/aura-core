@@ -261,7 +261,6 @@ module ROB (
     wire [`WDEF(`COMMIT_WIDTH)] temp_0;  // which inst can be committed
     wire [`WDEF(`COMMIT_WIDTH)] temp_1;  // one hot: which one is the shr handled
     generate
-
         for (i = 0; i < `COMMIT_WIDTH; i = i + 1) begin
             assign shr_match_vec[i] = willCommit_idx[i] == shr.rob_idx.idx;
             if (i == 0) begin

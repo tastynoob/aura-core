@@ -100,8 +100,6 @@ package rv_trap_t;
         loadPageFault = 13,
         storePageFault = 15,
         //NOTE:24-31/48-63, designated for custom use
-        //math compute
-        badDivisor = 24,  // div/fdiv, it would not to throw trap in standard riscv
         reserved_exception
     } exception;
     typedef enum logic [

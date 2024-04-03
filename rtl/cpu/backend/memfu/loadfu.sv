@@ -88,12 +88,12 @@ module loadfu (
     assign o_stall = 0;
 
     // s0: send vaddr to tlb
-    assign if_load2cache.s0_req = s0_vld;
+    assign if_load2cache.s0_req = s0_vld && !load_misaligned;
     assign if_load2cache.s0_lqIdx = s0_fuInfo.lqIdx;
     assign if_load2cache.s0_vaddr = s0_vaddr;  // fully addr
 
     // notify storeQue/storeBuffer
-    assign if_stfwd.s0_vld = s0_vld;
+    assign if_stfwd.s0_vld = s0_vld && !load_misaligned;
     assign if_stfwd.s0_lqIdx = s0_fuInfo.lqIdx;
     assign if_stfwd.s0_sqIdx = s0_fuInfo.sqIdx;
     assign if_stfwd.s0_vaddr = s0_vaddr;

@@ -133,29 +133,29 @@ module StoreSet #(
             // violation update
             // TODO:
             // s1: lookup ssit
-            assert (i_violation ? (!violation) : 1)
-                if (i_violation) begin
-                    violation <= 1;
-                    if (ssit_vld[i_vio_store_foldpc]) begin
-                        s1_vio_store_found <= 1;
-                        s1_vio_store_ssid <= ssit[i_vio_store_foldpc];
-                    end
-                    else begin
-                        s1_vio_store_ssid <= i_vio_store_foldpc;
-                    end
-                    if (ssit_vld[i_vio_load_foldpc]) begin
-                        s1_vio_load_found <= 1;
-                        s1_vio_load_ssid <= ssit[i_vio_load_foldpc];
-                    end
-                    else begin
-                        s1_vio_load_ssid <= i_vio_load_foldpc;
-                    end
-                    s1_vio_store_index <= i_vio_store_foldpc;
-                    s1_vio_load_index <= i_vio_load_foldpc;
+            assert (i_violation ? (!violation) : 1);
+            if (i_violation) begin
+                violation <= 1;
+                if (ssit_vld[i_vio_store_foldpc]) begin
+                    s1_vio_store_found <= 1;
+                    s1_vio_store_ssid <= ssit[i_vio_store_foldpc];
                 end
                 else begin
-                    violation <= 0;
+                    s1_vio_store_ssid <= i_vio_store_foldpc;
                 end
+                if (ssit_vld[i_vio_load_foldpc]) begin
+                    s1_vio_load_found <= 1;
+                    s1_vio_load_ssid <= ssit[i_vio_load_foldpc];
+                end
+                else begin
+                    s1_vio_load_ssid <= i_vio_load_foldpc;
+                end
+                s1_vio_store_index <= i_vio_store_foldpc;
+                s1_vio_load_index <= i_vio_load_foldpc;
+            end
+            else begin
+                violation <= 0;
+            end
             // s2: update ssit table
             if (violation) begin
                 if (vio_mode == 2'b00) begin
