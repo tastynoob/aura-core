@@ -25,9 +25,6 @@ def printPipe(res):
         i+=1
     print('[' + ''.join(line) + ']', '[sn %s pc %s]' % (sn, pc), disass)
 
-    
-
-
 def fparser(file):
     fs = open(file, 'r')
     for line in fs.readlines():

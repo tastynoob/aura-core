@@ -71,6 +71,7 @@ module stafu (
     reg s1_vld;
     reg s1_misaligned;
     logic [`XDEF] s1_vaddr;
+    reg[`WDEF($clog2(8))] s1_storemask;
     exeInfo_t s1_fuInfo;
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -80,6 +81,7 @@ module stafu (
         else begin
             s1_vld <= s0_vld;
             s1_vaddr <= s0_vaddr;
+            s1_storemask <= s0_store_vec;
             s1_fuInfo <= s0_fuInfo;
             s1_misaligned <= store_misaligned;
         end
@@ -88,22 +90,22 @@ module stafu (
     wire s1_replay = if_sta2mmu.s1_miss | if_sta2mmu.s1_mmio;
     wire s1_fault = s1_misaligned | if_sta2mmu.s1_pagefault | if_sta2mmu.s1_illegaAddr;
 
+    // notify IQ
+    assign o_issue_success = s1_vld && (!s1_replay);
+    assign o_issue_replay = s1_vld && s1_replay;
+    assign o_feedback_iqIdx = s1_fuInfo.iqIdx;
+
     // write back storeque
     assign if_sta2que.vld = s1_vld && !s1_replay && !s1_fault;
     assign if_sta2que.sqIdx = s1_fuInfo.sqIdx;
     assign if_sta2que.vaddr = s1_vaddr;
     assign if_sta2que.paddr = if_sta2mmu.s1_paddr;
 
-    // notify IQ
-    assign o_issue_success = s1_vld && (!s1_replay);
-    assign o_issue_replay = s1_vld && s1_replay;
-    assign o_feedback_iqIdx = s1_fuInfo.iqIdx;
-
     // check violation
-    assign if_staviocheck.vld = s2_vld;
-    assign if_staviocheck.sqIdx = s2_fuInfo.sqIdx;
+    assign if_staviocheck.vld = s1_vld && !s1_replay && !s1_fault;
+    assign if_staviocheck.sqIdx = s1_fuInfo.sqIdx;
     assign if_staviocheck.paddr = if_sta2mmu.s1_paddr;
-    assign if_staviocheck.mask = 0;
+    assign if_staviocheck.mask = s1_storemask;
 
     // s1: write except
     assign o_has_except = s1_vld && s1_fault;
@@ -121,7 +123,7 @@ module stafu (
             rv_trap_t::storeFault
         };
 
-    // s2: check violation finish
+    // s2: get vio result
     reg s2_vld;
     exeInfo_t s2_fuInfo;
     always_ff @(posedge clk) begin

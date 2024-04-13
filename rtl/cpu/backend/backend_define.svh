@@ -225,6 +225,12 @@ typedef struct {
     iprIdx_t prev_iprd_idx;
 } renameCommitInfo_t;
 
+typedef struct {
+    logic vld;
+    logic[`XDEF] npc;
+    robIdx_t robIdx;
+} reExecInfo_t;
+
 
 typedef struct {
     logic [`WDEF(`MEMDEP_FOLDPC_WIDTH)] store_foldpc;

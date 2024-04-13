@@ -1,4 +1,6 @@
-# aura-core
+# aura-core (my undergraduate graduation project)
+
+
 
 ## Architecture
 

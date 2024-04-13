@@ -2,11 +2,6 @@
 
 
 
-
-
-
-
-
 module random_rep #(
     parameter int SETS = 32,
     parameter int WAYS = 4
