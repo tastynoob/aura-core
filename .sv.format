@@ -1,4 +1,4 @@
---column_limit=120
+--column_limit=80
 --indentation_spaces=4
 --line_break_penalty=4
 --wrap_spaces=4

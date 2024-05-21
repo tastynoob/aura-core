@@ -21,12 +21,14 @@ module exeBlock (
     output irobIdx_t o_immB_clear_idx[`IMMBUFFER_CLEARPORT_NUM],
 
     // read ftq_startAddress (to ftq)
-    output ftqIdx_t o_read_ftqIdx[`BRU_NUM],
-    input wire [`XDEF] i_read_ftqStartAddr[`BRU_NUM],
-    input wire [`XDEF] i_read_ftqNextAddr[`BRU_NUM],
+    output ftqIdx_t o_read_ftqIdx[`BRU_NUM + `LDU_NUM + `STU_NUM],
+    input wire [`XDEF] i_read_ftqStartAddr[`BRU_NUM + `LDU_NUM + `STU_NUM],
+    input wire [`XDEF] i_read_ftqNextAddr[`BRU_NUM + `LDU_NUM + `STU_NUM],
     // read ftqOffste (to rob)
-    output wire [`WDEF($clog2(`ROB_SIZE))] o_read_robIdx[`BRU_NUM],
-    input ftqOffset_t i_read_ftqOffset[`BRU_NUM],
+    output wire [
+    `WDEF($clog2(`ROB_SIZE))
+    ] o_read_robIdx[`BRU_NUM + `LDU_NUM + `STU_NUM],
+    input ftqOffset_t i_read_ftqOffset[`BRU_NUM + `LDU_NUM + `STU_NUM],
 
     // csr access
     input csr_in_pack_t i_csr_pack,
@@ -40,6 +42,10 @@ module exeBlock (
     // branch writeback (branch taken or mispred)
     output wire [`WDEF(`BRU_NUM)] o_branchwb_vld,
     output branchwbInfo_t o_branchwb_info[`BRU_NUM],
+
+    input wire [`WDEF($clog2(`COMMIT_WIDTH))] i_committed_stores,
+    input wire [`WDEF($clog2(`COMMIT_WIDTH))] i_committed_loads,
+
     // except writeback
     output wire o_exceptwb_vld,
     output exceptwbInfo_t o_exceptwb_info
@@ -166,12 +172,12 @@ module exeBlock (
         .if_csrrw  (if_csrrw),
         .if_syscall(if_syscall),
 
-        .o_read_ftqIdx      (o_read_ftqIdx),
-        .i_read_ftqStartAddr(i_read_ftqStartAddr),
-        .i_read_ftqNextAddr (i_read_ftqNextAddr),
+        .o_read_ftqIdx      (o_read_ftqIdx[0:1]),
+        .i_read_ftqStartAddr(i_read_ftqStartAddr[0:1]),
+        .i_read_ftqNextAddr (i_read_ftqNextAddr[0:1]),
 
-        .o_read_robIdx   (o_read_robIdx),
-        .i_read_ftqOffset(i_read_ftqOffset),
+        .o_read_robIdx   (o_read_robIdx[0:1]),
+        .i_read_ftqOffset(i_read_ftqOffset[0:1]),
 
         .i_wb_stall   (0),
         .o_fu_finished(intBlk_fu_finished),
@@ -245,12 +251,21 @@ module exeBlock (
         .o_immB_clear_vld(o_immB_clear_vld[7:4]),
         .o_immB_clear_idx(o_immB_clear_idx[4:7]),
 
+        .o_read_ftqIdx      (o_read_ftqIdx[2:5]),
+        .i_read_ftqStartAddr(i_read_ftqStartAddr[2:5]),
+
+        .o_read_robIdx   (o_read_robIdx[2:5]),
+        .i_read_ftqOffset(i_read_ftqOffset[2:5]),
+
         .i_wb_stall   (0),
         .o_fu_finished(memBlk_fu_finished),
         .o_comwbInfo  (memBlk_comwbInfo),
 
         .o_exceptwb_vld (memBlk_exceptwb_vld),
         .o_exceptwb_info(memBlk_exceptwb),
+
+        .i_committed_stores(i_committed_stores),
+        .i_committed_loads (i_committed_loads),
 
         .if_loadwake(if_loadwake),
 
@@ -380,8 +395,7 @@ module exeBlock (
     assign o_branchwb_vld = intBlock_branchwb_vld;
     assign o_branchwb_info = intBlock_branchwb;
 
-    assign o_exceptwb_vld =
-        intBlock_exceptwb_vld || memBlk_exceptwb_vld;
+    assign o_exceptwb_vld = intBlock_exceptwb_vld || memBlk_exceptwb_vld;
     assign o_exceptwb_info =
         (intBlock_exceptwb_vld && memBlk_exceptwb_vld) ? (
             intBlock_exceptwb.rob_idx < memBlk_exceptwb.rob_idx ? intBlock_exceptwb : memBlk_exceptwb

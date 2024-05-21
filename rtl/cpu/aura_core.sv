@@ -23,9 +23,9 @@ module aura_core (
 
     wire [`WDEF(`BRU_NUM)] branchwb_vld;
     branchwbInfo_t branchwb_info[`BRU_NUM];
-    ftqIdx_t read_ftqIdx[`BRU_NUM];
-    wire [`XDEF] read_ftqStartAddr[`BRU_NUM];
-    wire [`XDEF] read_ftqNextAddr[`BRU_NUM];
+    ftqIdx_t read_ftqIdx[`BRU_NUM + `LDU_NUM + `STU_NUM];
+    wire [`XDEF] read_ftqStartAddr[`BRU_NUM + `LDU_NUM + `STU_NUM];
+    wire [`XDEF] read_ftqNextAddr[`BRU_NUM + `LDU_NUM + `STU_NUM];
     wire backend_stall;
     wire [`WDEF(`FETCH_WIDTH)] fetch_inst_vld;
     fetchEntry_t fetch_inst[`FETCH_WIDTH];

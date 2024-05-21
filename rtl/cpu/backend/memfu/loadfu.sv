@@ -92,7 +92,7 @@ module loadfu (
     assign if_load2cache.s0_lqIdx = s0_fuInfo.lqIdx;
     assign if_load2cache.s0_vaddr = s0_vaddr;  // fully addr
 
-    // notify storeQue/storeBuffer
+    // notify storeQue/storeBuffer to forward
     assign if_stfwd.s0_vld = s0_vld && !load_misaligned;
     assign if_stfwd.s0_lqIdx = s0_fuInfo.lqIdx;
     assign if_stfwd.s0_sqIdx = s0_fuInfo.sqIdx;
@@ -160,7 +160,7 @@ module loadfu (
     // s1 must access for this request
     `ASSERT(s1_vld ? s1_cacherdy : 1);
 
-    // notify storeque
+    // forward notify storeque
     assign if_stfwd.s1_vld = s1_vld && !(s1_replay || s1_fault);
     assign if_stfwd.s1_paddr = s1_paddr;
 
@@ -174,6 +174,7 @@ module loadfu (
     // get the forward data
     reg s2_vld;
     logic [`XDEF] s2_vaddr;
+    reg [`WDEF(`XLEN/8)] s2_load_vec;
     exeInfo_t s2_fuInfo;
     paddr_t s2_paddr;
     wire s2_need_squash;
@@ -184,6 +185,7 @@ module loadfu (
         else begin
             s2_vld <= s1_vld && !(s1_replay || s1_fault);
             s2_vaddr <= s1_vaddr;
+            s2_load_vec <= s1_load_vec;
             s2_fuInfo <= s1_fuInfo;
             s2_paddr <= s1_paddr;
         end
@@ -226,9 +228,14 @@ module loadfu (
     // notify loadQue
     assign if_load2que.vld = s2_vld;
     assign if_load2que.lqIdx = s2_fuInfo.lqIdx;
+    assign if_load2que.sqIdx = s2_fuInfo.sqIdx;
     assign if_load2que.vaddr = s2_vaddr;
     assign if_load2que.paddr = s2_paddr;
-    assign if_load2que.loadmask = 0;
+    assign if_load2que.loadmask = s2_load_vec;
+    assign if_load2que.robIdx = s2_fuInfo.robIdx;
+    assign if_load2que.pc = s2_fuInfo.pc;
+
+
 
     // merge data
     wire [`XDEF] merged_data;

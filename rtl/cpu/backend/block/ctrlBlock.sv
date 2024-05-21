@@ -25,8 +25,10 @@ module ctrlBlock (
     input irobIdx_t i_clear_irob_idx[`IMMBUFFER_CLEARPORT_NUM],
 
     // read ftqOffset (exu read from rob)
-    input wire [`WDEF($clog2(`ROB_SIZE))] i_read_ftqOffset_idx[`BRU_NUM],
-    output ftqOffset_t o_read_ftqOffset_data[`BRU_NUM],
+    input wire [
+    `WDEF($clog2(`ROB_SIZE))
+    ] i_read_ftqOffset_idx[`BRU_NUM + `LDU_NUM + `STU_NUM],
+    output ftqOffset_t o_read_ftqOffset_data[`BRU_NUM + `LDU_NUM + `STU_NUM],
 
     // write back, from exu
     // common writeback
@@ -56,6 +58,9 @@ module ctrlBlock (
     output wire o_read_ftq_Vld,
     output ftqIdx_t o_read_ftqIdx,
     input wire [`XDEF] i_read_ftqStartAddr,
+
+    output wire [`WDEF($clog2(`COMMIT_WIDTH))] o_committed_stores,
+    output wire [`WDEF($clog2(`COMMIT_WIDTH))] o_committed_loads,
 
     output wire o_squash_vld,
     output squashInfo_t o_squashInfo
@@ -284,11 +289,11 @@ module ctrlBlock (
         .i_read_ftqOffset_idx (i_read_ftqOffset_idx),
         .o_read_ftqOffset_data(o_read_ftqOffset_data),
 
-        .i_fu_finished  (i_fu_finished),
-        .i_comwbInfo    (i_comwbInfo),
-        .i_branchwb_vld (i_branchwb_vld),
+        .i_fu_finished(i_fu_finished),
+        .i_comwbInfo(i_comwbInfo),
+        .i_branchwb_vld(i_branchwb_vld),
         .i_branchwb_info(i_branchwb_info),
-        .i_exceptwb_vld (i_exceptwb_vld || toROB_disp_exceptwb_vld),
+        .i_exceptwb_vld(i_exceptwb_vld || toROB_disp_exceptwb_vld),
         .i_exceptwb_info(i_exceptwb_vld ? i_exceptwb_info : toROB_disp_exceptwb_info),
 
         .o_commit_vld    (o_commit_vld),
@@ -303,6 +308,8 @@ module ctrlBlock (
         .o_read_ftqIdx      (o_read_ftqIdx),
         .i_read_ftqStartAddr(i_read_ftqStartAddr),
 
+        .o_committed_stores      (o_committed_stores),
+        .o_committed_loads       (o_committed_loads),
         .o_can_dispatch_serialize(toDisp_disp_serialize),
         .o_commit_serialized_inst(toDisp_commit_serialize),
         .o_squash_vld            (o_squash_vld),

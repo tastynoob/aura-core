@@ -23,6 +23,9 @@ module stafu (
     staviocheck_if.m if_staviocheck,
     store2que_if.m if_sta2que,
 
+    output wire o_fu_finished,
+    output comwbInfo_t o_comwbInfo,
+
     output wire o_has_except,
     output exceptwbInfo_t o_exceptwbInfo
 );
@@ -35,7 +38,7 @@ module stafu (
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            s0_vld;
+            s0_vld <= 0;
         end
         else begin
             s0_vld <= i_vld;
@@ -47,7 +50,7 @@ module stafu (
     wire [`XDEF] s0_vaddr;
     assign s0_vaddr = s0_fuInfo.srcs[0] + s0_fuInfo.srcs[1];
 
-    wire [`WDEF(`XLEN/8)] s0_store_vec;
+    wire [`WDEF(`XLEN/8)] s0_store_vec;  // 8 byte aligned
     wire [`WDEF($clog2(8))] s0_store_size;
     wire store_misaligned;
     assign s0_store_vec =
@@ -71,7 +74,7 @@ module stafu (
     reg s1_vld;
     reg s1_misaligned;
     logic [`XDEF] s1_vaddr;
-    reg[`WDEF($clog2(8))] s1_storemask;
+    reg [`WDEF($clog2(8))] s1_storemask;
     exeInfo_t s1_fuInfo;
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -98,8 +101,10 @@ module stafu (
     // write back storeque
     assign if_sta2que.vld = s1_vld && !s1_replay && !s1_fault;
     assign if_sta2que.sqIdx = s1_fuInfo.sqIdx;
+    assign if_sta2que.robIdx = s1_fuInfo.robIdx;
     assign if_sta2que.vaddr = s1_vaddr;
     assign if_sta2que.paddr = if_sta2mmu.s1_paddr;
+    assign if_sta2que.storemask = s1_storemask;
 
     // check violation
     assign if_staviocheck.vld = s1_vld && !s1_replay && !s1_fault;
@@ -123,13 +128,17 @@ module stafu (
             rv_trap_t::storeFault
         };
 
-    // s2: get vio result
+    // s2: get vio result, notify rob
+    wire violation = if_staviocheck.vio;
+    robIdx_t vioload_robIdx = if_staviocheck.vioload_robIdx;
+    robIdx_t viostore_robIdx = s2_fuInfo.robIdx;
+    wire [`XDEF] vioload_pc = if_staviocheck.vioload_pc;
+    wire [`XDEF] viostore_pc = s2_fuInfo.pc;
     reg s2_vld;
     exeInfo_t s2_fuInfo;
     always_ff @(posedge clk) begin
         if (rst) begin
             s2_vld <= 0;
-            store_finished <= 0;
         end
         else begin
             s2_vld <= s1_vld;
@@ -139,15 +148,26 @@ module stafu (
 
     // s3: store finish
     reg store_finished;
+    comwbInfo_t commwbInfo;
     always_ff @(posedge clk) begin
         if (rst) begin
             store_finished <= 0;
         end
         else begin
             store_finished <= s2_vld;
-            
+            commwbInfo <= '{
+                rob_idx : s2_fuInfo.robIdx,
+                irob_idx : s2_fuInfo.irobIdx,
+                use_imm : 0,
+                rd_wen : 0,
+                iprd_idx : 0,
+                result : 0
+            };
         end
     end
+
+    assign o_fu_finished = store_finished;
+    assign o_comwbInfo = commwbInfo;
 
 
 endmodule

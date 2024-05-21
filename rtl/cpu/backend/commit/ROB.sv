@@ -67,8 +67,10 @@ module ROB (
     output robIdx_t o_alloc_robIdx[`RENAME_WIDTH],
 
     // exu read ftqOffset (exu read from rob)
-    input wire [`WDEF($clog2(`ROB_SIZE))] i_read_ftqOffset_idx[`BRU_NUM],
-    output ftqOffset_t o_read_ftqOffset_data[`BRU_NUM],
+    input wire [
+    `WDEF($clog2(`ROB_SIZE))
+    ] i_read_ftqOffset_idx[`BRU_NUM + `LDU_NUM + `STU_NUM],
+    output ftqOffset_t o_read_ftqOffset_data[`BRU_NUM + `LDU_NUM + `STU_NUM],
 
     // write back, from exu
     // common writeback
@@ -99,6 +101,8 @@ module ROB (
     input wire [`XDEF] i_read_ftqStartAddr,
 
     // pipeline control
+    output wire [`WDEF($clog2(`COMMIT_WIDTH))] o_committed_stores,
+    output wire [`WDEF($clog2(`COMMIT_WIDTH))] o_committed_loads,
     output wire o_can_dispatch_serialize,
     output wire o_commit_serialized_inst,
     output wire o_squash_vld,
@@ -127,7 +131,10 @@ module ROB (
     wire [`WDEF($clog2(`ROB_SIZE))] alloc_idx[`RENAME_WIDTH];
     generate
         for (i = 0; i < `RENAME_WIDTH; i = i + 1) begin
-            assign o_alloc_robIdx[i] = '{flipped : ptr_flipped[i], idx     : alloc_idx[i]};
+            assign o_alloc_robIdx[i] = '{
+                    flipped : ptr_flipped[i],
+                    idx     : alloc_idx[i]
+                };
         end
     endgenerate
     wire [`WDEF($clog2(`ROB_SIZE))] finished_robIdx[`COMPLETE_NUM];
@@ -174,7 +181,7 @@ module ROB (
         .o_willClear_data(willCommit_data)
     );
 
-    ftqOffset_t read_ftqOffset_data[`BRU_NUM];
+    ftqOffset_t read_ftqOffset_data[`BRU_NUM + `LDU_NUM + `STU_NUM];
     always_ff @(posedge clk) begin
         int fj;
         for (fj = 0; fj < `RENAME_WIDTH; fj = fj + 1) begin
@@ -183,14 +190,14 @@ module ROB (
                 ftqOffset_buffer[enq_idx[fj]] <= i_new_entry_ftqOffset[fj];
             end
         end
-        for (fj = 0; fj < `BRU_NUM; fj = fj + 1) begin
+        for (fj = 0; fj < `BRU_NUM + `LDU_NUM + `STU_NUM; fj = fj + 1) begin
             read_ftqOffset_data[fj] <= ftqOffset_buffer[i_read_ftqOffset_idx[fj]];
         end
     end
 
     generate
         // read from exu
-        for (i = 0; i < `BRU_NUM; i = i + 1) begin
+        for (i = 0; i < `BRU_NUM + `LDU_NUM + `STU_NUM; i = i + 1) begin
             assign o_read_ftqOffset_data[i] = read_ftqOffset_data[i];
         end
     endgenerate
@@ -259,7 +266,9 @@ module ROB (
     /* verilator lint_off UNOPTFLAT */
     wire [`WDEF(`COMMIT_WIDTH)] shr_match_vec;
     wire [`WDEF(`COMMIT_WIDTH)] temp_0;  // which inst can be committed
-    wire [`WDEF(`COMMIT_WIDTH)] temp_1;  // one hot: which one is the shr handled
+    wire [
+    `WDEF(`COMMIT_WIDTH)
+    ] temp_1;  // one hot: which one is the shr handled
     generate
         for (i = 0; i < `COMMIT_WIDTH; i = i + 1) begin
             assign shr_match_vec[i] = willCommit_idx[i] == shr.rob_idx.idx;
@@ -274,7 +283,9 @@ module ROB (
         `ASSERT(count_one(temp_1) <= 1);
     endgenerate
 
-    wire [`WDEF(`COMMIT_WIDTH)] except_vec = (shr.squash_type == SQUASH_EXCEPT) ? temp_1 : 0;
+    wire [
+    `WDEF(`COMMIT_WIDTH)
+    ] except_vec = (shr.squash_type == SQUASH_EXCEPT) ? temp_1 : 0;
     assign has_except = (shr.squash_type == SQUASH_EXCEPT) && (|temp_1);
     assign has_mispred = (shr.squash_type == SQUASH_MISPRED) && (|temp_1);
 
@@ -301,6 +312,18 @@ module ROB (
             end
         end
     end
+
+    wire[`WDEF(`COMMIT_WIDTH)] will_committed_stores;
+    wire[`WDEF(`COMMIT_WIDTH)] will_committed_loads;
+    generate
+        for (i = 0; i < `COMMIT_WIDTH; i = i + 1) begin
+            assign will_committed_stores[i] = willCommit_data[i].isStore && canCommit_vld[i];
+            assign will_committed_loads[i] = willCommit_data[i].isLoad && canCommit_vld[i];
+        end
+    endgenerate
+
+    assign o_committed_loads = count_one(will_committed_loads);
+    assign o_committed_stores = count_one(will_committed_stores);
 
     /****************************************************************************************************/
     // retire
@@ -380,7 +403,15 @@ module ROB (
     assign o_trap_pack = '{
             has_trap : do_except,
             epc      : last_commit_pc,
-            cause    : has_interrupt ? 0 : {{`XLEN - `TRAPCODE_WIDTH{1'b0}}, shr.except_type},
+            cause    :
+            has_interrupt
+            ?
+            0
+            : {
+            {`XLEN - `TRAPCODE_WIDTH{1'b0}}
+            ,
+            shr.except_type
+            },
             tval     : 0
         };
 
@@ -403,7 +434,8 @@ module ROB (
             for (fa = 0; fa < `COMMIT_WIDTH; fa = fa + 1) begin
                 if (canCommit_vld[fa]) begin
                     arch_commitInst(0,  // dest type
-                                    willCommit_data[fa].ilrd_idx, willCommit_data[fa].iprd_idx,
+                                    willCommit_data[fa].ilrd_idx,
+                                    willCommit_data[fa].iprd_idx,
                                     willCommit_data[fa].instmeta);
                 end
                 if (except_vec[fa]) begin

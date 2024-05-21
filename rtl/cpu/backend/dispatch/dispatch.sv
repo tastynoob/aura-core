@@ -83,6 +83,8 @@ module dispatch (
             assign o_new_robEntry[i] = '{
                     ftq_idx         : i_enq_inst[i].ftq_idx,
                     isRVC           : i_enq_inst[i].isRVC,
+                    isLoad          : (i_enq_inst[i].issueQue_id == `LDUIQ_ID) && (i_enq_inst[i].micOp_type == `LDUIQ_ID),
+                    isStore         : i_enq_inst[i].isStore,
                     ismv            : i_enq_inst[i].ismv,
                     has_rd          : i_enq_inst[i].rd_wen,
                     ilrd_idx        : i_enq_inst[i].ilrd_idx,

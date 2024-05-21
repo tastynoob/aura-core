@@ -15,9 +15,9 @@ module aura_backend (
     output branchwbInfo_t o_branchwbInfo[`BRU_NUM],
 
     // read ftq startAddress from ftq
-    output ftqIdx_t o_read_ftqIdx[`BRU_NUM],
-    input wire [`XDEF] i_read_ftqStartAddr[`BRU_NUM],
-    input wire [`XDEF] i_read_ftqNextAddr[`BRU_NUM],
+    output ftqIdx_t o_read_ftqIdx[`BRU_NUM + `LDU_NUM + `STU_NUM],
+    input wire [`XDEF] i_read_ftqStartAddr[`BRU_NUM + `LDU_NUM + `STU_NUM],
+    input wire [`XDEF] i_read_ftqNextAddr[`BRU_NUM + `LDU_NUM + `STU_NUM],
 
     // from fetch
     output wire o_stall,
@@ -37,8 +37,10 @@ module aura_backend (
     wire [`WDEF(`IMMBUFFER_CLEARPORT_NUM)] toCtrl_clear_irob_vld;
     irobIdx_t toCtrl_clear_irob_idx[`IMMBUFFER_CLEARPORT_NUM];
 
-    wire [`WDEF($clog2(`ROB_SIZE))] toCtrl_read_rob_idx[`BRU_NUM];
-    ftqOffset_t toExe_read_rob_ftqOffset[`BRU_NUM];
+    wire [
+    `WDEF($clog2(`ROB_SIZE))
+    ] toCtrl_read_rob_idx[`BRU_NUM + `LDU_NUM + `STU_NUM];
+    ftqOffset_t toExe_read_rob_ftqOffset[`BRU_NUM + `LDU_NUM + `STU_NUM];
 
     wire [`WDEF(`RENAME_WIDTH)] toExe_mark_notready_vld;
     iprIdx_t toExe_mark_notready_iprIdx[`RENAME_WIDTH];
@@ -74,6 +76,9 @@ module aura_backend (
 
     disp_if toExe_disp ();
 
+    wire [`WDEF($clog2(`COMMIT_WIDTH))] toExe_committed_stores;
+    wire [`WDEF($clog2(`COMMIT_WIDTH))] toExe_committed_loads;
+
     ctrlBlock u_ctrlBlock (
         .clk(clk),
         .rst(rst),
@@ -91,7 +96,7 @@ module aura_backend (
         .i_clear_irob_vld(toCtrl_clear_irob_vld),
         .i_clear_irob_idx(toCtrl_clear_irob_idx),
 
-        .i_read_ftqOffset_idx (toCtrl_read_rob_idx),      // TODO: BRU need ftqOffset
+        .i_read_ftqOffset_idx(toCtrl_read_rob_idx),  // TODO: BRU need ftqOffset
         .o_read_ftqOffset_data(toExe_read_rob_ftqOffset),
 
         .i_fu_finished  (toCtrl_fu_finished),
@@ -115,6 +120,9 @@ module aura_backend (
         .o_read_ftqIdx      (rob_read_ftqIdx),
         .i_read_ftqStartAddr(rob_read_ftqStartAddr),
 
+        .o_committed_stores(toExe_committed_stores),
+        .o_committed_loads (toExe_committed_loads),
+
         .o_squash_vld(squash_vld),
         .o_squashInfo(squashInfo)
     );
@@ -126,7 +134,7 @@ module aura_backend (
     assign o_squashInfo = squashInfo;
 
 
-    ftqIdx_t exeBlock_read_ftqIdx[`BRU_NUM];
+    ftqIdx_t exeBlock_read_ftqIdx[`BRU_NUM + `LDU_NUM + `STU_NUM];
     exeBlock u_exeBlock (
         .clk         (clk),
         .rst         (rst),
@@ -157,6 +165,10 @@ module aura_backend (
         .o_comwbInfo    (toCtrl_comwbInfo),
         .o_branchwb_vld (exeBlock_branchwb_vld),
         .o_branchwb_info(exeBlock_branchwbInfo),
+
+        .i_committed_stores(toExe_committed_stores),
+        .i_committed_loads (toExe_committed_loads),
+
         .o_exceptwb_vld (toCtrl_except_vld),
         .o_exceptwb_info(toCtrl_exceptwbInfo)
     );
@@ -176,8 +188,6 @@ module aura_backend (
         end
     endgenerate
 
-    // when 2 branch writeback the same ftqentry
-    // FIXME: should write the oldest mispred branch
     wire write_the_same_ftqEntry = (&exeBlock_branchwb_vld) && (exeBlock_branchwbInfo[0].ftq_idx == exeBlock_branchwbInfo[1].ftq_idx);
     robIdx_t brwb_robIdx0, brwb_robIdx1;
     assign brwb_robIdx0 = exeBlock_branchwbInfo[0].rob_idx;
@@ -191,9 +201,11 @@ module aura_backend (
         .WIDTH(`BRU_NUM),
         .dtype(branchwbInfo_t)
     ) u_oldest_select (
-        .i_vld        (exeBlock_branchwb_mispred_vld),
-        .i_rob_idx    ({exeBlock_branchwbInfo[0].rob_idx, exeBlock_branchwbInfo[1].rob_idx}),
-        .i_datas      (exeBlock_branchwbInfo),
+        .i_vld(exeBlock_branchwb_mispred_vld),
+        .i_rob_idx({
+            exeBlock_branchwbInfo[0].rob_idx, exeBlock_branchwbInfo[1].rob_idx
+        }),
+        .i_datas(exeBlock_branchwbInfo),
         .o_oldest_data(toCtrl_branchwbInfo)
     );
 

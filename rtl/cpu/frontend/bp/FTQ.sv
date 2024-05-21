@@ -29,7 +29,9 @@ typedef struct {
     logic wasWrote;
     logic mispred;
     logic taken;
-    logic [`SDEF(`FTB_PREDICT_WIDTH)] fallthruOffset;  // in backend: branch's offset + isRVC ? 2:4
+    logic [
+    `SDEF(`FTB_PREDICT_WIDTH)
+    ] fallthruOffset;  // in backend: branch's offset + isRVC ? 2:4
     logic [`XDEF] targetAddr;
     BranchType::_ branch_type;
     //we need fallthruAddr to update ftb
@@ -72,9 +74,9 @@ module FTQ (
     output ftq2icacheInfo_t o_icache_fetchInfo,
 
     // from backend read
-    input ftqIdx_t i_read_ftqIdx[`BRU_NUM],
-    output wire [`XDEF] o_read_ftqStartAddr[`BRU_NUM],
-    output wire [`XDEF] o_read_ftqNextAddr[`BRU_NUM],
+    input ftqIdx_t i_read_ftqIdx[`BRU_NUM + `LDU_NUM + `STU_NUM],
+    output wire [`XDEF] o_read_ftqStartAddr[`BRU_NUM + `LDU_NUM + `STU_NUM],
+    output wire [`XDEF] o_read_ftqNextAddr[`BRU_NUM + `LDU_NUM + `STU_NUM],
 
     // from backend writeback
     input wire [`WDEF(`BRU_NUM)] i_backend_branchwb_vld,
@@ -219,7 +221,9 @@ module FTQ (
     // BPU insert into FTQ
     /****************************************************************************************************/
 
-    reg [`XDEF] read_ftqStartAddr[`BRU_NUM], read_ftqNextAddr[`BRU_NUM];
+    reg [`XDEF]
+        read_ftqStartAddr[`BRU_NUM + `LDU_NUM + `STU_NUM],
+        read_ftqNextAddr[`BRU_NUM + `LDU_NUM + `STU_NUM];
     assign o_read_ftqStartAddr = read_ftqStartAddr;
     assign o_read_ftqNextAddr = read_ftqNextAddr;
 
@@ -229,7 +233,7 @@ module FTQ (
         end
         else begin
             // read
-            for (fa = 0; fa < `BRU_NUM; fa = fa + 1) begin
+            for (fa = 0; fa < `BRU_NUM + `LDU_NUM + `STU_NUM; fa = fa + 1) begin
                 read_ftqStartAddr[fa] <= buf_baseInfo[i_read_ftqIdx[fa]].startAddr;
                 read_ftqNextAddr[fa] <= buf_baseInfo[i_read_ftqIdx[fa]].nextAddr;
             end
@@ -286,10 +290,13 @@ module FTQ (
                         targetAddr     : branchwbInfo[fa].target_pc,
                         branch_type    : branchwbInfo[fa].branch_type
                     };
-                    ftq_writeback(buf_baseInfo[branchwbInfo[fa].ftq_idx].startAddr,
-                                  buf_baseInfo[branchwbInfo[fa].ftq_idx].startAddr + branchwbInfo[fa].fallthruOffset,
-                                  branchwbInfo[fa].target_pc, branchwbInfo[fa].has_mispred,
-                                  branchwbInfo[fa].branch_taken, branchwbInfo[fa].branch_type);
+                    ftq_writeback(
+                        buf_baseInfo[branchwbInfo[fa].ftq_idx].startAddr,
+                        buf_baseInfo[branchwbInfo[fa].ftq_idx].startAddr + branchwbInfo[fa].fallthruOffset,
+                        branchwbInfo[fa].target_pc,
+                        branchwbInfo[fa].has_mispred,
+                        branchwbInfo[fa].branch_taken,
+                        branchwbInfo[fa].branch_type);
                 end
             end
 
@@ -300,7 +307,10 @@ module FTQ (
                     wasWrote       : 0,
                     mispred        : 0,  // default set false
                     taken          : i_pred_ftqInfo.taken,
-                    fallthruOffset : i_pred_ftqInfo.endAddr - i_pred_ftqInfo.startAddr,
+                    fallthruOffset :
+                    i_pred_ftqInfo.endAddr
+                    -
+                    i_pred_ftqInfo.startAddr,
                     targetAddr     : i_pred_ftqInfo.targetAddr,
                     branch_type    : i_pred_ftqInfo.branch_type
                 };
@@ -355,8 +365,10 @@ module FTQ (
         end
         else begin
             if (bpu_commit) begin
-                ftq_commit(buf_baseInfo[commit_ptr].startAddr, temp_fallthruAddr, buf_brInfo[commit_ptr].targetAddr,
-                           buf_brInfo[commit_ptr].taken, buf_brInfo[commit_ptr].branch_type);
+                ftq_commit(buf_baseInfo[commit_ptr].startAddr,
+                           temp_fallthruAddr, buf_brInfo[commit_ptr].targetAddr,
+                           buf_brInfo[commit_ptr].taken,
+                           buf_brInfo[commit_ptr].branch_type);
             end
         end
     end

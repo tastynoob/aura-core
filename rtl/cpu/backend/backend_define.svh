@@ -206,6 +206,8 @@ typedef struct {
     ftqIdx_t ftq_idx;
     // to rename
     logic isRVC;
+    logic isLoad;
+    logic isStore;
     logic ismv;
     logic has_rd;
     ilrIdx_t ilrd_idx;
@@ -227,7 +229,7 @@ typedef struct {
 
 typedef struct {
     logic vld;
-    logic[`XDEF] npc;
+    logic [`XDEF] npc;
     robIdx_t robIdx;
 } reExecInfo_t;
 

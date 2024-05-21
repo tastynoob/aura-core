@@ -24,8 +24,6 @@ interface stfwd_if;
 
     // s2: send forward response
     // m<-s
-    logic s2_rdy;
-    lqIdx_t s2_lqIdx;
     logic s2_paddr_match;
     logic s2_match_failed;
     logic [`WDEF(`XLEN/8)] s2_match_vec;  // which byte was forward matched
@@ -43,8 +41,6 @@ interface stfwd_if;
         output s1_vld,
         output s1_paddr,
 
-        input s2_rdy,
-        input s2_lqIdx,
         input s2_paddr_match,
         input s2_match_failed,
         input s2_match_vec,
@@ -63,8 +59,6 @@ interface stfwd_if;
         input s1_vld,
         input s1_paddr,
 
-        output s2_rdy,
-        output s2_lqIdx,
         output s2_paddr_match,
         output s2_match_failed,
         output s2_match_vec,

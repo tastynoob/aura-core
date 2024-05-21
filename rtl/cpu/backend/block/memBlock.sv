@@ -68,6 +68,13 @@ module memBlock #(
     output wire [`WDEF(FU_NUM)] o_immB_clear_vld,
     output irobIdx_t o_immB_clear_idx[FU_NUM],
 
+    // read ftq_startAddress (to ftq)
+    output ftqIdx_t o_read_ftqIdx[`LDU_NUM + `STU_NUM],
+    input wire [`XDEF] i_read_ftqStartAddr[`LDU_NUM + `STU_NUM],
+    // read ftqOffste (to rob)
+    output wire [`WDEF($clog2(`ROB_SIZE))] o_read_robIdx[`LDU_NUM + `STU_NUM],
+    input ftqOffset_t i_read_ftqOffset[`LDU_NUM + `STU_NUM],
+
     // writeback
     input wire [`WDEF(`LDU_NUM)] i_wb_stall,
     output wire [`WDEF(FU_NUM)] o_fu_finished,
@@ -75,6 +82,9 @@ module memBlock #(
     // exception
     output wire o_exceptwb_vld,
     output exceptwbInfo_t o_exceptwb_info,
+
+    input wire [`WDEF($clog2(`COMMIT_WIDTH))] i_committed_stores,
+    input wire [`WDEF($clog2(`COMMIT_WIDTH))] i_committed_loads,
 
     // load spec wake
     loadwake_if.m if_loadwake,
@@ -105,7 +115,7 @@ module memBlock #(
     wire [`WDEF(FU_NUM)] fu_finished;
     comwbInfo_t comwbInfo[FU_NUM];
 
-    wire[`WDEF(FU_NUM)] has_except;
+    wire [`WDEF(FU_NUM)] has_except;
     exceptwbInfo_t exceptwbInfo[FU_NUM];
 
     wire LSQ_ready, IQ0_ready, IQ1_ready;
@@ -174,9 +184,19 @@ module memBlock #(
         s1_irob_imm <= i_imm_data;
     end
 
+    // ldu -> ldque
     load2que_if if_load2que[`LDU_NUM] ();
+    // ldu -> stque
     stfwd_if if_stfwd[`LDU_NUM] ();
+    // ldu -> cache
     load2dcache_if if_load2cache[`LDU_NUM] ();
+    // stau -> ldque
+    staviocheck_if if_viocheck[`STU_NUM] ();
+
+    // stau -> storeque
+    sta2mmu_if if_sta2mmu[`STU_NUM] ();
+    store2que_if if_sta2que[`STU_NUM] ();
+    store2que_if if_std2que[`STU_NUM] ();
 
     // internal back to back bypass
     wire [`WDEF(`LDU_NUM)] bypass_vld;
@@ -223,7 +243,8 @@ module memBlock #(
 
     generate
         for (i = 0; i < `MEMDQ_DISP_WID; i = i + 1) begin
-            assign ldstInsts[i] = `BUILD_LDST(if_disp.mem_info[i], lqhead[i], sqhead[i]);
+            assign ldstInsts[i] = `BUILD_LDST(
+                    if_disp.mem_info[i], lqhead[i], sqhead[i]);
         end
     endgenerate
 
@@ -311,19 +332,153 @@ module memBlock #(
     /****************************************************************************************************/
     // IQ1/2: 2 stdu + 2 stau
     /****************************************************************************************************/
-    assign fu_finished[3:2] = 0;
-    assign has_except[3:2] = 0;
-    assign o_immB_clear_vld[3:2] = 0;
-    assign IQ1_ready = 1;
+    //assign fu_finished[3:2] = 0;
+    //assign has_except[3:2] = 0;
+    //assign o_immB_clear_vld[3:2] = 0;
+
+    wire staIQ_ready, stdIQ_ready;
+    wire [`WDEF(INPUT_NUM)] st_selected_vec;
+    microOp_t st_selected_insts[INPUT_NUM];
+    wire [`WDEF(`NUMSRCS_INT)] st_selected_iprsRdy[INPUT_NUM];
+
+    assign IQ1_ready = staIQ_ready & stdIQ_ready;
+
+    generate
+        // sta IQ
+        if (1) begin : gen_IQ1
+            reorder #(
+                .dtype(microOp_t),
+                .NUM  (4)
+            ) u_reorder_0 (
+                .i_data_vld     (select_toIQ1),
+                .i_datas        (ldstInsts),
+                .o_data_vld     (st_selected_vec),
+                .o_reorder_datas(st_selected_insts)
+            );
+
+            reorder #(
+                .dtype(logic [`WDEF(`NUMSRCS_INT)]),
+                .NUM  (4)
+            ) u_reorder_1 (
+                .i_data_vld     (select_toIQ1),
+                .i_datas        (i_enq_iprs_rdy),
+                .o_reorder_datas(st_selected_iprsRdy)
+            );
+
+            localparam int IQ_SIZE = 32;
+            localparam int IQ_INOUT = 2;
+            localparam int PORT_OFFSET = 2;
+
+            wire canEnq;
+            wire [`WDEF(IQ_INOUT)] enqReq;
+            microOp_t enqMicroOp[IQ_INOUT];
+            wire [`WDEF(IQ_INOUT)] enqIprsRdy;
+            wire [`WDEF(IQ_INOUT)] enqDepRdy;
+            assign staIQ_ready = canEnq;
+            assign enqReq = IQ1_ready ? st_selected_vec[IQ_INOUT-1:0] : 0;
+            for (i = 0; i < IQ_INOUT; i = i + 1) begin
+                assign enqMicroOp[i] = `BUILD_NEW_MICOP(st_selected_insts[i], 0);
+                assign enqIprsRdy[i] = st_selected_iprsRdy[i][0];
+                assign enqDepRdy[i] = 1;
+            end
+
+            `define NEED_IMM
+            `include "generateMemIQ.svh.tmp"
+            `undef NEED_IMM
+
+            if (1) begin : gen_fu6_ldu
+                localparam int IQ_FUID = 0;
+                localparam int BLK_FUID = 2;
+
+                `define HAS_STAU
+                `include "generateMemFu.svh.tmp"
+                `undef HAS_STAU
+            end
+            if (1) begin : gen_fu7_ldu
+                localparam int IQ_FUID = 1;
+                localparam int BLK_FUID = 3;
+
+                `define HAS_STAU
+                `include "generateMemFu.svh.tmp"
+                `undef HAS_STAU
+            end
+        end
+
+        // std IQ
+        if (1) begin : gen_IQ2
+            localparam int IQ_SIZE = 32;
+            localparam int IQ_INOUT = 2;
+            localparam int PORT_OFFSET = 4;
+
+            wire canEnq;
+            wire [`WDEF(IQ_INOUT)] enqReq;
+            microOp_t enqMicroOp[IQ_INOUT];
+            wire [`WDEF(IQ_INOUT)] enqIprsRdy;
+            wire [`WDEF(IQ_INOUT)] enqDepRdy;
+            assign stdIQ_ready = canEnq;
+            assign enqReq = IQ1_ready ? st_selected_vec[IQ_INOUT-1:0] : 0;
+            for (i = 0; i < IQ_INOUT; i = i + 1) begin
+                assign enqMicroOp[i] = `BUILD_NEW_MICOP(st_selected_insts[i], 1);
+                assign enqIprsRdy[i] = st_selected_iprsRdy[i][1];
+                assign enqDepRdy[i] = 1;
+            end
+
+            `include "generateMemIQ.svh.tmp"
+
+            if (1) begin : gen_fu8_ldu
+                localparam int IQ_FUID = 0;
+                localparam int BLK_FUID = 4;
+
+                `define HAS_STDU
+                `include "generateMemFu.svh.tmp"
+                `undef HAS_STDU
+            end
+            if (1) begin : gen_fu9_ldu
+                localparam int IQ_FUID = 1;
+                localparam int BLK_FUID = 5;
+
+                `define HAS_STDU
+                `include "generateMemFu.svh.tmp"
+                `undef HAS_STDU
+            end
+        end
+    endgenerate
+
 
     /********************/
     // loadQueue
     /********************/
 
+
+    loadQue u_loadQue (
+        .clk              (clk),
+        .rst              (rst),
+        .i_flush          (i_squash_vld),
+        .if_load2que      (if_load2que),
+        .if_viocheck      (if_viocheck),
+        .i_committed_loads(i_committed_loads)
+    );
+
+
+
     /********************/
     // storeQueue
     /********************/
 
+    storeQue u_storeQue (
+        .clk    (clk),
+        .rst    (rst),
+        .i_flush(i_squash_vld),
+
+        .if_sta2que(if_sta2que),
+        .if_std2que(if_std2que),
+
+        .if_stfwd(if_stfwd),
+
+        //.if_st2dcache      (),
+        .i_committed_stores(i_committed_stores),
+        .o_released_stores ()
+    );
 
 
 
@@ -337,19 +492,19 @@ module memBlock #(
         .if_core(if_load2cache)
     );
 
-    lsque u_lsque (
-        .if_load2que(if_load2que),
-        .if_stfwd   (if_stfwd)
-    );
+    // lsque u_lsque (
+    //     .if_load2que(if_load2que),
+    //     .if_stfwd   (if_stfwd)
+    // );
 
 
-    logic[`WDEF($clog2(FU_NUM))] oldest_except;
+    logic [`WDEF($clog2(FU_NUM))] oldest_except;
     robIdx_t oldest_except_robIdx;
     always_comb begin
         int ca;
         oldest_except = 0;
         oldest_except_robIdx = exceptwbInfo[0].rob_idx;
-        for (ca=0;ca<FU_NUM;ca=ca+1) begin
+        for (ca = 0; ca < FU_NUM; ca = ca + 1) begin
             if (has_except[ca] && (oldest_except_robIdx > exceptwbInfo[ca].rob_idx)) begin
                 oldest_except = ca;
                 oldest_except_robIdx = exceptwbInfo[ca].rob_idx;
@@ -359,7 +514,7 @@ module memBlock #(
 
     reg except_vld;
     exceptwbInfo_t final_except;
-    always_ff @( posedge clk ) begin
+    always_ff @(posedge clk) begin
         if (rst || i_squash_vld) begin
             except_vld <= 0;
         end

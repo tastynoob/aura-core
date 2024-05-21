@@ -20,9 +20,9 @@ module aura_frontend (
     input wire [`WDEF(`BRU_NUM)] i_branchwb_vld,
     input branchwbInfo_t i_branchwbInfo[`BRU_NUM],
 
-    input ftqIdx_t i_read_ftqIdx[`BRU_NUM],
-    output wire [`XDEF] o_read_ftqStartAddr[`BRU_NUM],
-    output wire [`XDEF] o_read_ftqNextAddr[`BRU_NUM],
+    input ftqIdx_t i_read_ftqIdx[`BRU_NUM + `LDU_NUM + `STU_NUM],
+    output wire [`XDEF] o_read_ftqStartAddr[`BRU_NUM + `LDU_NUM + `STU_NUM],
+    output wire [`XDEF] o_read_ftqNextAddr[`BRU_NUM + `LDU_NUM + `STU_NUM],
 
     // to backend
     input wire i_backend_stall,

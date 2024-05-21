@@ -58,7 +58,9 @@ typedef logic [`WDEF($clog2(`IMMBUFFER_SIZE))] irobIdx_t;  // the immBuffer idx
 
 //[int/fp][logic/physic]r[dest/src]Idx
 typedef logic [`WDEF($clog2(32))] ilrIdx_t;  //the int logic regfile idx
-typedef logic [`WDEF($clog2(`IPHYREG_NUM))] iprIdx_t;  //the int physic regfile idx
+typedef logic [
+`WDEF($clog2(`IPHYREG_NUM))
+] iprIdx_t;  //the int physic regfile idx
 typedef logic [`WDEF(12)] csrIdx_t;  //the csr regfile idx
 
 typedef logic [`IMMDEF] imm_t;
@@ -100,6 +102,7 @@ package rv_trap_t;
         loadPageFault = 13,
         storePageFault = 15,
         //NOTE:24-31/48-63, designated for custom use
+        reExec = 128,
         reserved_exception
     } exception;
     typedef enum logic [
