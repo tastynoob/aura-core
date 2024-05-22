@@ -17,6 +17,11 @@ std::map<std::string, DebugFlag> debugflag_name = {
     {"RENAME_ALLOC" , DebugFlag::RENAME_ALLOC},
 
     {"EXECUTE" , DebugFlag::EXECUTE},
+
+    {"MEMDEP", DebugFlag::MEMDEP},
+    {"LDQUE", DebugFlag::LDQUE},
+    {"STQUE", DebugFlag::STQUE},
+
     {"COMMIT" , DebugFlag::COMMIT},
     {"PIPELINE", DebugFlag::PIPELINE},
     {"ROM" , DebugFlag::ROM}

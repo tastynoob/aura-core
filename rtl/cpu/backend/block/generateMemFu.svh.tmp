@@ -34,10 +34,12 @@ assign finalData[0] =
     assign finalData[1] = 0;
 `endif
 
+`ifndef HAS_STDU
 // read ftqStartAddr & nextAddr
-assign o_read_ftqIdx[IQ_FUID] = issueState[IQ_FUID].ftqIdx;
+assign o_read_ftqIdx[BLK_FUID] = issueState[IQ_FUID].ftqIdx;
 // read ftqoffset
-assign o_read_robIdx[IQ_FUID] = issueState[IQ_FUID].robIdx;
+assign o_read_robIdx[BLK_FUID] = issueState[IQ_FUID].robIdx;
+`endif
 
 exeInfo_t exeInfo;
 assign exeInfo = '{
@@ -50,7 +52,9 @@ assign exeInfo = '{
         rdwen : s1_issueState[IQ_FUID].rdwen,
         iprd : s1_issueState[IQ_FUID].iprd,
         useImm : s1_issueState[IQ_FUID].useImm,
-        pc : i_read_ftqStartAddr[IQ_FUID] + i_read_ftqOffset[IQ_FUID],
+`ifndef HAS_STDU
+        pc : i_read_ftqStartAddr[BLK_FUID] + i_read_ftqOffset[BLK_FUID],
+`endif
         issueQueId : s1_issueState[IQ_FUID].issueQueId,
         micOp : s1_issueState[IQ_FUID].micOp,
         srcs : finalData,
@@ -93,6 +97,9 @@ assign exeInfo = '{
     assign o_immB_clear_vld[BLK_FUID] = fu_finished[BLK_FUID] && comwbInfo[BLK_FUID].use_imm;
     assign o_immB_clear_idx[BLK_FUID] = comwbInfo[BLK_FUID].irob_idx;
 `elsif HAS_STAU
+    wire sta_finished;
+    comwbInfo_t sta_finishInfo;
+
     assign issueStall[IQ_FUID] = 0;
     stafu u_stafu(
         .clk              ( clk ),
@@ -108,15 +115,15 @@ assign exeInfo = '{
         .if_staviocheck   ( if_viocheck[IQ_FUID] ),
         .if_sta2que       ( if_sta2que[IQ_FUID]  ),
 
-        .o_fu_finished    ( fu_finished[BLK_FUID]    ),
-        .o_comwbInfo      ( comwbInfo[BLK_FUID]      ),
+        .o_fu_finished    ( sta_finished    ),
+        .o_comwbInfo      ( sta_finishInfo      ),
         .o_has_except     ( has_except[BLK_FUID]     ),
         .o_exceptwbInfo   ( exceptwbInfo[BLK_FUID]   )
     );
 
     // clear imm immediately after sta finished
-    assign o_immB_clear_vld[BLK_FUID] = fu_finished[BLK_FUID] && comwbInfo[BLK_FUID].use_imm;
-    assign o_immB_clear_idx[BLK_FUID] = comwbInfo[BLK_FUID].irob_idx;
+    assign o_immB_clear_vld[BLK_FUID] = sta_finished && sta_finishInfo.use_imm;
+    assign o_immB_clear_idx[BLK_FUID] = sta_finishInfo.irob_idx;
 
 `elsif HAS_STDU
     assign issueStall[IQ_FUID] = 0;

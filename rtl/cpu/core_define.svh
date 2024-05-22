@@ -64,8 +64,8 @@ typedef struct {
     logic [`XDEF] arch_pc;
 
     // violation info
-    logic [`WDEF(`MEMDEP_FOLDPC_WIDTH)] store_foldpc;
-    logic [`WDEF(`MEMDEP_FOLDPC_WIDTH)] load_foldpc;
+    logic [`WDEF(`MEMDEP_FOLDPC_WIDTH)] stpc;
+    logic [`WDEF(`MEMDEP_FOLDPC_WIDTH)] ldpc;
 } squashInfo_t;
 
 

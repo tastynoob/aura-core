@@ -23,6 +23,8 @@
         ftqIdx  : ``_micOp``.ftqIdx,     \
         robIdx  : ``_micOp``.robIdx,     \
         irobIdx : ``_micOp``.irobIdx,    \
+        lqIdx   : ``_micOp``.lqIdx,      \
+        sqIdx   : ``_micOp``.sqIdx,      \
         rdwen   : ``_micOp``.rdwen,      \
         iprd    : ``_micOp``.iprd,       \
         iprs    : ``_micOp``.iprs,       \

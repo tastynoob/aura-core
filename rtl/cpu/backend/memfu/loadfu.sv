@@ -62,6 +62,9 @@ module loadfu (
         else begin
             s0_vld <= i_vld;
             s0_fuInfo <= i_fuInfo;
+            if (i_vld) begin
+                update_instPos(i_fuInfo.seqNum, difftest_def::AT_fu);
+            end
         end
     end
     wire [`XDEF] s0_vaddr;
@@ -168,6 +171,16 @@ module loadfu (
     assign o_issue_replay = s1_vld && s1_replay;
     assign o_feedback_iqIdx = s1_fuInfo.iqIdx;
 
+    // notify loadQue
+    assign if_load2que.vld = s1_vld && !(s1_replay || s1_fault);
+    assign if_load2que.lqIdx = s1_fuInfo.lqIdx;
+    assign if_load2que.sqIdx = s1_fuInfo.sqIdx;
+    assign if_load2que.vaddr = s1_vaddr;
+    assign if_load2que.paddr = s1_paddr;
+    assign if_load2que.loadmask = s1_load_vec;
+    assign if_load2que.robIdx = s1_fuInfo.robIdx;
+    assign if_load2que.pc = s1_fuInfo.pc;
+
     /********************/
     // s2
     // get the dcache data
@@ -225,18 +238,6 @@ module loadfu (
     ((s2_fuInfo.micOp == MicOp_t::lw) || (s2_fuInfo.micOp == MicOp_t::lwu)) ? {32'd0, s2_load32} :
     s2_load64;
 
-    // notify loadQue
-    assign if_load2que.vld = s2_vld;
-    assign if_load2que.lqIdx = s2_fuInfo.lqIdx;
-    assign if_load2que.sqIdx = s2_fuInfo.sqIdx;
-    assign if_load2que.vaddr = s2_vaddr;
-    assign if_load2que.paddr = s2_paddr;
-    assign if_load2que.loadmask = s2_load_vec;
-    assign if_load2que.robIdx = s2_fuInfo.robIdx;
-    assign if_load2que.pc = s2_fuInfo.pc;
-
-
-
     // merge data
     wire [`XDEF] merged_data;
     generate
@@ -267,7 +268,7 @@ module loadfu (
         end
         else begin
             load_except <= s1_vld && s1_fault;
-            exceptwbInfo <= '{rob_idx : s1_fuInfo.robIdx, except_type : s1_ldexcept};
+            exceptwbInfo <= '{default:0, rob_idx : s1_fuInfo.robIdx, except_type : s1_ldexcept};
 
             load_finished <= s2_vld || load_except;
             commwbInfo <= '{
@@ -278,6 +279,9 @@ module loadfu (
                 iprd_idx : s2_fuInfo.iprd,
                 result : (load_except ? 0 : sext_data)
             };
+            if (s2_vld) begin
+                update_instPos(s2_fuInfo.seqNum, difftest_def::AT_wb);
+            end
         end
     end
 

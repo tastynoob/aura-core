@@ -295,12 +295,40 @@ extern "C" {
         mark_exit(true);
     }
 
-    void squash_pipe(uint64_t isMispred) {
-        DPRINTF(COMMIT, "squash due to %s\n", "mispred");
+    void squash_pipe(uint64_t isMispred, uint64_t isViolation) {
+        if (isMispred)
+            DPRINTF(COMMIT, "squash due to mispred\n");
+        if (isViolation)
+            DPRINTF(COMMIT, "squash due to violation\n");
+    }
+
+    void loadQue_write(uint64_t vaddr, uint64_t size, uint64_t lqIdx) {
+        DPRINTF(LDQUE, "loadQue entry%lu [addr: %#lx size: %#lx]\n", lqIdx, vaddr, size);
+    }
+
+    void storeQue_write_addr(uint64_t vaddr, uint64_t size, uint64_t sqIdx) {
+        DPRINTF(STQUE, "storeQue'addr entry%lu [addr: %#lx size: %#lx]\n", sqIdx, vaddr, size);
+    }
+
+    void storeQue_write_data(uint64_t data, uint64_t sqIdx) {
+        DPRINTF(STQUE, "storeQue'data entry%lu [data: %#lx]\n", sqIdx, data);
+    }
+
+    void memory_violation_find(uint64_t ldpc, uint64_t stpc) {
+        DPRINTF(MEMDEP, "find violation: loadpc: %#lx -> storepc: %#lx\n", ldpc, stpc);
     }
 
     void commit_idle(uint64_t c) {
         perfAccumulate("commitIdle (cycle)", c);
+    }
+
+    void committed_loads_stores(uint64_t lds, uint64_t sts) {
+        perfAccumulate("committedLoads", lds);
+        perfAccumulate("committedStoress", lds);
+    }
+
+    void count_memory_violation() {
+        perfAccumulate("memoryViolation", 1);
     }
 
     void bp_hit_at(uint64_t i) {

@@ -1,6 +1,6 @@
 TOP ?= tb
 
-ADDITIONAL_PARAM = --x-assign unique --x-initial unique --assert
+ADDITIONAL_PARAM = --x-assign unique --x-initial unique --assert --trace-max-array 64
 
 EMU_DEFINES = -DSIMULATION -DDEBUG
 WARNING_OFF = -Wno-WIDTH -Wno-PINMISSING -Wno-TIMESCALEMOD -Wno-ENUMVALUE

@@ -2,7 +2,10 @@
 
 
 
-
+import "DPI-C" function void memory_violation_find(
+    uint64_t ldpc,
+    uint64_t stpc
+);
 
 // NOTE:
 // if ld0 has dep on st0
@@ -43,6 +46,9 @@ module stafu (
         else begin
             s0_vld <= i_vld;
             s0_fuInfo <= i_fuInfo;
+            if (i_vld) begin
+                update_instPos(i_fuInfo.seqNum, difftest_def::AT_fu);
+            end
         end
     end
 
@@ -74,7 +80,7 @@ module stafu (
     reg s1_vld;
     reg s1_misaligned;
     logic [`XDEF] s1_vaddr;
-    reg [`WDEF($clog2(8))] s1_storemask;
+    reg [`WDEF(`XLEN/8)] s1_storemask;
     exeInfo_t s1_fuInfo;
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -112,22 +118,6 @@ module stafu (
     assign if_staviocheck.paddr = if_sta2mmu.s1_paddr;
     assign if_staviocheck.mask = s1_storemask;
 
-    // s1: write except
-    assign o_has_except = s1_vld && s1_fault;
-    assign o_exceptwbInfo = '{
-            rob_idx : s1_fuInfo.robIdx,
-            except_type :
-            s1_misaligned
-            ?
-            rv_trap_t::storeMisaligned
-            :
-            if_sta2mmu.s1_pagefault
-            ?
-            rv_trap_t::storePageFault
-            :
-            rv_trap_t::storeFault
-        };
-
     // s2: get vio result, notify rob
     wire violation = if_staviocheck.vio;
     robIdx_t vioload_robIdx = if_staviocheck.vioload_robIdx;
@@ -136,15 +126,35 @@ module stafu (
     wire [`XDEF] viostore_pc = s2_fuInfo.pc;
     reg s2_vld;
     exeInfo_t s2_fuInfo;
+    reg prev_has_except;
+    rv_trap_t::exception prev_except;
     always_ff @(posedge clk) begin
         if (rst) begin
             s2_vld <= 0;
+            prev_has_except <= 0;
         end
         else begin
             s2_vld <= s1_vld;
             s2_fuInfo <= s1_fuInfo;
+            prev_has_except <= s1_vld && s1_fault;
+            prev_except <= s1_misaligned ? rv_trap_t::storeMisaligned :
+            if_sta2mmu.s1_pagefault ? rv_trap_t::storePageFault :
+            rv_trap_t::storeFault;
+
+            if (violation) begin
+                memory_violation_find(vioload_pc, viostore_pc);
+            end
         end
     end
+
+    // s2: write except
+    assign o_has_except = prev_has_except || violation;
+    assign o_exceptwbInfo = '{
+            rob_idx : prev_has_except ? s2_fuInfo.robIdx : vioload_robIdx,
+            except_type : prev_has_except ? prev_except : rv_trap_t::reExec,
+            stpc: viostore_pc,
+            ldpc: vioload_pc
+        };
 
     // s3: store finish
     reg store_finished;
@@ -158,11 +168,14 @@ module stafu (
             commwbInfo <= '{
                 rob_idx : s2_fuInfo.robIdx,
                 irob_idx : s2_fuInfo.irobIdx,
-                use_imm : 0,
+                use_imm : s2_fuInfo.useImm,
                 rd_wen : 0,
                 iprd_idx : 0,
                 result : 0
             };
+            if (s2_vld) begin
+                update_instPos(s2_fuInfo.seqNum, difftest_def::AT_wb);
+            end
         end
     end
 

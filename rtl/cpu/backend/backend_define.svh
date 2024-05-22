@@ -200,6 +200,8 @@ typedef struct {
     robIdx_t rob_idx;
     // for csr/load/store or other
     rv_trap_t::exception except_type;
+    logic [`XDEF] stpc;
+    logic [`XDEF] ldpc;
 } exceptwbInfo_t;
 
 typedef struct {
@@ -235,9 +237,10 @@ typedef struct {
 
 
 typedef struct {
-    logic [`WDEF(`MEMDEP_FOLDPC_WIDTH)] store_foldpc;
-    logic [`WDEF(`MEMDEP_FOLDPC_WIDTH)] load_foldpc;
-} squashMemVio_t;
+    logic violation;
+    logic [`XDEF] stpc;
+    logic [`XDEF] ldpc;
+} memvioInfo_t;
 
 // DESIGN:
 // if:

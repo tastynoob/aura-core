@@ -1,5 +1,12 @@
 `include "backend_define.svh"
 
+import "DPI-C" function void loadQue_write(
+    uint64_t vaddr,
+    uint64_t size,
+    uint64_t lqIdx
+);
+
+
 typedef struct {
     logic vld;
     sqIdx_t sqIdx;
@@ -32,6 +39,7 @@ module loadQue #(
     genvar i, j;
 
     LQEntry_t buff[DEPTH];
+    LQEntry_t nxt_buff[DEPTH];
     reg [`WDEF($clog2(DEPTH))] deq_ptr[OUTPORT_NUM];
 
     always_ff @(posedge clk) begin
@@ -46,33 +54,27 @@ module loadQue #(
         end
         else begin
             if (if_load2que[0].vld) begin
-                assert (buff[if_load2que[0].lqIdx].vld == 0);
-                buff[if_load2que[0].lqIdx].vld <= 1;
-                buff[if_load2que[0].lqIdx].sqIdx <= if_load2que[0].sqIdx;
-                buff[if_load2que[0].lqIdx].vaddr <= if_load2que[0].vaddr;
-                buff[if_load2que[0].lqIdx].paddr <= if_load2que[0].paddr;
-                buff[if_load2que[0].lqIdx].loadmask <= if_load2que[0].loadmask;
+                assert (buff[if_load2que[0].lqIdx.idx].vld == 0);
+                buff[if_load2que[0].lqIdx.idx] <= nxt_buff[if_load2que[0].lqIdx.idx];
 
-                buff[if_load2que[0].lqIdx].robIdx <= if_load2que[0].robIdx;
-                buff[if_load2que[0].lqIdx].pc <= if_load2que[0].pc;
+                loadQue_write(if_load2que[0].vaddr, count_one(
+                              if_load2que[0].loadmask),
+                              if_load2que[0].lqIdx.idx);
             end
             if (if_load2que[1].vld) begin
-                assert (buff[if_load2que[1].lqIdx].vld == 0);
-                buff[if_load2que[1].lqIdx].vld <= 1;
-                buff[if_load2que[1].lqIdx].sqIdx <= if_load2que[1].sqIdx;
-                buff[if_load2que[1].lqIdx].vaddr <= if_load2que[1].vaddr;
-                buff[if_load2que[1].lqIdx].paddr <= if_load2que[1].paddr;
-                buff[if_load2que[1].lqIdx].loadmask <= if_load2que[1].loadmask;
+                assert (buff[if_load2que[1].lqIdx.idx].vld == 0);
+                buff[if_load2que[1].lqIdx.idx] <= nxt_buff[if_load2que[1].lqIdx.idx];
 
-                buff[if_load2que[1].lqIdx].robIdx <= if_load2que[1].robIdx;
-                buff[if_load2que[1].lqIdx].pc <= if_load2que[1].pc;
+                loadQue_write(if_load2que[1].vaddr, count_one(
+                              if_load2que[1].loadmask),
+                              if_load2que[1].lqIdx.idx);
             end
 
 
             // commit
             for (fa = 0; fa < OUTPORT_NUM; fa = fa + 1) begin
                 deq_ptr[fa] <= (deq_ptr[fa] + i_committed_loads) < DEPTH ? (deq_ptr[fa] + i_committed_loads) : (deq_ptr[fa] + i_committed_loads - DEPTH);
-                if (i_committed_loads > 0) begin
+                if (i_committed_loads > fa) begin
                     assert (buff[deq_ptr[fa]].vld == 1);
                     buff[deq_ptr[fa]].vld <= 0;
                 end
@@ -80,15 +82,49 @@ module loadQue #(
         end
     end
 
+
+    always_comb begin
+        int ca;
+        nxt_buff = buff;
+        if (if_load2que[0].vld) begin
+            nxt_buff[if_load2que[0].lqIdx.idx].vld = 1;
+            nxt_buff[if_load2que[0].lqIdx.idx].sqIdx = if_load2que[0].sqIdx;
+            nxt_buff[if_load2que[0].lqIdx.idx].vaddr = if_load2que[0].vaddr;
+            nxt_buff[if_load2que[0].lqIdx.idx].paddr = if_load2que[0].paddr;
+            nxt_buff[if_load2que[0].lqIdx.idx].loadmask = if_load2que[0].loadmask;
+
+            nxt_buff[if_load2que[0].lqIdx.idx].robIdx = if_load2que[0].robIdx;
+            nxt_buff[if_load2que[0].lqIdx.idx].pc = if_load2que[0].pc;
+        end
+        if (if_load2que[1].vld) begin
+            nxt_buff[if_load2que[1].lqIdx.idx].vld = 1;
+            nxt_buff[if_load2que[1].lqIdx.idx].sqIdx = if_load2que[1].sqIdx;
+            nxt_buff[if_load2que[1].lqIdx.idx].vaddr = if_load2que[1].vaddr;
+            nxt_buff[if_load2que[1].lqIdx.idx].paddr = if_load2que[1].paddr;
+            nxt_buff[if_load2que[1].lqIdx.idx].loadmask = if_load2que[1].loadmask;
+
+            nxt_buff[if_load2que[1].lqIdx.idx].robIdx = if_load2que[1].robIdx;
+            nxt_buff[if_load2que[1].lqIdx.idx].pc = if_load2que[1].pc;
+        end
+    end
+
+
     // check violation
     wire [`WDEF(DEPTH)] violation_vec[`STU_NUM];
+    wire [`WDEF(DEPTH)] temp_0[`STU_NUM];
+    wire [`WDEF(DEPTH)] temp_1[`STU_NUM];
+    wire [`WDEF(DEPTH)] temp_2[`STU_NUM];
     generate
         for (i = 0; i < `STU_NUM; i = i + 1) begin
             for (j = 0; j < DEPTH; j = j + 1) begin
-                assign violation_vec[i][j] = buff[j].vld && if_viocheck[i].vld &&
-                    (buff[j].sqIdx <= if_viocheck[i].sqIdx) &&
-                    (buff[j].paddr[`PALEN-1 : 3] == if_viocheck[i].paddr[`PALEN-1:3]) &&
-                    (buff[j].loadmask & if_viocheck[i].mask != 0);
+                assign violation_vec[i][j] = nxt_buff[j].vld && if_viocheck[i].vld &&
+                    (nxt_buff[j].sqIdx > if_viocheck[i].sqIdx) &&
+                    (nxt_buff[j].paddr[`PALEN-1 : 3] == if_viocheck[i].paddr[`PALEN-1:3]) &&
+                    ((nxt_buff[j].loadmask & if_viocheck[i].mask) != 0);
+
+                assign temp_0[i][j] = (nxt_buff[j].sqIdx > if_viocheck[i].sqIdx);
+                assign temp_1[i][j] = (nxt_buff[j].paddr[`PALEN-1:3] == if_viocheck[i].paddr[`PALEN-1:3]);
+                assign temp_2[i][j] = ((nxt_buff[j].loadmask & if_viocheck[i].mask) != 0);
             end
         end
     endgenerate
@@ -100,13 +136,13 @@ module loadQue #(
     LQEntry_t oldestvio_entry[`STU_NUM];
     generate
         for (i = 0; i < DEPTH; i = i + 1) begin
-            assign vio_ages[i] = buff[i].robIdx;
+            assign vio_ages[i] = nxt_buff[i].robIdx;
             assign entry_index[i] = i;
         end
-        for (i = 0; i < `STU_NUM; i = i + 1) begin:gen_viocheck
+        for (i = 0; i < `STU_NUM; i = i + 1) begin : gen_viocheck
             oldest_select #(
                 .WIDTH(DEPTH),
-                .dtype(logic[`WDEF($clog2(DEPTH))])
+                .dtype(logic [`WDEF($clog2(DEPTH))])
             ) u_oldest_select (
                 .i_vld           (violation_vec[i]),
                 .i_rob_idx       (vio_ages),
@@ -114,7 +150,7 @@ module loadQue #(
                 .o_oldest_rob_idx(),
                 .o_oldest_data   (oldestvio_entry_index[i])
             );
-            assign oldestvio_entry[i] = buff[oldestvio_entry_index[i]];
+            assign oldestvio_entry[i] = nxt_buff[oldestvio_entry_index[i]];
         end
     endgenerate
 

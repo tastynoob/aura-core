@@ -200,8 +200,8 @@ module ctrlBlock (
         .i_store_robIdx(),
 
         .i_violation       (violation),
-        .i_vio_store_foldpc(o_squashInfo.store_foldpc),
-        .i_vio_load_foldpc (o_squashInfo.load_foldpc),
+        .i_vio_store_foldpc(o_squashInfo.stpc),
+        .i_vio_load_foldpc (o_squashInfo.ldpc),
         // dispQue -> issueQue
         .i_read_robIdx     (),
         .o_memdep_rdy      ()

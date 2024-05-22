@@ -129,6 +129,7 @@ module alu_scu (
 
             _has_except <= saved_vld && (instIllegal || sysexcept);
             exceptwbInfo <= '{
+                default: 0,
                 rob_idx : saved_fuInfo.robIdx,
                 except_type : instIllegal ? rv_trap_t::instIllegal : sysexcept ? syscall_except : 0
             };

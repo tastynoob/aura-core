@@ -108,7 +108,7 @@ module memBlock #(
     input wire [`XDEF] i_glob_bp_data[`BYPASS_WIDTH]
 );
     assign o_exp_bp_vec = 0;  // dont care
-    assign o_exceptwb_vld = 0;
+    //assign o_exceptwb_vld = 0;
 
     genvar i;
 
@@ -228,7 +228,7 @@ module memBlock #(
         .ST_COMMIT_WIDTH(`COMMIT_WIDTH)
     ) u_virtualLSQ (
         .clk(clk),
-        .rst(rst),
+        .rst(rst || i_squash_vld),
 
         .o_can_enq (LSQ_ready),
         .i_enq_req (if_disp.mem_req),
@@ -237,8 +237,8 @@ module memBlock #(
         .o_alloc_lqIdx(lqhead),
         .o_alloc_sqIdx(sqhead),
 
-        .i_ld_commit_num(0),
-        .i_st_commit_num(0)
+        .i_ld_commit_num(i_committed_loads),
+        .i_st_commit_num(i_committed_stores)
     );
 
     generate
@@ -386,7 +386,7 @@ module memBlock #(
             `include "generateMemIQ.svh.tmp"
             `undef NEED_IMM
 
-            if (1) begin : gen_fu6_ldu
+            if (1) begin : gen_fu6_stau
                 localparam int IQ_FUID = 0;
                 localparam int BLK_FUID = 2;
 
@@ -394,7 +394,7 @@ module memBlock #(
                 `include "generateMemFu.svh.tmp"
                 `undef HAS_STAU
             end
-            if (1) begin : gen_fu7_ldu
+            if (1) begin : gen_fu7_stau
                 localparam int IQ_FUID = 1;
                 localparam int BLK_FUID = 3;
 
@@ -425,7 +425,7 @@ module memBlock #(
 
             `include "generateMemIQ.svh.tmp"
 
-            if (1) begin : gen_fu8_ldu
+            if (1) begin : gen_fu8_stdu
                 localparam int IQ_FUID = 0;
                 localparam int BLK_FUID = 4;
 
@@ -433,7 +433,7 @@ module memBlock #(
                 `include "generateMemFu.svh.tmp"
                 `undef HAS_STDU
             end
-            if (1) begin : gen_fu9_ldu
+            if (1) begin : gen_fu9_stdu
                 localparam int IQ_FUID = 1;
                 localparam int BLK_FUID = 5;
 
@@ -475,6 +475,9 @@ module memBlock #(
 
         .if_stfwd(if_stfwd),
 
+        .o_fu_finished (fu_finished[FU_NUM-1: 2]),
+        .o_comwbInfo   (comwbInfo[2:FU_NUM-1]),
+
         //.if_st2dcache      (),
         .i_committed_stores(i_committed_stores),
         .o_released_stores ()
@@ -489,7 +492,8 @@ module memBlock #(
     dcache u_dcache (
         .clk    (clk),
         .rst    (rst),
-        .if_core(if_load2cache)
+        .if_core(if_load2cache),
+        .if_sta (if_sta2mmu)
     );
 
     // lsque u_lsque (
@@ -503,7 +507,7 @@ module memBlock #(
     always_comb begin
         int ca;
         oldest_except = 0;
-        oldest_except_robIdx = exceptwbInfo[0].rob_idx;
+        oldest_except_robIdx = ~0;
         for (ca = 0; ca < FU_NUM; ca = ca + 1) begin
             if (has_except[ca] && (oldest_except_robIdx > exceptwbInfo[ca].rob_idx)) begin
                 oldest_except = ca;

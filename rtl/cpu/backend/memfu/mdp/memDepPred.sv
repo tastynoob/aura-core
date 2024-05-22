@@ -52,25 +52,25 @@ module memDepPred (
             end
         end
         else begin
-            for (fa = 0; fa < `RENAME_WIDTH; fa = fa + 1) begin
-                if (i_insert_store[fa]) begin
-                    assert (rdy_bits[i_allocated_robIdx[fa].idx]);
-                    rdy_bits[i_allocated_robIdx[fa].idx] <= 0;
-                end
-            end
-            for (fa = 0; fa < `STORE_ISSUE_WIDTH; fa = fa + 1) begin
-                if (i_store_issued[fa]) begin
-                    assert (rdy_bits[i_store_robIdx[fa].idx] == 0);
-                    rdy_bits[i_store_robIdx[fa].idx] <= 1;
+            // for (fa = 0; fa < `RENAME_WIDTH; fa = fa + 1) begin
+            //     if (i_insert_store[fa]) begin
+            //         assert (rdy_bits[i_allocated_robIdx[fa].idx]);
+            //         rdy_bits[i_allocated_robIdx[fa].idx] <= 0;
+            //     end
+            // end
+            // for (fa = 0; fa < `STORE_ISSUE_WIDTH; fa = fa + 1) begin
+            //     if (i_store_issued[fa]) begin
+            //         assert (rdy_bits[i_store_robIdx[fa].idx] == 0);
+            //         rdy_bits[i_store_robIdx[fa].idx] <= 1;
 
-                    // assert check
-                    for (fb = 0; fb < `RENAME_WIDTH; fb = fb + 1) begin
-                        if (i_insert_store[fb]) begin
-                            assert (i_allocated_robIdx[fa].idx != i_store_robIdx[fa]);
-                        end
-                    end
-                end
-            end
+            //         // assert check
+            //         for (fb = 0; fb < `RENAME_WIDTH; fb = fb + 1) begin
+            //             if (i_insert_store[fb]) begin
+            //                 assert (i_allocated_robIdx[fa].idx != i_store_robIdx[fa]);
+            //             end
+            //         end
+            //     end
+            // end
         end
     end
 

@@ -83,7 +83,7 @@ module dispatch (
             assign o_new_robEntry[i] = '{
                     ftq_idx         : i_enq_inst[i].ftq_idx,
                     isRVC           : i_enq_inst[i].isRVC,
-                    isLoad          : (i_enq_inst[i].issueQue_id == `LDUIQ_ID) && (i_enq_inst[i].micOp_type == `LDUIQ_ID),
+                    isLoad          : (i_enq_inst[i].issueQue_id == `LDUIQ_ID),
                     isStore         : i_enq_inst[i].isStore,
                     ismv            : i_enq_inst[i].ismv,
                     has_rd          : i_enq_inst[i].rd_wen,
@@ -173,7 +173,7 @@ module dispatch (
         for (fa = `RENAME_WIDTH - 1; fa >= 0; fa = fa - 1) begin
             has_except[fa] = insert_rob_vld[fa] && i_enq_inst[fa].has_except && can_dispatch;
         end
-        oldest_except_info = '{rob_idx : oldest_except_robIdx, except_type: oldest_except};
+        oldest_except_info = '{default: 0, rob_idx : oldest_except_robIdx, except_type: oldest_except};
     end
 
     assign o_exceptwb_vld = (|has_except);

@@ -42,6 +42,12 @@ public:
         }
         return 0;
     }
+
+    void writeByte(uint64_t addr, char val) {
+        if (addr < pmem_size) {
+            pmem[addr] = val;
+        }
+    }
 }memSim;
 
 
@@ -60,6 +66,12 @@ extern "C" char read_rom(uint64_t addr) {
     unsigned char byte = memSim.readByte(paddr);
     DPRINTF(ROM, "read rom addr: %lx, data: %#02x\n", addr, byte);
     return byte;
+}
+
+extern "C" void pmem_write(uint64_t paddr, uint64_t data) {
+    DPRINTF(ROM, "write rom addr: %lx, data: %#02x\n", paddr, (char)data);
+    uint64_t addr = paddr - PMEM_BASE;
+    memSim.writeByte(addr, (char)data);
 }
 
 

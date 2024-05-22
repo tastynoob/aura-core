@@ -25,8 +25,8 @@ module virtualLSQ #(
     output lqIdx_t o_alloc_lqIdx[INPORTS],
     output sqIdx_t o_alloc_sqIdx[INPORTS],
 
-    input wire[`SDEF(LD_COMMIT_WIDTH)] i_ld_commit_num,
-    input wire[`SDEF(ST_COMMIT_WIDTH)] i_st_commit_num
+    input wire[`WDEF($clog2(`COMMIT_WIDTH))] i_ld_commit_num,
+    input wire[`WDEF($clog2(`COMMIT_WIDTH))] i_st_commit_num
 );
     genvar i;
     wire [`WDEF(INPORTS)] isLoad;
@@ -52,8 +52,8 @@ module virtualLSQ #(
         .o_sum(enqStoreNum)
     );
 
-    wire [`SDEF(LD_COMMIT_WIDTH)] deqLoadNum = i_ld_commit_num;
-    wire [`SDEF(ST_COMMIT_WIDTH)] deqStoreNum = i_st_commit_num;
+    wire [`WDEF($clog2(`COMMIT_WIDTH))] deqLoadNum = i_ld_commit_num;
+    wire [`WDEF($clog2(`COMMIT_WIDTH))] deqStoreNum = i_st_commit_num;
 
 
     lqIdx_t lqhead[INPORTS];
@@ -79,11 +79,11 @@ module virtualLSQ #(
 
             for (fa = 0; fa < INPORTS; fa = fa + 1) begin
                 lqhead[fa].idx <= (lqhead[fa].idx + enqLoadNum) < `LQSIZE ? (lqhead[fa].idx + enqLoadNum) : (lqhead[fa].idx + enqLoadNum - `LQSIZE);
-                if ((lqhead[fa].idx + enqLoadNum) < `LQSIZE) begin
+                if ((lqhead[fa].idx + enqLoadNum) >= `LQSIZE) begin
                     lqhead[fa].flipped <= ~lqhead[fa].flipped;
                 end
                 sqhead[fa].idx <= (sqhead[fa].idx + enqStoreNum) < `SQSIZE ? (sqhead[fa].idx + enqStoreNum) : (sqhead[fa].idx + enqStoreNum - `SQSIZE);
-                if ((sqhead[fa].idx + enqStoreNum) < `SQSIZE) begin
+                if ((sqhead[fa].idx + enqStoreNum) >= `SQSIZE) begin
                     sqhead[fa].flipped <= ~sqhead[fa].flipped;
                 end
             end

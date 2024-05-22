@@ -385,6 +385,15 @@ module decoder (
     MicOp_t::none;
     wire use_ldu = (lduop_type != MicOp_t::none);
 
+    MicOp_t::_stu stuop_type;
+    assign stuop_type =
+    inst_SB ? MicOp_t::sb :
+    inst_SH ? MicOp_t::sh :
+    inst_SW ? MicOp_t::sw :
+    inst_SD ? MicOp_t::sd :
+    MicOp_t::none;
+    wire use_stu = (stuop_type != MicOp_t::none);
+
     //MDU
     MicOp_t::_mdu mduop_type;
     assign mduop_type =
@@ -421,6 +430,7 @@ module decoder (
     use_scu ? scuop_type :
     use_bru ? bruop_type :
     use_ldu ? lduop_type :
+    use_stu ? stuop_type :
     use_mdu ? mduop_type :
     0;
 

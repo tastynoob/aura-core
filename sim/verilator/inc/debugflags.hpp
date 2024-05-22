@@ -23,6 +23,10 @@ enum DebugFlag {
     EXECUTE,
     COMMIT,
 
+    MEMDEP,
+    LDQUE,
+    STQUE,
+
     PIPELINE,
 
     ROM,

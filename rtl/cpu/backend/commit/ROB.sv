@@ -11,13 +11,20 @@ import "DPI-C" function void arch_commitInst(
 
 import "DPI-C" function void arch_commit_except(uint64_t except);
 
-import "DPI-C" function void squash_pipe(uint64_t isMispred);
+import "DPI-C" function void squash_pipe(uint64_t isMispred, uint64_t isViolation);
 import "DPI-C" function void cycle_step();
 import "DPI-C" function void commit_idle(uint64_t c);
 import "DPI-C" function void cpu_stucked(
     uint64_t seqNum,
     uint64_t vld
 );
+
+import "DPI-C" function void committed_loads_stores(
+    uint64_t lds,
+    uint64_t sts
+);
+
+import "DPI-C" function void count_memory_violation();
 
 const logic [`WDEF(2)] SQUASH_NULL = 0;
 const logic [`WDEF(2)] SQUASH_MISPRED = 1;
@@ -32,6 +39,9 @@ typedef struct {
     logic [`XDEF] npc;
     // trap
     rv_trap_t::exception except_type;
+    logic isViolation;
+    logic [`XDEF] stpc;
+    logic [`XDEF] ldpc;
 } squash_handle;
 
 package commit_status_t;
@@ -251,6 +261,9 @@ module ROB (
                     shr.squash_type <= SQUASH_EXCEPT;
                     shr.except_type <= i_exceptwb_info.except_type;
                     shr.rob_idx <= i_exceptwb_info.rob_idx;
+                    shr.isViolation <= (i_exceptwb_info.except_type == rv_trap_t::reExec);
+                    shr.stpc <= i_exceptwb_info.stpc;
+                    shr.ldpc <= i_exceptwb_info.ldpc;
                 end
             end
             else if (i_branchwb_vld && i_branchwb_info.has_mispred) begin
@@ -269,6 +282,7 @@ module ROB (
     wire [
     `WDEF(`COMMIT_WIDTH)
     ] temp_1;  // one hot: which one is the shr handled
+    // should not commit if inst was except
     generate
         for (i = 0; i < `COMMIT_WIDTH; i = i + 1) begin
             assign shr_match_vec[i] = willCommit_idx[i] == shr.rob_idx.idx;
@@ -276,7 +290,8 @@ module ROB (
                 assign temp_0[i] = willCommit_vld[i] && !((shr.squash_type == SQUASH_EXCEPT) && shr_match_vec[i]);
             end
             else begin
-                assign temp_0[i] = willCommit_vld[i] && temp_0[i-1] && !((shr.squash_type==SQUASH_MISPRED) && shr_match_vec[i-1]);
+                assign temp_0[i] = willCommit_vld[i] && temp_0[i-1] &&
+                    !((shr.squash_type==SQUASH_MISPRED) && shr_match_vec[i-1]) && !((shr.squash_type == SQUASH_EXCEPT) && shr_match_vec[i]);
             end
             assign temp_1[i] = willCommit_vld[i] && shr_match_vec[i] && (shr.squash_type != SQUASH_NULL);
         end
@@ -313,8 +328,8 @@ module ROB (
         end
     end
 
-    wire[`WDEF(`COMMIT_WIDTH)] will_committed_stores;
-    wire[`WDEF(`COMMIT_WIDTH)] will_committed_loads;
+    wire [`WDEF(`COMMIT_WIDTH)] will_committed_stores;
+    wire [`WDEF(`COMMIT_WIDTH)] will_committed_loads;
     generate
         for (i = 0; i < `COMMIT_WIDTH; i = i + 1) begin
             assign will_committed_stores[i] = willCommit_data[i].isStore && canCommit_vld[i];
@@ -351,7 +366,19 @@ module ROB (
         else begin
             // pipe: (| commit and read ftq (normal) | (trapProcess) | squash)
             // 0                              1               2
-            if ((has_except || has_interrupt) && (status == commit_status_t::normal)) begin
+            if (has_except && shr.isViolation) begin
+                squash_pipe(0, 1);
+                count_memory_violation();
+                squash_vld <= 1;
+                squashInfo.dueToBranch <= 0;
+                squashInfo.dueToViolation <= 1;
+                squashInfo.branch_taken <= 0;
+                squashInfo.arch_pc <= shr.ldpc;
+
+                squashInfo.stpc <= shr.stpc;
+                squashInfo.ldpc <= shr.ldpc;
+            end
+            else if ((has_except || has_interrupt) && (status == commit_status_t::normal)) begin
                 // s1: stall and read ftq;
                 do_except <= 1;
                 commit_stall <= 1;
@@ -378,7 +405,7 @@ module ROB (
                 // if has interrupt and rob is empty: mepc = last inst pc + ismv 2:4
             end
             else if (has_mispred) begin
-                squash_pipe(1);
+                squash_pipe(1, 0);
                 squash_vld <= 1;
                 squashInfo.dueToBranch <= has_mispred;
                 squashInfo.dueToViolation <= 0;
@@ -438,7 +465,7 @@ module ROB (
                                     willCommit_data[fa].iprd_idx,
                                     willCommit_data[fa].instmeta);
                 end
-                if (except_vec[fa]) begin
+                if (except_vec[fa] && shr.except_type != rv_trap_t::reExec) begin
                     arch_commit_except(shr.except_type);
                 end
             end
@@ -446,6 +473,8 @@ module ROB (
             if (|(canCommit_vld | except_vec)) begin
                 lastCommitCycle <= cycle_count;
             end
+
+            committed_loads_stores(o_committed_loads, o_committed_stores);
         end
         if (!(canCommit_vld[0])) begin
             commit_idle(1);
