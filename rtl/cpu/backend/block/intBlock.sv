@@ -87,6 +87,8 @@ module intBlock #(
     input iprIdx_t i_glob_bp_iprd[`BYPASS_WIDTH],
     input wire [`XDEF] i_glob_bp_data[`BYPASS_WIDTH]
 );
+    assign o_exceptwb_vld = 0;
+
     genvar i, j;
     wire [`WDEF(FU_NUM)] fu_finished;
     comwbInfo_t comwbInfo[FU_NUM];

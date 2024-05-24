@@ -59,8 +59,8 @@ module ctrlBlock (
     output ftqIdx_t o_read_ftqIdx,
     input wire [`XDEF] i_read_ftqStartAddr,
 
-    output wire [`WDEF($clog2(`COMMIT_WIDTH))] o_committed_stores,
-    output wire [`WDEF($clog2(`COMMIT_WIDTH))] o_committed_loads,
+    output wire [`SDEF(`COMMIT_WIDTH)] o_committed_stores,
+    output wire [`SDEF(`COMMIT_WIDTH)] o_committed_loads,
 
     output wire o_squash_vld,
     output squashInfo_t o_squashInfo

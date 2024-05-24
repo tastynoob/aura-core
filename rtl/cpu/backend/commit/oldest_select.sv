@@ -22,13 +22,13 @@ module oldest_select #(
         else if (WIDTH == 2) begin
             assign o_oldest_rob_idx =
             (&i_vld) ?
-            (i_rob_idx[0] <= i_rob_idx[1] ? i_rob_idx[0] : i_rob_idx[1])
+            (`OLDER_THAN(i_rob_idx[0], i_rob_idx[1]) ? i_rob_idx[0] : i_rob_idx[1])
             :
             (i_vld[0] ? i_rob_idx[0] : i_rob_idx[1]);
 
             assign o_oldest_data =
             (&i_vld) ?
-            (i_rob_idx[0] <= i_rob_idx[1] ? i_datas[0] : i_datas[1])
+            (`OLDER_THAN(i_rob_idx[0], i_rob_idx[1]) ? i_datas[0] : i_datas[1])
             :
             (i_vld[0] ? i_datas[0] : i_datas[1]);
         end

@@ -45,6 +45,8 @@
 
 `include "core_priv.svh"
 
+`define OLDER_THAN(a, b) ((``a``.flipped == ``b``.flipped) ? (``a``.idx < ``b``.idx) : (``a``.idx > ``b``.idx))
+
 typedef logic [`WDEF(`PALEN)] paddr_t;
 
 typedef logic [`WDEF($clog2(`FTQ_SIZE))] ftqIdx_t;

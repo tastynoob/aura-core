@@ -34,7 +34,7 @@ module loadQue #(
     // store execute, violation check
     staviocheck_if.s if_viocheck[`STU_NUM],
 
-    input wire [`WDEF($clog2(`COMMIT_WIDTH))] i_committed_loads
+    input wire [`SDEF(`COMMIT_WIDTH)] i_committed_loads
 );
     genvar i, j;
 
@@ -111,20 +111,13 @@ module loadQue #(
 
     // check violation
     wire [`WDEF(DEPTH)] violation_vec[`STU_NUM];
-    wire [`WDEF(DEPTH)] temp_0[`STU_NUM];
-    wire [`WDEF(DEPTH)] temp_1[`STU_NUM];
-    wire [`WDEF(DEPTH)] temp_2[`STU_NUM];
     generate
         for (i = 0; i < `STU_NUM; i = i + 1) begin
             for (j = 0; j < DEPTH; j = j + 1) begin
                 assign violation_vec[i][j] = nxt_buff[j].vld && if_viocheck[i].vld &&
-                    (nxt_buff[j].sqIdx > if_viocheck[i].sqIdx) &&
+                    `OLDER_THAN(if_viocheck[i].sqIdx, nxt_buff[j].sqIdx) &&
                     (nxt_buff[j].paddr[`PALEN-1 : 3] == if_viocheck[i].paddr[`PALEN-1:3]) &&
                     ((nxt_buff[j].loadmask & if_viocheck[i].mask) != 0);
-
-                assign temp_0[i][j] = (nxt_buff[j].sqIdx > if_viocheck[i].sqIdx);
-                assign temp_1[i][j] = (nxt_buff[j].paddr[`PALEN-1:3] == if_viocheck[i].paddr[`PALEN-1:3]);
-                assign temp_2[i][j] = ((nxt_buff[j].loadmask & if_viocheck[i].mask) != 0);
             end
         end
     endgenerate

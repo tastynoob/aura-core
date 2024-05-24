@@ -61,7 +61,6 @@ module ROB (
     input wire clk,
     input wire rst,
 
-    // TODO; trap control
     // from/to csr
     input csr_in_pack_t i_csr_pack,
     output trap_pack_t o_trap_pack,
@@ -111,8 +110,8 @@ module ROB (
     input wire [`XDEF] i_read_ftqStartAddr,
 
     // pipeline control
-    output wire [`WDEF($clog2(`COMMIT_WIDTH))] o_committed_stores,
-    output wire [`WDEF($clog2(`COMMIT_WIDTH))] o_committed_loads,
+    output wire [`SDEF(`COMMIT_WIDTH)] o_committed_stores,
+    output wire [`SDEF(`COMMIT_WIDTH)] o_committed_loads,
     output wire o_can_dispatch_serialize,
     output wire o_commit_serialized_inst,
     output wire o_squash_vld,
@@ -256,8 +255,8 @@ module ROB (
                 shr.rob_idx <= if_syscall.rob_idx;
                 assert (willCommit_idx[0] == if_syscall.rob_idx.idx);
             end
-            else if ((i_exceptwb_vld && ((i_branchwb_vld && i_branchwb_info.has_mispred) ? i_exceptwb_info.rob_idx <= i_branchwb_info.rob_idx : 1))) begin
-                if ((i_exceptwb_info.rob_idx <= shr.rob_idx) || (shr.squash_type == SQUASH_NULL)) begin
+            else if ((i_exceptwb_vld && ((i_branchwb_vld && i_branchwb_info.has_mispred) ? `OLDER_THAN(i_exceptwb_info.rob_idx, i_branchwb_info.rob_idx) : 1))) begin
+                if (`OLDER_THAN(i_exceptwb_info.rob_idx, shr.rob_idx) || (shr.squash_type == SQUASH_NULL)) begin
                     shr.squash_type <= SQUASH_EXCEPT;
                     shr.except_type <= i_exceptwb_info.except_type;
                     shr.rob_idx <= i_exceptwb_info.rob_idx;
@@ -267,7 +266,7 @@ module ROB (
                 end
             end
             else if (i_branchwb_vld && i_branchwb_info.has_mispred) begin
-                if ((i_branchwb_info.rob_idx <= shr.rob_idx) || (shr.squash_type == SQUASH_NULL)) begin
+                if (`OLDER_THAN(i_branchwb_info.rob_idx, shr.rob_idx) || (shr.squash_type == SQUASH_NULL)) begin
                     shr.squash_type <= SQUASH_MISPRED;
                     shr.branch_taken <= i_branchwb_info.branch_taken;
                     shr.npc <= i_branchwb_info.branch_npc;

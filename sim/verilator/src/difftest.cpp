@@ -208,7 +208,12 @@ extern "C" void arch_commitInst(
     if (logic_idx != 0) {
         DPRINTFD(COMMIT, " res: %lx", arch_readIntReg(logic_idx));
     }
+    if (inst->meta[META_ISLOAD] || inst->meta[META_ISSTORE])
+    {
+        DPRINTFD(COMMIT, " paddr: %lx, size: %lx", inst->meta[META_PADDR], inst->meta[META_SIZE]);
+    }
     DPRINTFD(COMMIT, "\n");
+
     if (debugChecker.checkFlag(DebugFlag::PIPELINE)) {
         inst->print();
     }
@@ -318,6 +323,18 @@ extern "C" void arch_commit_except(uint64_t except_code) {
 extern "C" void write_int_physicRegfile(uint64_t idx, uint64_t value) {
     assert(idx < 200);
     physical_int_regfile[idx] = value;
+}
+
+extern "C" void set_store_load_info(uint64_t seqNum, uint64_t isload, uint64_t paddr, uint64_t size) {
+    InstMeta* inst = read_instmeta(seqNum);
+    if (isload) {
+        inst->meta[META_ISLOAD] = 1;
+    }
+    else {
+        inst->meta[META_ISSTORE] = 1;
+    }
+    inst->meta[MetaKeys::META_PADDR] = paddr;
+    inst->meta[MetaKeys::META_SIZE] = size;
 }
 
 

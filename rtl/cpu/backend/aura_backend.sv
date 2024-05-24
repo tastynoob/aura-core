@@ -76,8 +76,8 @@ module aura_backend (
 
     disp_if toExe_disp ();
 
-    wire [`WDEF($clog2(`COMMIT_WIDTH))] toExe_committed_stores;
-    wire [`WDEF($clog2(`COMMIT_WIDTH))] toExe_committed_loads;
+    wire [`SDEF(`COMMIT_WIDTH)] toExe_committed_stores;
+    wire [`SDEF(`COMMIT_WIDTH)] toExe_committed_loads;
 
     ctrlBlock u_ctrlBlock (
         .clk(clk),
@@ -193,7 +193,7 @@ module aura_backend (
     assign brwb_robIdx0 = exeBlock_branchwbInfo[0].rob_idx;
     assign brwb_robIdx1 = exeBlock_branchwbInfo[1].rob_idx;
 
-    wire age_0_larger_1 = (brwb_robIdx0.idx <= brwb_robIdx1);
+    wire age_0_larger_1 = `OLDER_THAN(brwb_robIdx0, brwb_robIdx1);
 
     assign toFTQ_branchwb_vld = write_the_same_ftqEntry ? (age_0_larger_1 ? 2'b01 : 2'b10) : exeBlock_branchwb_vld;
 

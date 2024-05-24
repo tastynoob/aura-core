@@ -12,7 +12,10 @@ import "DPI-C" function void storeQue_write_data(
 );
 
 
-import "DPI-C" function void pmem_write(uint64_t paddr, uint64_t data);
+import "DPI-C" function void pmem_write(
+    uint64_t paddr,
+    uint64_t data
+);
 
 // load: forward | writeQue | finish |
 // store:        |  s0      | writeQue, checkvio | finish
@@ -23,7 +26,7 @@ typedef struct {
     logic addr_vld;
     logic data_vld;
     logic finished;
-    logic committed; // wait for writeback to cache
+    logic committed;  // wait for writeback to cache
     logic [`XDEF] vaddr;
     paddr_t paddr;
     logic [`WDEF(`XLEN/8)] storemask;
@@ -46,19 +49,48 @@ module storeQue #(
     // storeQue -> dcache
     // store2dcache_if.m if_st2dcache[2],
 
-    output wire[`WDEF(`STU_NUM)] o_fu_finished,
+    output wire [`WDEF(`STU_NUM)] o_fu_finished,
     output comwbInfo_t o_comwbInfo[`STU_NUM],
 
-    input wire [`WDEF($clog2(`COMMIT_WIDTH))] i_committed_stores,
-    output wire [`WDEF($clog2(`COMMIT_WIDTH))] o_released_stores
+    input wire [`SDEF(`COMMIT_WIDTH)] i_committed_stores,
+    output wire [`SDEF(`COMMIT_WIDTH)] o_released_stores
 );
     genvar i, j, k;
 
     SQEntry_t buff[DEPTH];
+    SQEntry_t nxt_buff[DEPTH];
     wire [`XDEF] shifted_data[DEPTH];
     reg [`WDEF($clog2(DEPTH))] deq_ptr[OUTPORT_NUM];
     reg [`WDEF($clog2(DEPTH))] finish_ptr[`STU_NUM];
     reg [`WDEF($clog2(DEPTH))] committed_deq_ptr[OUTPORT_NUM];
+
+    always_comb begin
+        nxt_buff = buff;
+        if (if_sta2que[0].vld) begin
+            nxt_buff[if_sta2que[0].sqIdx.idx].addr_vld = 1;
+            nxt_buff[if_sta2que[0].sqIdx.idx].vaddr = if_sta2que[0].vaddr;
+            nxt_buff[if_sta2que[0].sqIdx.idx].paddr = if_sta2que[0].paddr;
+            nxt_buff[if_sta2que[0].sqIdx.idx].storemask = if_sta2que[0].storemask;
+            nxt_buff[if_sta2que[0].sqIdx.idx].robIdx = if_sta2que[0].robIdx;
+            nxt_buff[if_sta2que[0].sqIdx.idx].sqIdx = if_sta2que[0].sqIdx;
+        end
+        if (if_sta2que[1].vld) begin
+            nxt_buff[if_sta2que[1].sqIdx.idx].addr_vld = 1;
+            nxt_buff[if_sta2que[1].sqIdx.idx].vaddr = if_sta2que[1].vaddr;
+            nxt_buff[if_sta2que[1].sqIdx.idx].paddr = if_sta2que[1].paddr;
+            nxt_buff[if_sta2que[1].sqIdx.idx].storemask = if_sta2que[1].storemask;
+            nxt_buff[if_sta2que[1].sqIdx.idx].robIdx = if_sta2que[1].robIdx;
+            nxt_buff[if_sta2que[1].sqIdx.idx].sqIdx = if_sta2que[1].sqIdx;
+        end
+        if (if_std2que[0].vld) begin
+            nxt_buff[if_std2que[0].sqIdx.idx].data_vld = 1;
+            nxt_buff[if_std2que[0].sqIdx.idx].data = if_std2que[0].data;
+        end
+        if (if_std2que[1].vld) begin
+            nxt_buff[if_std2que[1].sqIdx.idx].data_vld = 1;
+            nxt_buff[if_std2que[1].sqIdx.idx].data = if_std2que[1].data;
+        end
+    end
 
     always_ff @(posedge clk) begin
         int fa, fb;
@@ -107,13 +139,6 @@ module storeQue #(
                                     if_sta2que[0].storemask),
                                     if_sta2que[0].sqIdx.idx);
             end
-            if (if_std2que[0].vld) begin
-                assert (buff[if_std2que[0].sqIdx.idx].data_vld == 0);
-                buff[if_std2que[0].sqIdx.idx].data_vld <= 1;
-                buff[if_std2que[0].sqIdx.idx].data <= if_std2que[0].data;
-
-                storeQue_write_data(if_std2que[0].data, if_std2que[0].sqIdx.idx);
-            end
             if (if_sta2que[1].vld) begin
                 assert (buff[if_sta2que[1].sqIdx.idx].addr_vld == 0);
                 buff[if_sta2que[1].sqIdx.idx].addr_vld <= 1;
@@ -127,12 +152,21 @@ module storeQue #(
                                     if_sta2que[1].storemask),
                                     if_sta2que[1].sqIdx.idx);
             end
+            if (if_std2que[0].vld) begin
+                assert (buff[if_std2que[0].sqIdx.idx].data_vld == 0);
+                buff[if_std2que[0].sqIdx.idx].data_vld <= 1;
+                buff[if_std2que[0].sqIdx.idx].data <= if_std2que[0].data;
+
+                storeQue_write_data(if_std2que[0].data,
+                                    if_std2que[0].sqIdx.idx);
+            end
             if (if_std2que[1].vld) begin
                 assert (buff[if_std2que[1].sqIdx.idx].data_vld == 0);
                 buff[if_std2que[1].sqIdx.idx].data_vld <= 1;
                 buff[if_std2que[1].sqIdx.idx].data <= if_std2que[1].data;
 
-                storeQue_write_data(if_std2que[1].data, if_std2que[1].sqIdx.idx);
+                storeQue_write_data(if_std2que[1].data,
+                                    if_std2que[1].sqIdx.idx);
             end
 
             // finish
@@ -162,7 +196,9 @@ module storeQue #(
                     // simulate write
                     for (fb = 0; fb < 8; fb = fb + 1) begin
                         if (buff[deq_ptr[fa]].storemask[fb]) begin
-                            pmem_write({buff[deq_ptr[fa]].paddr[`PALEN-1:3], 3'b0} + fb, (shifted_data[deq_ptr[fa]] >> (fb*8)));
+                            pmem_write(
+                                {buff[deq_ptr[fa]].paddr[`PALEN-1:3], 3'b0} + fb,
+                                (shifted_data[deq_ptr[fa]] >> (fb * 8)));
                         end
                     end
                 end
@@ -175,12 +211,12 @@ module storeQue #(
     assign o_released_stores = i_committed_stores;
 
     generate
-        for(i=0;i<`STU_NUM;i=i+1) begin
+        for (i = 0; i < `STU_NUM; i = i + 1) begin
             assign o_fu_finished[i] = buff[finish_ptr[i]].addr_vld && buff[finish_ptr[i]].data_vld;
             assign o_comwbInfo[i] = '{
-                default:0,
-                rob_idx:buff[finish_ptr[i]].robIdx
-            };
+                    default: 0,
+                    rob_idx: buff[finish_ptr[i]].robIdx
+                };
         end
     endgenerate
 
@@ -193,7 +229,7 @@ module storeQue #(
     `WDEF(DEPTH)
     ] data_match_vec[`LDU_NUM][8];  // each byte matched with vaddr
     robIdx_t store_ages[DEPTH];
-    wire[`WDEF(`LDU_NUM)] forward_write_conflict;
+    wire [`WDEF(`LDU_NUM)] forward_write_conflict;
     wire [`WDEF($clog2(DEPTH))] entry_indexs[DEPTH];
 
 
@@ -214,16 +250,18 @@ module storeQue #(
     reg [`WDEF(8)] s2_byte_match_vec[`LDU_NUM];
     reg s2_paddr_match[`LDU_NUM];
     reg [`WDEF(8)] s2_matched_byte[`LDU_NUM][8];
+    reg s2_stfwd_req[`LDU_NUM];
     always_ff @(posedge clk) begin
         int fa;
         if (rst) begin
-            s1_forward_write_conflict<=0;
+            s1_forward_write_conflict <= 0;
             // s1_vaddr_match_vec <= 0;
             // s1_data_match_vec <= 0;
             // s1_loadmask <= {0,0};
 
             // s2_paddr_match_vec <= {0,0};
             // s2_byte_match_vec <= {0,0};
+            s2_stfwd_req <= {0, 0};
         end
         else begin
             s1_forward_write_conflict <= forward_write_conflict;
@@ -231,10 +269,10 @@ module storeQue #(
             s1_data_match_vec <= data_match_vec;
 
             s1_loadmask[0] <= if_stfwd[0].s0_load_vec;
-            s2_paddr_match[0] <= (s1_vaddr_match_vec[0] == s1_paddr_match_vec[0]);
+            s2_paddr_match[0] <= (s1_vaddr_match_vec[0] == s1_paddr_match_vec[0]) && (s1_vaddr_match_vec[0] != 0);
 
             s1_loadmask[1] <= if_stfwd[1].s0_load_vec;
-            s2_paddr_match[1] <= (s1_vaddr_match_vec[1] == s1_paddr_match_vec[1]);
+            s2_paddr_match[1] <= (s1_vaddr_match_vec[1] == s1_paddr_match_vec[1]) && (s1_vaddr_match_vec[1] != 0);
 
             s2_paddr_match_vec <= s1_paddr_match_vec;
             s2_byte_match_vec <= s1_byte_match_vec;
@@ -242,6 +280,9 @@ module storeQue #(
 
             s2_stfwd_paddr[0] <= if_stfwd[0].s1_paddr;
             s2_stfwd_paddr[1] <= if_stfwd[1].s1_paddr;
+
+            s2_stfwd_req[0] <= if_stfwd[0].s1_vld;
+            s2_stfwd_req[1] <= if_stfwd[1].s1_vld;
         end
     end
     generate
@@ -252,9 +293,9 @@ module storeQue #(
             for (j = 0; j < `LDU_NUM; j = j + 1) begin
                 assign vaddr_match_vec[j][i] =
                     if_stfwd[j].s0_vld &&
-                    buff[i].addr_vld &&
-                    (if_stfwd[j].s0_sqIdx > buff[i].sqIdx) &&
-                    (buff[i].vaddr[`XLEN-1:3] == if_stfwd[j].s0_vaddr[`XLEN-1:3]);
+                    nxt_buff[i].addr_vld &&
+                    `OLDER_THAN(nxt_buff[i].sqIdx, if_stfwd[j].s0_sqIdx) &&
+                    (nxt_buff[i].vaddr[`XLEN-1:3] == if_stfwd[j].s0_vaddr[`XLEN-1:3]);
 
                 assign s1_paddr_match_vec[j][i] =
                     if_stfwd[j].s1_vld &&
@@ -265,9 +306,8 @@ module storeQue #(
             for (j = 0; j < 8; j = j + 1) begin
                 for (k = 0; k < `LDU_NUM; k = k + 1) begin
                     assign data_match_vec[k][j][i] =
-                        buff[i].addr_vld &&
-                        (buff[i].vaddr[`XLEN-1:3] == if_stfwd[k].s0_vaddr[`XLEN-1:3]) &&
-                        (buff[i].storemask[j] && if_stfwd[k].s0_load_vec[j]);
+                        vaddr_match_vec[k][i] &&
+                        (nxt_buff[i].storemask[j] && if_stfwd[k].s0_load_vec[j]);
                 end
             end
 
@@ -276,8 +316,10 @@ module storeQue #(
         for (i = 0; i < `LDU_NUM; i = i + 1) begin : gen_loadforward
             assign forward_write_conflict[i] =
                 if_stfwd[i].s0_vld &&
-                (if_sta2que[0].vld && (if_stfwd[i].s0_vaddr[`XLEN-1:3] == if_sta2que[0].vaddr[`XLEN-1:3])) ||
-                (if_sta2que[1].vld && (if_stfwd[i].s0_vaddr[`XLEN-1:3] == if_sta2que[1].vaddr[`XLEN-1:3]));
+                (
+                (if_sta2que[0].vld && (if_stfwd[i].s0_sqIdx > if_sta2que[0].sqIdx) && (if_stfwd[i].s0_vaddr[`XLEN-1:3] == if_sta2que[0].vaddr[`XLEN-1:3])) ||
+                (if_sta2que[1].vld && (if_stfwd[i].s0_sqIdx > if_sta2que[1].sqIdx) && (if_stfwd[i].s0_vaddr[`XLEN-1:3] == if_sta2que[1].vaddr[`XLEN-1:3]))
+                );
 
             for (j = 0; j < 8; j = j + 1) begin : gen_byte
                 // each byte
@@ -298,12 +340,12 @@ module storeQue #(
         end
 
         for (i = 0; i < `LDU_NUM; i = i + 1) begin
-            assign if_stfwd[i].s1_vaddr_match = (|s1_vaddr_match_vec[i]) | forward_write_conflict;
-            assign if_stfwd[i].s1_data_rdy = (|s1_match_and_data_rdy[i]) && (!forward_write_conflict);
+            assign if_stfwd[i].s1_vaddr_match = (|s1_vaddr_match_vec[i]);
+            assign if_stfwd[i].s1_data_rdy = (&s1_match_and_data_rdy[i]);
 
-            assign if_stfwd[i].s2_paddr_match = s2_paddr_match[i];
-            assign if_stfwd[i].s2_match_failed = !s2_paddr_match[i];
-            assign if_stfwd[i].s2_match_vec = (s2_byte_match_vec[i] >> (s2_stfwd_paddr[i][2:0]));
+            assign if_stfwd[i].s2_paddr_match = s2_stfwd_req[i] ? s2_paddr_match[i] : 0;
+            assign if_stfwd[i].s2_match_failed = s2_stfwd_req[i] ? !s2_paddr_match[i] : 0;
+            assign if_stfwd[i].s2_match_vec = (s2_stfwd_req[i] && if_stfwd[i].s2_paddr_match) ? (s2_byte_match_vec[i] >> (s2_stfwd_paddr[i][2:0])) : 0;
             assign if_stfwd[i].s2_fwd_data = ({
                 s2_matched_byte[i][7],
                 s2_matched_byte[i][6],

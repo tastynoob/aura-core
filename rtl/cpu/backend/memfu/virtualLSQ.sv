@@ -19,14 +19,14 @@ module virtualLSQ #(
     input wire rst,
 
     output wire o_can_enq,
-    input wire [`WDEF(INPORTS)] i_enq_req,
-    input microOp_t i_enq_inst[INPORTS],
+    input wire[`WDEF(INPORTS)] i_disp_load,
+    input wire[`WDEF(INPORTS)] i_disp_store,
 
     output lqIdx_t o_alloc_lqIdx[INPORTS],
     output sqIdx_t o_alloc_sqIdx[INPORTS],
 
-    input wire[`WDEF($clog2(`COMMIT_WIDTH))] i_ld_commit_num,
-    input wire[`WDEF($clog2(`COMMIT_WIDTH))] i_st_commit_num
+    input wire[`SDEF(`COMMIT_WIDTH)] i_ld_commit_num,
+    input wire[`SDEF(`COMMIT_WIDTH)] i_st_commit_num
 );
     genvar i;
     wire [`WDEF(INPORTS)] isLoad;
@@ -35,8 +35,8 @@ module virtualLSQ #(
     wire [`SDEF(INPORTS)] enqStoreNum;
     generate
         for (i = 0; i < INPORTS; i = i + 1) begin
-            assign isLoad[i] = o_can_enq && i_enq_req[i] && (i_enq_inst[i].issueQueId == `LDUIQ_ID);
-            assign isStore[i] = o_can_enq && i_enq_req[i] && (i_enq_inst[i].issueQueId == `STUIQ_ID);
+            assign isLoad[i] = o_can_enq && i_disp_load[i];
+            assign isStore[i] = o_can_enq && i_disp_store[i];
         end
     endgenerate
     count_one #(
@@ -52,8 +52,8 @@ module virtualLSQ #(
         .o_sum(enqStoreNum)
     );
 
-    wire [`WDEF($clog2(`COMMIT_WIDTH))] deqLoadNum = i_ld_commit_num;
-    wire [`WDEF($clog2(`COMMIT_WIDTH))] deqStoreNum = i_st_commit_num;
+    wire [`SDEF(`COMMIT_WIDTH)] deqLoadNum = i_ld_commit_num;
+    wire [`SDEF(`COMMIT_WIDTH)] deqStoreNum = i_st_commit_num;
 
 
     lqIdx_t lqhead[INPORTS];

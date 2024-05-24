@@ -162,17 +162,17 @@ extern "C" {
 
 
 extern "C" {
-    void ubtb_loookup(uint64_t lookup_pc, uint64_t endAddr, uint64_t targetAddr, uint64_t hit, uint64_t taken, uint64_t index) {
+    void ubtb_loookup(uint64_t lookup_pc, uint64_t endAddr, uint64_t targetAddr, uint64_t hit, uint64_t taken, uint64_t index, uint64_t phtindex) {
         if (hit) {
-            DPRINTF(UBTB, "ubtb hit index %d [%lx : %lx) -> %lx\n", index, lookup_pc, endAddr, taken ? targetAddr : endAddr);
+            DPRINTF(UBTB, "ubtb hit index %d [%lx : %lx) -> %lx, phtindex %lu\n", index, lookup_pc, endAddr, taken ? targetAddr : endAddr, phtindex);
         }
         else {
             DPRINTF(UBTB, "ubtb miss index %d %lx\n", index, lookup_pc);
         }
     }
 
-    void ubtb_update_new_block(uint64_t uindex, uint64_t startAddr, uint64_t fallthru, uint64_t target, uint64_t scnt) {
-        DPRINTF(UBTB, "update new block uindex %ld [%lx : %lx) tar> %lx scnt %lu\n", uindex, startAddr, fallthru, target, scnt);
+    void ubtb_update_new_block(uint64_t uindex, uint64_t startAddr, uint64_t fallthru, uint64_t target, uint64_t scnt, uint64_t phtindex) {
+        DPRINTF(UBTB, "update new block uindex %ld [%lx : %lx) tar> %lx scnt %lu phtindex %lu\n", uindex, startAddr, fallthru, target, scnt, phtindex);
     }
 
     void ftb_update_new_block(uint64_t startAddr, uint64_t fallthru, uint64_t target) {

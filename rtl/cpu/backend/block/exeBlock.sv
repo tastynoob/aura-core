@@ -43,8 +43,8 @@ module exeBlock (
     output wire [`WDEF(`BRU_NUM)] o_branchwb_vld,
     output branchwbInfo_t o_branchwb_info[`BRU_NUM],
 
-    input wire [`WDEF($clog2(`COMMIT_WIDTH))] i_committed_stores,
-    input wire [`WDEF($clog2(`COMMIT_WIDTH))] i_committed_loads,
+    input wire [`SDEF(`COMMIT_WIDTH)] i_committed_stores,
+    input wire [`SDEF(`COMMIT_WIDTH)] i_committed_loads,
 
     // except writeback
     output wire o_exceptwb_vld,
@@ -398,7 +398,7 @@ module exeBlock (
     assign o_exceptwb_vld = intBlock_exceptwb_vld || memBlk_exceptwb_vld;
     assign o_exceptwb_info =
         (intBlock_exceptwb_vld && memBlk_exceptwb_vld) ? (
-            intBlock_exceptwb.rob_idx < memBlk_exceptwb.rob_idx ? intBlock_exceptwb : memBlk_exceptwb
+            `OLDER_THAN(intBlock_exceptwb.rob_idx,  memBlk_exceptwb.rob_idx) ? intBlock_exceptwb : memBlk_exceptwb
         ) :
         intBlock_exceptwb_vld ? intBlock_exceptwb : memBlk_exceptwb;
 

@@ -17,6 +17,12 @@
 // s2: get dcache data, select data from dcache and forward info
 // s3: output
 
+// import "DPI-C" function void set_store_load_info(
+//     uint64_t seqNum,
+//     uint64_t isload,
+//     uint64_t paddr,
+//     uint64_t size
+// );
 
 module loadfu (
     input wire clk,
@@ -201,6 +207,10 @@ module loadfu (
             s2_load_vec <= s1_load_vec;
             s2_fuInfo <= s1_fuInfo;
             s2_paddr <= s1_paddr;
+
+            if (s1_vld) begin
+                set_store_load_info(s1_fuInfo.seqNum, 1, s1_paddr, count_one(s1_load_vec));
+            end
         end
     end
     // low provability event

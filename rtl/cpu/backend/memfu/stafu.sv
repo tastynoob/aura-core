@@ -7,6 +7,13 @@ import "DPI-C" function void memory_violation_find(
     uint64_t stpc
 );
 
+import "DPI-C" function void set_store_load_info(
+    uint64_t seqNum,
+    uint64_t isload,
+    uint64_t paddr,
+    uint64_t size
+);
+
 // NOTE:
 // if ld0 has dep on st0
 // ld0 can't execute parallel with st0
@@ -143,6 +150,10 @@ module stafu (
 
             if (violation) begin
                 memory_violation_find(vioload_pc, viostore_pc);
+            end
+
+            if (s1_vld) begin
+                set_store_load_info(s1_fuInfo.seqNum, 0, if_sta2mmu.s1_paddr, count_one(s1_storemask));
             end
         end
     end

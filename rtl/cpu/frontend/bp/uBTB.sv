@@ -5,7 +5,8 @@ import "DPI-C" function void ubtb_update_new_block(
     uint64_t startAddr,
     uint64_t fallthru,
     uint64_t target,
-    uint64_t scnt
+    uint64_t scnt,
+    uint64_t phtindex
 );
 
 import "DPI-C" function void ubtb_loookup(
@@ -14,7 +15,8 @@ import "DPI-C" function void ubtb_loookup(
     uint64_t targetAddr,
     uint64_t hit,
     uint64_t taken,
-    uint64_t index
+    uint64_t index,
+    uint64_t phtindex
 );
 
 `define TAG_WIDTH 9
@@ -101,7 +103,7 @@ module uBTB #(
             end
         end
         else begin
-            ubtb_loookup(i_lookup_pc, fallthruAddr, targetAddr, hit, taken, index_btb);
+            ubtb_loookup(i_lookup_pc, fallthruAddr, targetAddr, hit, taken, index_btb, index_pht);
             if (i_update) begin
                 uftb[uindex_btb] <= '{
                     vld : 1,
@@ -114,7 +116,7 @@ module uBTB #(
                     pht[uindex_pht] <= ftbFuncs::counterUpdate(pht[uindex_pht], i_updateInfo.taken);
                 end
                 ubtb_update_new_block(uindex_btb, i_update_pc, i_updateInfo.fallthruAddr, i_updateInfo.targetAddr,
-                                      ftbFuncs::counterUpdate(pht[uindex_pht], i_updateInfo.taken));
+                                      ftbFuncs::counterUpdate(pht[uindex_pht], i_updateInfo.taken), uindex_pht);
             end
         end
     end

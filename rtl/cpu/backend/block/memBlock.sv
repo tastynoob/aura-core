@@ -83,8 +83,8 @@ module memBlock #(
     output wire o_exceptwb_vld,
     output exceptwbInfo_t o_exceptwb_info,
 
-    input wire [`WDEF($clog2(`COMMIT_WIDTH))] i_committed_stores,
-    input wire [`WDEF($clog2(`COMMIT_WIDTH))] i_committed_loads,
+    input wire [`SDEF(`COMMIT_WIDTH)] i_committed_stores,
+    input wire [`SDEF(`COMMIT_WIDTH)] i_committed_loads,
 
     // load spec wake
     loadwake_if.m if_loadwake,
@@ -231,8 +231,8 @@ module memBlock #(
         .rst(rst || i_squash_vld),
 
         .o_can_enq (LSQ_ready),
-        .i_enq_req (if_disp.mem_req),
-        .i_enq_inst(if_disp.mem_info),
+        .i_disp_load (select_toIQ0),
+        .i_disp_store (select_toIQ1),
 
         .o_alloc_lqIdx(lqhead),
         .o_alloc_sqIdx(sqhead),
@@ -509,7 +509,7 @@ module memBlock #(
         oldest_except = 0;
         oldest_except_robIdx = ~0;
         for (ca = 0; ca < FU_NUM; ca = ca + 1) begin
-            if (has_except[ca] && (oldest_except_robIdx > exceptwbInfo[ca].rob_idx)) begin
+            if (has_except[ca] && `OLDER_THAN(exceptwbInfo[ca].rob_idx, oldest_except_robIdx)) begin
                 oldest_except = ca;
                 oldest_except_robIdx = exceptwbInfo[ca].rob_idx;
             end

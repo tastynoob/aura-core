@@ -56,36 +56,17 @@ module BPU (
     wire commit_finish;
     assign commit_finish = (i_commit_vld && o_update_finished);
 
-    reg [`WDEF(`BRHISTORYLENGTH)] spec_gbh;
-    wire [`WDEF(`BRHISTORYLENGTH)] nxt_spec_gbh;
-
     reg [`WDEF(`BRHISTORYLENGTH)] arch_gbh;
     wire [`WDEF(`BRHISTORYLENGTH)] nxt_arch_gbh;
     assign nxt_arch_gbh = {arch_gbh[`BRHISTORYLENGTH-2:0], i_BPupdateInfo.taken};
     always_ff @(posedge clk) begin
         if (rst) begin
-            spec_gbh <= 0;
             arch_gbh <= 0;
         end
         else begin
             if (commit_finish) begin
                 arch_gbh <= nxt_arch_gbh;
                 bpu_update_arch_gbh(nxt_arch_gbh, `BRHISTORYLENGTH);
-            end
-
-            if (squash_dueToBackend) begin
-                if (commit_finish) begin
-                    spec_gbh <= nxt_arch_gbh;
-                    bpu_update_spec_gbh(nxt_arch_gbh, `BRHISTORYLENGTH, 1);
-                end
-                else begin
-                    spec_gbh <= arch_gbh;
-                    bpu_update_spec_gbh(arch_gbh, `BRHISTORYLENGTH, 1);
-                end
-            end
-            else if (s0_ubtb_hit) begin
-                spec_gbh <= nxt_spec_gbh;
-                bpu_update_spec_gbh(nxt_spec_gbh, `BRHISTORYLENGTH, 0);
             end
         end
     end
@@ -137,8 +118,9 @@ module BPU (
             branch_type  : i_BPupdateInfo.branch_type
         };
 
-    assign nxt_spec_gbh = {spec_gbh[`BRHISTORYLENGTH-2:0], ubtbInfo.taken};
-
+    reg[`SDEF(`BRHISTORYLENGTH)] ubtb_gbh_length;
+    reg[`WDEF(`BRHISTORYLENGTH)] ubtb_gbh;
+    wire[`WDEF(`BRHISTORYLENGTH)] ubtb_lookup_gbh;
     reg s1_ubtb_use, s2_ubtb_use;
     uBTBInfo_t ubtbInfo, s1_ubtbInfo, s2_ubtbInfo;
     uBTB #(
@@ -148,7 +130,7 @@ module BPU (
         .rst(rst),
 
         .i_lookup_pc(base_pc),
-        .i_gbh      (spec_gbh),
+        .i_gbh      (ubtb_lookup_gbh),
         .o_uBTBInfo (ubtbInfo),
 
         .i_update    (update_ubtb),
@@ -165,11 +147,21 @@ module BPU (
 
     always_ff @(posedge clk) begin
         if (rst) begin
+            ubtb_gbh_length <= 0;
+            ubtb_gbh <= 0;
             s1_ubtb_use <= 0;
             s2_ubtb_use <= 0;
         end
         else begin
+            if (ubtbInfo.hit) begin
+                ubtb_gbh_length <= ubtb_gbh_length + 1;
+                ubtb_gbh <= {ubtb_gbh[`BRHISTORYLENGTH-2:0], ubtbInfo.taken};
+            end
+
+
             if (squash_vld) begin
+                ubtb_gbh_length <= 0;
+                ubtb_gbh <= 0;
                 s1_ubtb_use <= 0;
                 s2_ubtb_use <= 0;
             end
@@ -183,6 +175,7 @@ module BPU (
         end
     end
 
+    assign ubtb_lookup_gbh = ((arch_gbh << ubtb_gbh_length) | ubtb_gbh);
 
     /****************************************************************************************************/
     // FTB (closed)

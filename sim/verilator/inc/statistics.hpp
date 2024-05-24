@@ -27,8 +27,8 @@ enum MetaKeys {
     META_ISMV,
     META_MISPRED,// branch only
     META_NPC,// branch only
-    META_VADDR,// load/store only
     META_PADDR,// load/store only
+    META_SIZE, // load/stores only
     NUM_META
 };
 
