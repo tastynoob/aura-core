@@ -317,8 +317,8 @@ module storeQue #(
             assign forward_write_conflict[i] =
                 if_stfwd[i].s0_vld &&
                 (
-                (if_sta2que[0].vld && (if_stfwd[i].s0_sqIdx > if_sta2que[0].sqIdx) && (if_stfwd[i].s0_vaddr[`XLEN-1:3] == if_sta2que[0].vaddr[`XLEN-1:3])) ||
-                (if_sta2que[1].vld && (if_stfwd[i].s0_sqIdx > if_sta2que[1].sqIdx) && (if_stfwd[i].s0_vaddr[`XLEN-1:3] == if_sta2que[1].vaddr[`XLEN-1:3]))
+                (if_sta2que[0].vld && `OLDER_THAN(if_sta2que[0].sqIdx, if_stfwd[i].s0_sqIdx) && (if_stfwd[i].s0_vaddr[`XLEN-1:3] == if_sta2que[0].vaddr[`XLEN-1:3])) ||
+                (if_sta2que[1].vld && `OLDER_THAN(if_sta2que[1].sqIdx, if_stfwd[i].s0_sqIdx) && (if_stfwd[i].s0_vaddr[`XLEN-1:3] == if_sta2que[1].vaddr[`XLEN-1:3]))
                 );
 
             for (j = 0; j < 8; j = j + 1) begin : gen_byte

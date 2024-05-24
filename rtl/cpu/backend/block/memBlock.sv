@@ -139,11 +139,11 @@ module memBlock #(
 
             if (i == 0) begin
                 assign select_toIQ0[i] = LSQ_ready && IQ0_ready && select_ldu[i];
-                assign select_toIQ1[i] = LSQ_ready && IQ1_ready && (select_stu[i] || (select_ldu[i] && (!select_toIQ0[i])));
+                assign select_toIQ1[i] = LSQ_ready && IQ1_ready && select_stu[i];
             end
             else if (i < 2) begin
                 assign select_toIQ0[i] = LSQ_ready && IQ0_ready && select_ldu[i] && select_total[i-1];
-                assign select_toIQ1[i] = LSQ_ready && IQ1_ready && (select_stu[i] || (select_ldu[i] && (!select_toIQ0[i]))) && select_total[i-1];
+                assign select_toIQ1[i] = LSQ_ready && IQ1_ready && select_stu[i] && select_total[i-1];
             end
             else begin : gen_count_one
                 // IQ0 current has selected
@@ -164,7 +164,7 @@ module memBlock #(
                 );
 
                 assign select_toIQ0[i] = LSQ_ready && IQ0_ready && (selected_vec_num < 2) && select_ldu[i] && select_total[i-1];
-                assign select_toIQ1[i] = LSQ_ready && IQ1_ready && (IQ1_has_selected_num < 2) && (select_stu[i] || (select_ldu[i] && (!select_toIQ0[i]))) && select_total[i-1];
+                assign select_toIQ1[i] = LSQ_ready && IQ1_ready && (IQ1_has_selected_num < 2) && select_stu[i] && select_total[i-1];
             end
         end
     endgenerate
@@ -502,14 +502,17 @@ module memBlock #(
     // );
 
 
+    logic has_prev_except;
     logic [`WDEF($clog2(FU_NUM))] oldest_except;
     robIdx_t oldest_except_robIdx;
     always_comb begin
         int ca;
+        has_prev_except = 0;
         oldest_except = 0;
         oldest_except_robIdx = ~0;
         for (ca = 0; ca < FU_NUM; ca = ca + 1) begin
-            if (has_except[ca] && `OLDER_THAN(exceptwbInfo[ca].rob_idx, oldest_except_robIdx)) begin
+            if (has_except[ca] && ((!has_prev_except) || `OLDER_THAN(exceptwbInfo[ca].rob_idx, oldest_except_robIdx))) begin
+                has_prev_except = 1;
                 oldest_except = ca;
                 oldest_except_robIdx = exceptwbInfo[ca].rob_idx;
             end

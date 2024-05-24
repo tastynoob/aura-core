@@ -324,7 +324,7 @@ extern "C" {
 
     void committed_loads_stores(uint64_t lds, uint64_t sts) {
         perfAccumulate("committedLoads", lds);
-        perfAccumulate("committedStoress", lds);
+        perfAccumulate("committedStoress", sts);
     }
 
     void count_memory_violation() {
